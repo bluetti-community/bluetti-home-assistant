@@ -1,0 +1,55 @@
+name: Feature request
+description: Suggest a new device, sensor, or control for the BLUETTI integration
+title: "[Feature] <Replace this part>"
+labels:
+  - enhancement
+body:
+  - type: checkboxes
+    id: existing-issue
+    attributes:
+      label: Is there an existing issue for this?
+      options:
+        - label: I searched and didn't find an existing request for this
+          required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of request is this?
+      options:
+        - Support for a new device model
+        - A new sensor or control for an already-supported device
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device model
+      placeholder: e.g. EP2000
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe what you'd like
+      description: >
+        What entity or capability are you missing, and what would you use it for? If it's a
+        control or reading you can already see in the official BLUETTI app but not in Home
+        Assistant, please say where it appears in the app.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics dump (if requesting a new sensor/control for a device already supported)
+      description: >
+        Settings -> Devices & services -> BLUETTI -> three-dot menu (on the integration entry or
+        the device page) -> Download diagnostics. Tokens are already redacted before download.
+        This shows every field the BLUETTI cloud actually sends for your device, which is usually
+        needed to add a new entity - without it, we can't tell whether the cloud even reports the
+        value you're asking for.
+      render: json
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
