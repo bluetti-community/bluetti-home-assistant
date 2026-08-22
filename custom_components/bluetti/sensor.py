@@ -87,7 +87,11 @@ async def async_setup_entry(
                     continue
                 meta: NamedSensorMetaInfo = {
                     "name": state.fn_name,
-                    "unit": state.sensor_info["unit"] or sensorClass["unit"],
+                    # sensor_info has no "unit" key at all for some types
+                    # (e.g. ENUM) - a plain ["unit"] KeyError here would
+                    # abort the whole loop, silently dropping every not-yet-
+                    # processed sensor on every device (#101, #102).
+                    "unit": state.sensor_info.get("unit") or sensorClass["unit"],
                     "device_class": sensorClass["device_class"],
                     "state_class": sensorClass["state_class"]
                 }

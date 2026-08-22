@@ -12,6 +12,7 @@ Fixes:
 - Fix a blocking call, a websocket thread that could die silently without reconnecting, and several other reliability issues found during a full code review.
 - Fix the integration disappearing after a Home Assistant restart when adding a device for the first time.
 - Fix a control showing the device's serial number instead of its real name.
+- Fix a missing "unit" key in the cloud's sensor metadata (e.g. for enum-type sensors) crashing the whole sensor setup and silently dropping every other sensor on every device on the account, not just the affected one (EL400, FP, and likely other models - #101, #102).
 
 Internal:
 - Adopted Home Assistant's DataUpdateCoordinator pattern for polling and push updates.

@@ -68,6 +68,35 @@ async def test_sensor_setup_entry_creates_expected_entities(hass):
     assert binary_sensors[0].is_on is True
 
 
+async def test_sensor_setup_entry_survives_sensor_info_missing_unit_key(hass):
+    # Regression test for #101/#102: real API responses can omit the "unit"
+    # key entirely from sensorInfo (not just set it to None) for types like
+    # ENUM. A plain state.sensor_info["unit"] KeyError there used to abort
+    # the whole setup loop, silently dropping every not-yet-processed
+    # sensor on every device - not just the one with the missing key.
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="EL400",
+        state_list=[
+            {
+                "fnCode": "InvWorkState", "fnName": "Inverter", "fnValue": "1", "fnType": "SENSOR",
+                "sensorInfo": {"sensorType": "SensorDeviceClass.ENUM"},  # no "unit" key at all
+                "supportModeValues": [{"code": "1", "name": "Grid"}],
+            },
+            {
+                "fnCode": "GridAllTotalPower", "fnName": "Grid Input Power", "fnValue": "100", "fnType": "SENSOR",
+                "sensorInfo": {"sensorType": "SensorDeviceClass.POWER", "unit": None},
+            },
+        ],
+    )
+    entry = _entry_with_devices(hass, [device])
+    added = []
+
+    await sensor_setup_entry(hass, entry, added.extend)
+
+    sensors = [e for e in added if isinstance(e, BluettiSensor)]
+    assert {s._state_obj.fn_code for s in sensors} == {"InvWorkState", "GridAllTotalPower"}
+
+
 async def test_sensor_setup_entry_creates_energy_sensor_for_power_sensors(hass):
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="Balco260",
