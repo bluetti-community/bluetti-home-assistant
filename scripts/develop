@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -e
+
+cd "$(dirname "$0")/.."
+
+# Create config dir if not present
+if [[ ! -d "${PWD}/config" ]]; then
+    mkdir -p "${PWD}/config"
+    hass --config "${PWD}/config" --script ensure_config
+fi
+
+# Home Assistant only discovers custom integrations under
+# <config>/custom_components/ - symlink it to this repo's actual
+# custom_components/ so the source stays at <root>/custom_components/bluetti
+# instead of living inside config/.
+if [[ ! -e "${PWD}/config/custom_components" ]]; then
+    ln -s "${PWD}/custom_components" "${PWD}/config/custom_components"
+fi
+
+# Start Home Assistant
+hass --config "${PWD}/config" --debug

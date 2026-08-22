@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -e
+
+cd "$(dirname "$0")/.."
+
+python3 -m pip install --upgrade pip
+python3 -m pip install --requirement requirements_test.txt
+# Runtime dependencies declared in custom_components/bluetti/manifest.json -
+# pytest-homeassistant-custom-component doesn't install these itself.
+python3 -m pip install "pydantic>=2.0" "stomper>=0.4" "websocket-client>=1.6"

@@ -272,3 +272,6 @@ Please check the **network**, **ports** and **firewall** to ensure that
 
 💬 Have any problems or suggestions? Create an issue on GitHub:
 [https://github.com/bluetti-official/bluetti-home-assistant/issues](https://github.com/bluetti-official/bluetti-home-assistant/issues)
+
+Want to contribute code? See [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up a dev
+environment and submit a pull request.
