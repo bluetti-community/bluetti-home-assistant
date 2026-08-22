@@ -9,18 +9,19 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import config_entry_oauth2_flow, device_registry as dr, entity_registry as er
+from homeassistant.helpers import config_entry_oauth2_flow, storage
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers import storage
 
-from .coordinator import BluettiDeviceCoordinator
-from .models import BluettiData
-from .oauth import AsyncConfigEntryAuth,AuthTokenRefresh
 from .api.bluetti import APPLICATION_PROFILE
 from .api.product_client import ProductClient
 from .api.websocket import StompClient
 from .const import DOMAIN
+from .coordinator import BluettiDeviceCoordinator
 from .model.product import UserProduct
+from .models import BluettiData
+from .oauth import AsyncConfigEntryAuth, AuthTokenRefresh
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -111,7 +112,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     # Reload the entry when the options flow adds more devices.
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
-    __LOGGER__.info('bluetti init ok')
+    __LOGGER__.info("bluetti init ok")
 
     return True
 

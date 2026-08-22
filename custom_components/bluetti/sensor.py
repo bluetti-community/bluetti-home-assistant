@@ -3,14 +3,17 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import TypedDict
 
-from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfEnergy
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+)
 from homeassistant.components.sensor import (
     RestoreSensor,
-    SensorEntity,
     SensorDeviceClass,
+    SensorEntity,
     SensorStateClass,
 )
-from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -71,18 +74,17 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> bool:
     """Set up Bluetti sensors (including binary sensors) from config entry."""
-
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
     entities = []
 
     for device in bluetti_devices.devices:
         for state in device.states:
-            if state.fn_type == 'SENSOR' and state.sensor_info:
-                sensorClass = SENSOR_MAP.get(state.sensor_info.get('sensorType'))
+            if state.fn_type == "SENSOR" and state.sensor_info:
+                sensorClass = SENSOR_MAP.get(state.sensor_info.get("sensorType"))
                 if sensorClass is None:
                     __LOGGER__.warning(
                         "Unknown sensor type '%s' for fn_code=%s, skipping",
-                        state.sensor_info.get('sensorType'), state.fn_code,
+                        state.sensor_info.get("sensorType"), state.fn_code,
                     )
                     continue
                 meta: NamedSensorMetaInfo = {
@@ -157,7 +159,8 @@ class BluettiSensor(BluettiEntity, SensorEntity):
 
 
 class BluettiEnergySensor(BluettiEntity, RestoreSensor):
-    """Cumulated energy (kWh) integrated from a BLUETTI power (W) sensor.
+    """
+    Cumulated energy (kWh) integrated from a BLUETTI power (W) sensor.
 
     Mirrors what a manually added Home Assistant "Integral - Riemann sum"
     helper (trapezoidal method, kilo prefix, hours) would compute on top of
@@ -232,7 +235,8 @@ class BluettiEnergySensor(BluettiEntity, RestoreSensor):
 
 
 class BluettiEstimatedBatteryPowerSensor(BluettiEntity, SensorEntity):
-    """Estimated battery charge or discharge power.
+    """
+    Estimated battery charge or discharge power.
 
     BLUETTI's cloud API does not report battery charge/discharge power
     directly on every model (e.g. Balco260) - only PV, grid, and AC load

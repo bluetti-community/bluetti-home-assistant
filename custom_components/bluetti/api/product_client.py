@@ -2,10 +2,10 @@ import logging
 
 import aiohttp
 
-from .bluetti import Bluetti
-from .unify_response import UnifyResponse
 from ..const import Method
 from ..model.product import UserProduct
+from .bluetti import Bluetti
+from .unify_response import UnifyResponse
 
 
 class ProductClient(Bluetti):
@@ -46,7 +46,7 @@ class ProductClient(Bluetti):
             list[UserProduct],
             Method.GET,
             "/api/bluiotdata/ha/v1/deviceStates",
-            params={'sns': sns}
+            params={"sns": sns}
         )
 
     async def control_device(self, payload: dict = None):
@@ -61,7 +61,7 @@ class ProductClient(Bluetti):
         )
     async def bind_devices(self, payload: dict = None):
         """
-        bind devices
+        Bind devices
         """
         return await self._request(
             dict,

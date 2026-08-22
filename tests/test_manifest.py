@@ -64,7 +64,8 @@ def test_manifest_has_issue_tracker():
 
 
 def test_manifest_keys_are_sorted_domain_name_then_alphabetical():
-    """hassfest requires this exact key order: domain, name, then alphabetical.
+    """
+    Hassfest requires this exact key order: domain, name, then alphabetical.
 
     See sort_manifest() in home-assistant/core's script/hassfest/manifest.py -
     the "Validate" CI workflow runs the real hassfest action, so a manifest

@@ -1,7 +1,9 @@
 """Tests for application_credentials.py."""
 
 from custom_components.bluetti.api.bluetti import APPLICATION_PROFILE
-from custom_components.bluetti.application_credentials import async_get_authorization_server
+from custom_components.bluetti.application_credentials import (
+    async_get_authorization_server,
+)
 
 
 async def test_async_get_authorization_server(hass):

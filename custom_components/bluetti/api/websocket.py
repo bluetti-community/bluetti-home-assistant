@@ -1,5 +1,5 @@
-import logging
 import json
+import logging
 import time
 import warnings
 from threading import Thread
@@ -11,18 +11,18 @@ from typing import Callable
 with warnings.catch_warnings():
     warnings.simplefilter("ignore", SyntaxWarning)
     import stomper
-import websocket
 import threading
 
+import websocket
 from homeassistant.core import HomeAssistant
-from ..application_exception import ApplicationRuntimeException
 
+from ..application_exception import ApplicationRuntimeException
 from ..const import EVENT_TOKEN_EXPIRED
 
 __LOGGER__ = logging.getLogger(__name__)
 
 
-class StompClient(object):
+class StompClient:
     def __init__(self, url: str, access_token: str, handler: Callable[[str], None] = None,hass: HomeAssistant=None):
         self.__url = url + "/websocket"
         self.__headers = {
@@ -53,7 +53,6 @@ class StompClient(object):
         Connect to the ws server by the long term.
         :return:
         """
-
         stomp_trace = False
         websocket.enableTrace(stomp_trace)
 
@@ -63,7 +62,7 @@ class StompClient(object):
         self.websocket = websocket.WebSocketApp(self.__url,
                                                 on_message=self.listener.on_message,
                                                 on_error=self.listener.on_error,
-                                                on_close=self.listener.on_close,)
+                                                on_close=self.listener.on_close)
         # bind the `on_open` function
         self.websocket.on_open = self.__on_open
         self.running = True
@@ -102,27 +101,27 @@ class StompClient(object):
         self._start_heartbeat()
 
     def _start_heartbeat(self):
-        """start heartbeat thread"""
+        """Start heartbeat thread"""
         if self.heartbeat_thread and self.heartbeat_thread.is_alive():
             return
-                
+
         self.heartbeat_thread = threading.Thread(target=self._send_heartbeat, daemon=True)
         self.heartbeat_thread.start()
 
     def _send_heartbeat(self):
-        """loop send heartbeat"""
-        while self.running and self.websocket and hasattr(self.websocket, 'sock') and self.websocket.sock:
+        """Loop send heartbeat"""
+        while self.running and self.websocket and hasattr(self.websocket, "sock") and self.websocket.sock:
             try:
                 if not self.websocket.sock.connected:
                     break
-                    
+
                 self.websocket.send("\n")
                 __LOGGER__.debug("Sent STOMP heartbeat")
-                
+
             except Exception as e:
                 __LOGGER__.error("Failed to send heartbeat: %s", e)
                 break
-                
+
             time.sleep(self.heartbeat_interval)
 
     def reconnect(self):
@@ -165,23 +164,23 @@ class StompListener:
         frame.unpack(message)
 
         if frame.cmd == "ERROR":
-            error = frame.headers['message'].replace("\\c", ":")
+            error = frame.headers["message"].replace("\\c", ":")
             error = json.loads(error)
-            if error['msgCode'] == 805:
+            if error["msgCode"] == 805:
                 self.client.disconnect()
                 self.client.hass.bus.fire(EVENT_TOKEN_EXPIRED)
                 __LOGGER__.info("token have expired stop ws connect")
             else:
-                raise ApplicationRuntimeException(msgCode=error['msgCode'], errMessage=error['message'])
+                raise ApplicationRuntimeException(msgCode=error["msgCode"], errMessage=error["message"])
         elif frame.cmd == "CONNECTED":
-            heartbeat = frame.headers.get('heart-beat', '0,0')
-            server_send, server_receive = map(int, heartbeat.split(','))
+            heartbeat = frame.headers.get("heart-beat", "0,0")
+            server_send, server_receive = map(int, heartbeat.split(","))
             __LOGGER__.info(
                 "Server heartbeat configuration: send=%s, receive=%s",
                 server_send, server_receive,
             )
 
-            user_name = frame.headers.get('user-name')
+            user_name = frame.headers.get("user-name")
             if not user_name:
                 __LOGGER__.error("CONNECTED frame missing 'user-name' header, cannot subscribe")
                 return

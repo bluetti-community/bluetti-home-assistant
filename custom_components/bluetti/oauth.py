@@ -1,22 +1,27 @@
 import logging
-
-import asyncio
-from typing import cast
 import time
 from datetime import timedelta
-from homeassistant.components import persistent_notification
-from homeassistant.helpers.event import async_track_time_interval
-from homeassistant import config_entries
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_entry_oauth2_flow, issue_registry as ir
-import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from aiohttp import ClientSession
+from typing import cast
 
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
+from aiohttp import ClientSession
+from homeassistant import config_entries
+from homeassistant.components import persistent_notification
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_entry_oauth2_flow
+from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
 
 from .api.product_client import ProductClient
-from .const import ACCOUNT_UNIQUE_ID, DOMAIN, INTEGRATION_NAME, EVENT_TOKEN_EXPIRED, NOTIFY_ID_TOKEN_EXPIRED
+from .const import (
+    ACCOUNT_UNIQUE_ID,
+    DOMAIN,
+    EVENT_TOKEN_EXPIRED,
+    INTEGRATION_NAME,
+    NOTIFY_ID_TOKEN_EXPIRED,
+)
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -43,7 +48,7 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
         """Let user select devices after OAuth2 login."""
         if user_input is not None:
             try:
-                await self._product_client.bind_devices({"bindSnList": user_input['devices']})
+                await self._product_client.bind_devices({"bindSnList": user_input["devices"]})
             except Exception as err:
                 __LOGGER__.error("Failed to bind BLUETTI devices: %s", err)
                 return self.async_abort(reason="cannot_connect")
@@ -68,15 +73,15 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
                 # 合并到现有集成条目
                 existing_devices = existing_entry.options.get("devices", [])
                 existing_products = existing_entry.data.get("products", [])
-                
+
                 # 合并设备列表（去重）
-                merged_devices = list(set(existing_devices + user_input['devices']))
-                
+                merged_devices = list(set(existing_devices + user_input["devices"]))
+
                 # 合并产品数据（去重）
-                existing_product_sns = {p.get('sn') if isinstance(p, dict) else p.sn for p in existing_products}
+                existing_product_sns = {p.get("sn") if isinstance(p, dict) else p.sn for p in existing_products}
                 new_products = [p for p in self._products if p.sn not in existing_product_sns]
-                merged_products = existing_products + [p.model_dump() if hasattr(p, 'model_dump') else p for p in new_products]
-                
+                merged_products = existing_products + [p.model_dump() if hasattr(p, "model_dump") else p for p in new_products]
+
                 # 更新现有条目
                 self.hass.config_entries.async_update_entry(
                     existing_entry,
@@ -87,25 +92,24 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
                     },
                     options={"devices": merged_devices}
                 )
-                
+
                 # 重新加载集成以包含新设备
                 await self.hass.config_entries.async_reload(existing_entry.entry_id)
-                
+
                 return self.async_abort(reason="success")
-            else:
-                # 创建新的集成条目
-                return self.async_create_entry(
-                    title=f"{INTEGRATION_NAME} Power Integration",
-                    data={
-                        "auth_implementation": self._oauth_data["auth_implementation"],
-                        "token": self._oauth_data["token"],
-                        "products": [p.model_dump() for p in self._products]
-                    },
-                    options=user_input,
-                )
+            # 创建新的集成条目
+            return self.async_create_entry(
+                title=f"{INTEGRATION_NAME} Power Integration",
+                data={
+                    "auth_implementation": self._oauth_data["auth_implementation"],
+                    "token": self._oauth_data["token"],
+                    "products": [p.model_dump() for p in self._products]
+                },
+                options=user_input,
+            )
 
         httpSession = async_get_clientsession(self.hass)
-        access_token = self._oauth_data['token']['access_token']
+        access_token = self._oauth_data["token"]["access_token"]
         product_client = ProductClient(httpSession, access_token,self.hass)
         try:
             products = await product_client.get_user_products()
@@ -123,13 +127,13 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
 
         # 过滤掉已经集成过的设备
         available_devices = {
-            prod.sn: f"{prod.name} - {prod.sn}"   
+            prod.sn: f"{prod.name} - {prod.sn}"
             for prod in products.data
             if prod.sn not in integrated_devices
         }
 
 
-        # reconfigure token 
+        # reconfigure token
         if "entry_id" in self.context:
             cur_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
             __LOGGER__.info("reconfigure token")
@@ -144,7 +148,7 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
         # 如果没有可用设备，显示错误
         if not products.data:
             return self.async_abort(reason="no_devices_available")
-        
+
         # 已全部集成
         if not available_devices:
             return self.async_abort(reason="all_devices_exists")
@@ -164,11 +168,11 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
         )
 
     async def async_step_reconfigure(self, user_input=None):
-        """reauth configure"""
+        """Reauth configure"""
         self.entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
         if not self.entry:
             return self.async_abort(reason="reconfigure_failed")
-        
+
         return await self.async_step_user()
 
 
@@ -192,6 +196,7 @@ class AsyncConfigEntryAuth:
 
 class AuthTokenRefresh:
     """Handler Token expired and refresh token."""
+
     def __init__(self,hass:HomeAssistant,entry,oauth_session: config_entry_oauth2_flow.OAuth2Session)->None:
         self.hass = hass
         self.entry = entry
@@ -207,7 +212,7 @@ class AuthTokenRefresh:
         # first clear old notify
         persistent_notification.async_dismiss(self.hass,notification_id=NOTIFY_ID_TOKEN_EXPIRED)
         ir.async_delete_issue(self.hass, DOMAIN, ISSUE_ID_OAUTH_EXPIRED)
-        if self.is_token_valid() == False:
+        if not self.is_token_valid():
             __LOGGER__.info("token have expired send notify")
             self.send_expired_notification()
         else:
@@ -220,25 +225,25 @@ class AuthTokenRefresh:
             self.entry.async_on_unload(unsub)
             __LOGGER__.info("token is valid after 24 hours to check again")
         self.hass.async_create_task(self.async_check_token_expiry())
-        
+
 
     # check oauth2 token is ok
     def is_token_valid(self) -> bool:
-        """check token"""
+        """Check token"""
         token = self.oAuth2Session.token
         if not token:
             return False
-        
+
         if "expires_at" in token:
-            expire_timestamp = cast(float, token["expires_at"]) - 30
+            expire_timestamp = cast("float", token["expires_at"]) - 30
             current_timestamp = time.time()
             return expire_timestamp > current_timestamp
-        
+
         if "expires_in" in token and "created_at" in token:
-            expire_timestamp = cast(float, token["created_at"]) + cast(float, token["expires_in"]) - 30
+            expire_timestamp = cast("float", token["created_at"]) + cast("float", token["expires_in"]) - 30
             current_timestamp = time.time()
             return expire_timestamp > current_timestamp
-        
+
         return False
 
     # show token expire notify
@@ -251,7 +256,7 @@ class AuthTokenRefresh:
         persistent_notification.async_create(
             self.hass,
             notification_message,
-            title = 'OAuth Expired',
+            title = "OAuth Expired",
             notification_id = NOTIFY_ID_TOKEN_EXPIRED,
         )
         ir.async_create_issue(
@@ -275,14 +280,14 @@ class AuthTokenRefresh:
         if remain_timestamp < 0:
             self.send_expired_notification()
             return
-        
+
         if remain_timestamp < 3600*24*7 :
             try:
-                __LOGGER__.info('start refresh token')
+                __LOGGER__.info("start refresh token")
                 last_refesh = self.entry.data.get("last_token_refresh", 0.0)
                 # 1 hour only one time ,when server is 500 do not always refesh token
-                if current_timestamp - last_refesh < 3600 : 
-                    __LOGGER__.info('last refesh token in 1 hour,this do not refesh return')
+                if current_timestamp - last_refesh < 3600 :
+                    __LOGGER__.info("last refesh token in 1 hour,this do not refesh return")
                     return
                 last_refesh = current_timestamp
 
@@ -290,7 +295,7 @@ class AuthTokenRefresh:
                 self.hass.config_entries.async_update_entry(
                     self.entry, data={**self.entry.data, "token": new_token,"last_token_refresh":last_refesh}
                 )
-                __LOGGER__.info('refresh token ok,then reload')
+                __LOGGER__.info("refresh token ok,then reload")
                 await self.hass.config_entries.async_reload(self.entry.entry_id)
             except Exception as e:
                 __LOGGER__.error("refresh token failed: %s", e)

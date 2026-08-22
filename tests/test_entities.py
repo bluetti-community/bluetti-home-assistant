@@ -3,7 +3,11 @@
 from datetime import timedelta
 
 import pytest
-from homeassistant.components.sensor import SensorDeviceClass, SensorExtraStoredData, SensorStateClass
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorExtraStoredData,
+    SensorStateClass,
+)
 from homeassistant.exceptions import ServiceValidationError
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 

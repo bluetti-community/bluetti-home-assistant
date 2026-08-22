@@ -16,14 +16,13 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> bool:
     """Set up Bluetti switches from config entry."""
-
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
 
     entities = []
     for device in bluetti_devices.devices:
-        for state in device.states:
-            if state.fn_type == "SWITCH":
-                entities.append(BluettiSwitch(device, state))
+        entities.extend(
+            BluettiSwitch(device, state) for state in device.states if state.fn_type == "SWITCH"
+        )
 
     if entities:
         async_add_entities(entities)

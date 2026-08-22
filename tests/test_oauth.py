@@ -3,10 +3,8 @@
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
 from homeassistant.helpers import issue_registry as ir
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti.const import DOMAIN
 from custom_components.bluetti.model.product import UserProduct
@@ -254,7 +252,7 @@ async def test_async_get_access_token_ensures_validity_first():
     token = await auth.async_get_access_token()
 
     session.async_ensure_token_valid.assert_awaited_once()
-    assert token == "fresh-token"
+    assert token == "fresh-token"  # noqa: S105 - fake test fixture value, not a secret
 
 
 async def test_select_devices_shows_form_with_available_devices(hass):

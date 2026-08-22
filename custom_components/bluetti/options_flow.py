@@ -1,4 +1,5 @@
-"""Options flow for the BLUETTI integration.
+"""
+Options flow for the BLUETTI integration.
 
 Lets the user add devices bound to their BLUETTI account after the initial
 setup, without going through the OAuth2 login flow again (the stored token
@@ -10,12 +11,11 @@ from __future__ import annotations
 import logging
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry, OptionsFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigEntry, ConfigFlowResult, OptionsFlow
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api.product_client import ProductClient
-from .const import DOMAIN
 
 __LOGGER__ = logging.getLogger(__name__)
 

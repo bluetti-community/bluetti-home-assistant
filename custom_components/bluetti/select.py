@@ -19,14 +19,15 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> bool:
     """Set up Bluetti selects from config entry."""
-
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
 
     entities = []
     for device in bluetti_devices.devices:
-        for state in device.states:
-            if state.fn_type == 'SELECT' and state.support_mode_values:
-                entities.append(BluettiSelect(device, state))
+        entities.extend(
+            BluettiSelect(device, state)
+            for state in device.states
+            if state.fn_type == "SELECT" and state.support_mode_values
+        )
 
     if entities:
         async_add_entities(entities)

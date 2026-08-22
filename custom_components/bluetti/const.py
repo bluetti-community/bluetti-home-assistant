@@ -2,10 +2,10 @@
 from enum import Enum
 
 DOMAIN: str = "bluetti"
-INTEGRATION_NAME: str = 'BLUETTI'
+INTEGRATION_NAME: str = "BLUETTI"
 
-EVENT_TOKEN_EXPIRED: str ="onTokenExpired"
-NOTIFY_ID_TOKEN_EXPIRED: str ="notifyTokenExpire"
+EVENT_TOKEN_EXPIRED: str = "onTokenExpired"  # noqa: S105 - event name, not a secret
+NOTIFY_ID_TOKEN_EXPIRED: str = "notifyTokenExpire"  # noqa: S105 - notification ID, not a secret
 
 # The BLUETTI cloud API does not expose a stable per-account identifier, and
 # this integration is designed around a single config entry that accumulates

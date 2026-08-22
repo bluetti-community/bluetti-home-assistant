@@ -18,7 +18,7 @@ def _client(handler=None) -> StompClient:
 # --- StompClient.__get_host -------------------------------------------------
 
 @pytest.mark.parametrize(
-    "url,expected",
+    ("url", "expected"),
     [
         ("wss://gw.bluettipower.com/api/foo", "gw.bluettipower.com"),
         ("wss://gw.bluettipower.com:443/api/foo", "gw.bluettipower.com"),
