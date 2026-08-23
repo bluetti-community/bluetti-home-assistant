@@ -1,0 +1,14 @@
+{
+  "model": "EBOX-EP2000",
+  "captured_at": "2026-08-23",
+  "collected_from_integration_version": "1.1.0 base + pr7-hacs-ci-readiness (diagnostics feature)",
+  "states": [
+    {"fn_code": "SetCtrlWorkMode", "fn_type": "SELECT", "fn_value": "workmode_0"},
+    {"fn_code": "SOC", "fn_type": "SENSOR", "fn_value": "98", "sensor_info": {"sensorType": "SensorDeviceClass.BATTERY", "unit": "%"}},
+    {"fn_code": "PVAllTotalPower", "fn_type": "SENSOR", "fn_value": "1800", "sensor_info": {"sensorType": "SensorDeviceClass.POWER", "unit": null}},
+    {"fn_code": "GridAllTotalPower", "fn_type": "SENSOR", "fn_value": "0", "sensor_info": {"sensorType": "SensorDeviceClass.POWER", "unit": null}},
+    {"fn_code": "SetCtrlPowerOn", "fn_type": "SWITCH", "fn_value": "1"},
+    {"fn_code": "ACLoadAllTotalPower", "fn_type": "SENSOR", "fn_value": "4022", "sensor_info": {"sensorType": "SensorDeviceClass.POWER", "unit": null}},
+    {"fn_code": "InvWorkState", "fn_type": "SENSOR", "fn_value": "state_3", "sensor_info": {"sensorType": "SensorDeviceClass.ENUM", "unit": null}}
+  ]
+}
