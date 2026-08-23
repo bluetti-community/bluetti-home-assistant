@@ -1,3 +1,8 @@
+# Unreleased
+Fixes:
+- Fix the integration getting permanently stuck failing to set up with "BLUETTI setup failed: Implementation not available" if the underlying OAuth Application Credential is ever lost (e.g. a partial backup restore, or an entry created without going through the config flow). The default credential is now automatically re-imported and setup retried once, instead of requiring a manual remove-and-re-add of the integration.
+
+
 # 1.1.0 2026-08-20
 New:
 - Add more devices to an existing setup later without logging in again, via Settings -> Devices & services -> BLUETTI -> Configure.

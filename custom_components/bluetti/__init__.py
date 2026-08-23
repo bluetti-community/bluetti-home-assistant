@@ -17,6 +17,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api.bluetti import APPLICATION_PROFILE
 from .api.product_client import ProductClient
 from .api.websocket import StompClient
+from .application_credentials import async_ensure_default_credential
 from .const import DOMAIN
 from .coordinator import BluettiDeviceCoordinator
 from .model.product import UserProduct
@@ -53,11 +54,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         ]
 
         """OAUTH2: get the access token."""
-        implementation = (
-            await config_entry_oauth2_flow.async_get_config_entry_implementation(
-                hass, entry
+        try:
+            implementation = (
+                await config_entry_oauth2_flow.async_get_config_entry_implementation(
+                    hass, entry
+                )
             )
-        )
+        except ValueError:
+            # The OAuth2 implementation is resolved from the BLUETTI
+            # Application Credential in HA storage. If that credential was
+            # ever lost (e.g. a partial backup restore, or an entry that was
+            # created without going through the config flow), setup would
+            # otherwise fail with this same error forever. Re-import the
+            # credential (a no-op if it's already there) and retry once
+            # before giving up.
+            __LOGGER__.warning(
+                "BLUETTI OAuth implementation not found, re-importing the "
+                "default credential and retrying"
+            )
+            await async_ensure_default_credential(hass)
+            implementation = (
+                await config_entry_oauth2_flow.async_get_config_entry_implementation(
+                    hass, entry
+                )
+            )
         __LOGGER__.debug("OAuth implementation is: %s", implementation.__class__)
 
         httpSession = async_get_clientsession(hass)
