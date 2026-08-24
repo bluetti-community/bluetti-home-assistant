@@ -1,6 +1,6 @@
 import logging
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import cast
 
 import homeassistant.helpers.config_validation as cv
@@ -142,6 +142,8 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
         # reconfigure token
         if "entry_id" in self.context:
             cur_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+            if cur_entry is None:
+                return self.async_abort(reason="reconfigure_failed")
             __LOGGER__.info("reconfigure token")
             new_data = {**cur_entry.data,"token":self._oauth_data["token"]}
             self.hass.config_entries.async_update_entry(
@@ -275,7 +277,17 @@ class AuthTokenRefresh:
         )
 
     # check token is in 7 day if in 7day refesh token
-    async def async_check_token_expiry(self):
+    async def async_check_token_expiry(self, now: datetime | None = None) -> None:
+        """
+        Check whether the token needs a refresh, and refresh it if so.
+
+        Registered directly as the callback for async_track_time_interval,
+        which always calls it with the current UTC time - `now` must be
+        accepted even though this method doesn't use it, or every timer
+        fire raises TypeError and silently breaks the daily proactive
+        check. Also called manually with no argument (start_token_check,
+        on a fresh timer registration), which is why it stays optional.
+        """
         __LOGGER__.info("check token is expired")
         expire_timestamp = self.oAuth2Session.token.get("expires_at")
         if expire_timestamp is None:
