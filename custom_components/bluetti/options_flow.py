@@ -9,12 +9,13 @@ is reused).
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlowResult, OptionsFlow
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from pybluetti import ProductClient
+from pybluetti import ProductClient, UserProduct
 
 from .const import EVENT_TOKEN_EXPIRED
 from .profile.application_profile import APPLICATION_PROFILE
@@ -25,7 +26,10 @@ __LOGGER__ = logging.getLogger(__name__)
 class BluettiOptionsFlowHandler(OptionsFlow):
     """Handle an options flow to add more BLUETTI devices to an existing entry."""
 
-    async def async_step_init(self, user_input: dict | None = None) -> ConfigFlowResult:
+    _product_client: ProductClient
+    _products: list[UserProduct]
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Let the user pick additional devices from their BLUETTI account."""
         entry: ConfigEntry = self.config_entry
 
@@ -65,6 +69,13 @@ class BluettiOptionsFlowHandler(OptionsFlow):
             __LOGGER__.error("Failed to fetch BLUETTI products: %s", err)
             return self.async_abort(reason="cannot_connect")
 
+        # Checked before iterating products.data below: it's `T | None` on
+        # the wire, and a cloud response that omits "data" entirely would
+        # otherwise crash the dict comprehension with an unhandled
+        # TypeError instead of aborting gracefully.
+        if not products.data:
+            return self.async_abort(reason="no_devices_available")
+
         self._product_client = product_client
         self._products = products.data
 
@@ -74,9 +85,6 @@ class BluettiOptionsFlowHandler(OptionsFlow):
             for product in products.data
             if product.sn not in enabled_devices
         }
-
-        if not products.data:
-            return self.async_abort(reason="no_devices_available")
 
         if not available_devices:
             return self.async_abort(reason="all_devices_exists")

@@ -3,16 +3,20 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components import persistent_notification
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from pybluetti import ProductClient, UnifyResponse, UserProduct
 
 from .const import DOMAIN
 
 if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+
     from .coordinator import BluettiDeviceCoordinator  # pragma: no cover
 
 __LOGGER__ = logging.getLogger(__name__)
@@ -22,14 +26,18 @@ manufacturer = "Bluetti"
 class BluettiData:
     """Data for the BLUETTI integration."""
 
-    def __init__(self, hass, devices: list[dict] | None = None):
+    def __init__(self, hass: HomeAssistant, devices: list[UserProduct] | None = None) -> None:
         self.devices = [
             BluettiDevice(
                 device_id=dev.sn,
                 on_line=dev.online or "0",
-                name=dev.name,
+                # Overwritten with dev.sn again right after construction
+                # (see __init__.py's coordinator setup loop) - matching
+                # that fallback here too keeps this constructor honest
+                # about the type the cloud actually promises (str | None).
+                name=dev.name or dev.sn,
                 sn=dev.sn,
-                model=dev.model,
+                model=dev.model or "Unknown",
                 state_list=dev.stateList or []
             )
             for dev in devices or []
@@ -41,13 +49,13 @@ class BluettiData:
         await asyncio.sleep(0.1)
         return True
 
-    def get_device_by_sn(self, sn):
+    def get_device_by_sn(self, sn: str) -> BluettiDevice | None:
         for dev in self.devices:
             if dev.device_id == sn:
                 return dev
         return None
 
-    def web_socket_message_handler(self, message: str):
+    def web_socket_message_handler(self, message: str) -> None:
         __LOGGER__.debug("Received BLUETTI websocket message: %s", message)
 
         res = json.loads(message)
@@ -64,7 +72,15 @@ class BluettiData:
 class BluettiState:
     """Represents a single function/state of the device."""
 
-    def __init__(self, fn_code: str, fn_name: str, fn_value: str, fn_type: str, support_mode_values: list[dict] | None = None, sensor_info:dict=None):
+    def __init__(
+        self,
+        fn_code: str,
+        fn_name: str,
+        fn_value: str,
+        fn_type: str,
+        support_mode_values: list[dict[str, Any]] | None = None,
+        sensor_info: dict[str, Any] | None = None,
+    ) -> None:
         self.fn_code = fn_code
         self.fn_name = fn_name
         self.fn_value = fn_value
@@ -75,7 +91,7 @@ class BluettiState:
     def is_switch(self) -> bool:
         return len(self.support_mode_values) == 0
 
-    def set_value(self, value: str):
+    def set_value(self, value: str) -> None:
         """Set the state value, validate if mode selection."""
         if self.is_switch() or any(v["code"] == value for v in self.support_mode_values):
             self.fn_value = value
@@ -88,17 +104,25 @@ class BluettiState:
             return "On" if self.fn_value == "1" else "Off"
         for v in self.support_mode_values:
             if v["code"] == self.fn_value:
-                return v["name"]
+                return str(v["name"])
         return self.fn_value
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<BluettiState {self.fn_code}={self.fn_value}>"
 
 
 class BluettiDevice:
     """Represents a single Bluetti device."""
 
-    def __init__(self, device_id: str, on_line: str, name: str, sn: str, model: str, state_list: list[dict] | None = None):
+    def __init__(
+        self,
+        device_id: str,
+        on_line: str,
+        name: str,
+        sn: str,
+        model: str,
+        state_list: list[dict[str, Any]] | None = None,
+    ) -> None:
         self.device_id = device_id
         self.on_line = on_line
         self.name = name
@@ -108,27 +132,27 @@ class BluettiDevice:
         self.coordinator: BluettiDeviceCoordinator | None = None
         self.states = [
             BluettiState(
-                fn_code=s.get("fnCode"),
+                fn_code=s.get("fnCode") or "",
                 # Some fn_codes are not localized by the API and come back
                 # with an empty fnName; fall back to fn_code so entities
                 # never end up with a blank has_entity_name name (which
                 # Home Assistant displays using the raw entity_id instead).
                 fn_name=s.get("fnName") or s.get("fnCode") or "",
-                fn_value=s.get("fnValue"),
-                fn_type=s.get("fnType"),
+                fn_value=s.get("fnValue") or "",
+                fn_type=s.get("fnType") or "",
                 support_mode_values=s.get("supportModeValues"),
                 sensor_info = s.get("sensorInfo")
             )
             for s in state_list or []
         ]
 
-        self._api_client = None
+        self._api_client: ProductClient | None = None
         self._unbind_processed = False
-        self._hass = None
-        self._entry = None
-        self._entry_id = None
+        self._hass: HomeAssistant | None = None
+        self._entry: ConfigEntry | None = None
+        self._entry_id: str | None = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<BluettiDevice id={self.device_id} name={self.name}>"
 
     def get_state(self, fn_code: str) -> BluettiState | None:
@@ -144,6 +168,9 @@ class BluettiDevice:
         if not state:
             raise ValueError(f"No state with code {fn_code}")
 
+        assert self._api_client is not None, (  # noqa: S101 - a real invariant, not test-only theater
+            "set_state_value called before the device was wired up"
+        )
         try:
             result = await self._api_client.control_device(
                 {"sn": self.device_id, "fnCode": fn_code, "fnValue": value}
@@ -155,7 +182,10 @@ class BluettiDevice:
                 translation_placeholders={"device_id": self.device_id, "error": str(err)},
             ) from err
 
-        if result.msgCode == 0:
+        # control_device() returns a plain str for a non-JSON server
+        # response - not expected in practice, but unlike UnifyResponse it
+        # has no .msgCode, so it must be ruled out before checking success.
+        if isinstance(result, UnifyResponse) and result.msgCode == 0:
             state.set_value(value)
 
         if self.coordinator:
@@ -178,6 +208,9 @@ class BluettiDevice:
 
         Raises on any failure so the coordinator can classify and surface it.
         """
+        assert self._api_client is not None, (  # noqa: S101 - a real invariant, not test-only theater
+            "async_refresh_from_api called before the device was wired up"
+        )
         device_status = await self._api_client.get_device_status(self.device_id)
         if not device_status.data:
             raise RuntimeError(f"Empty status response for device {self.device_id}")
@@ -197,7 +230,7 @@ class BluettiDevice:
             if state_obj:
                 state_obj.fn_value = s["fnValue"]
 
-    async def _handle_unbind(self):
+    async def _handle_unbind(self) -> None:
         """Handle device unbinding: Clean up the device, entity, and configuration, and display the notification."""
         self._unbind_processed = True
 
@@ -310,7 +343,7 @@ class BluettiDevice:
                 __LOGGER__.warning("Error displaying notification: %s", e)
 
             # 7. Reload the configuration entry after a delay (ensure all cleanup operations are completed)
-            async def _reload_after_cleanup():
+            async def _reload_after_cleanup() -> None:
                 try:
                     await asyncio.sleep(1)  # Delay 1 second to ensure all cleanup operations are completed
                     await hass.config_entries.async_reload(entry_id)

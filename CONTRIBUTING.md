@@ -16,9 +16,10 @@ The fastest way is via the included Dev Container (`.devcontainer.json`) - open 
 Without a Dev Container, from a Python 3.13 environment:
 
 ```bash
-scripts/setup      # install runtime + test dependencies
-scripts/test       # run the full test suite (100% line coverage is enforced)
-scripts/lint       # run ruff, auto-fixing what it safely can
+scripts/setup       # install runtime + test dependencies
+scripts/test        # run the full test suite (100% line coverage is enforced)
+scripts/lint        # run ruff, auto-fixing what it safely can
+scripts/typecheck   # run mypy --strict
 scripts/develop     # launch a real local Home Assistant instance with this
                     # integration mounted, to test interactively
 ```
@@ -28,7 +29,7 @@ scripts/develop     # launch a real local Home Assistant instance with this
 GitHub is used to host code, track issues and feature requests, and review pull requests.
 
 1. Fork the repo and create your branch from `main`.
-2. Make sure `scripts/test` and `scripts/lint` both pass.
+2. Make sure `scripts/test`, `scripts/lint`, and `scripts/typecheck` all pass.
 3. If you changed user-facing behavior, update `README.md` and add an entry to
    `doc/CHANGELOG.md`.
 4. Keep pull requests focused on one thing. A large PR mixing several unrelated changes is much

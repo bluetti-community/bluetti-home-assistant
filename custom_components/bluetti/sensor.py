@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import logging
 from collections.abc import Callable
 from datetime import datetime
-from typing import TypedDict
+from decimal import Decimal
+from typing import Any, TypedDict
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -68,6 +71,18 @@ BINARY_SENSOR_MAP = {
     }
 }
 
+
+def _power_value_getter(state: BluettiState) -> Callable[[], str | float | None]:
+    """Bind `state` by value, not by the loop variable's final reference."""
+    return lambda: state.fn_value
+
+
+def _estimated_power_value_getter(
+    sensor: BluettiEstimatedBatteryPowerSensor,
+) -> Callable[[], str | float | None]:
+    """Bind `sensor` by value, not by the loop variable's final reference."""
+    return lambda: sensor.native_value
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: BluettiConfigEntry,
@@ -75,16 +90,17 @@ async def async_setup_entry(
 ) -> bool:
     """Set up Bluetti sensors (including binary sensors) from config entry."""
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
-    entities = []
+    entities: list[BluettiEntity] = []
 
     for device in bluetti_devices.devices:
         for state in device.states:
             if state.fn_type == "SENSOR" and state.sensor_info:
-                sensorClass = SENSOR_MAP.get(state.sensor_info.get("sensorType"))
+                sensor_type = state.sensor_info.get("sensorType") or ""
+                sensorClass = SENSOR_MAP.get(sensor_type)
                 if sensorClass is None:
                     __LOGGER__.warning(
                         "Unknown sensor type '%s' for fn_code=%s, skipping",
-                        state.sensor_info.get("sensorType"), state.fn_code,
+                        sensor_type, state.fn_code,
                     )
                     continue
                 meta: NamedSensorMetaInfo = {
@@ -105,7 +121,7 @@ async def async_setup_entry(
                     # Home Assistant "Integral - Riemann sum" helper would,
                     # so this works out of the box for every power sensor.
                     entities.append(
-                        BluettiEnergySensor(device, state, lambda s=state: s.fn_value)
+                        BluettiEnergySensor(device, state, _power_value_getter(state))
                     )
             if state.fn_type == "SENSOR" and state.fn_code in BINARY_SENSOR_MAP:
                 entities.append(BluettiBinarySensor(device, state, BINARY_SENSOR_MAP[state.fn_code]))
@@ -129,7 +145,7 @@ async def async_setup_entry(
                 entities.append(
                     BluettiEnergySensor(
                         device, battery_sensor._state_obj,
-                        lambda s=battery_sensor: s.native_value,
+                        _estimated_power_value_getter(battery_sensor),
                     )
                 )
 
@@ -142,7 +158,7 @@ async def async_setup_entry(
 class BluettiSensor(BluettiEntity, SensorEntity):
     """Bluetti sensor for numeric or enum states."""
 
-    def __init__(self, device: BluettiDevice, state: BluettiState, meta: NamedSensorMetaInfo):
+    def __init__(self, device: BluettiDevice, state: BluettiState, meta: NamedSensorMetaInfo) -> None:
         super().__init__(device, state)
         self._meta = meta
 
@@ -152,7 +168,7 @@ class BluettiSensor(BluettiEntity, SensorEntity):
         self._attr_native_unit_of_measurement = meta["unit"]
 
     @property
-    def native_value(self):
+    def native_value(self) -> str:
         if self._state_obj.support_mode_values:
             return self._state_obj.get_name_for_value()
         return self._state_obj.fn_value
@@ -198,7 +214,7 @@ class BluettiEnergySensor(BluettiEntity, RestoreSensor):
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         last_data = await self.async_get_last_sensor_data()
-        if last_data is not None and last_data.native_value is not None:
+        if last_data is not None and isinstance(last_data.native_value, (int, float, str, Decimal)):
             self._total_kwh = float(last_data.native_value)
 
         self._last_power_w = self._current_power_w() if self.available else None
@@ -294,7 +310,7 @@ class BluettiEstimatedBatteryPowerSensor(BluettiEntity, SensorEntity):
 class BluettiBinarySensor(BluettiEntity, BinarySensorEntity):
     """Bluetti binary sensor for online/offline state."""
 
-    def __init__(self, device: BluettiDevice, state: BluettiState, meta: dict):
+    def __init__(self, device: BluettiDevice, state: BluettiState, meta: dict[str, Any]) -> None:
         super().__init__(device, state)
         self._meta = meta
 

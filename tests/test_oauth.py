@@ -177,7 +177,8 @@ async def test_start_token_check_clears_issue_when_token_becomes_valid(hass):
 
 
 async def test_async_check_token_expiry_accepts_the_timer_callback_signature(hass):
-    """async_track_time_interval always invokes its callback with a datetime.
+    """
+    async_track_time_interval always invokes its callback with a datetime.
 
     Regression test: this method is registered directly as that callback in
     start_token_check - if it didn't accept a positional `now`, every timer
@@ -186,7 +187,7 @@ async def test_async_check_token_expiry_accepts_the_timer_callback_signature(has
     refresher, _entry = _refresher(hass, {})
     refresher.send_expired_notification = MagicMock()
 
-    await refresher.async_check_token_expiry(datetime.now())  # noqa: DTZ005 - must not raise
+    await refresher.async_check_token_expiry(datetime.now())
 
     refresher.send_expired_notification.assert_not_called()
 

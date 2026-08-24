@@ -4,6 +4,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -45,7 +46,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         await APPLICATION_PROFILE.load_config(hass)
 
         enabled_devices = entry.options.get("devices", [])
-        all_products_data: list[dict] = entry.data.get("products", [])
+        all_products_data: list[dict[str, Any]] = entry.data.get("products", [])
         all_products: list[UserProduct] = [
             UserProduct.model_validate(p) if isinstance(p, dict) else p
             for p in all_products_data
@@ -199,7 +200,7 @@ async def async_remove_config_entry_device(
     return True
 
 
-async def async_remove_entry(hass, entry: BluettiConfigEntry):
+async def async_remove_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> None:
     """Handle removal of an entry."""
     runtime_data = getattr(entry, "runtime_data", None)
     if runtime_data:
@@ -216,5 +217,5 @@ async def async_remove_entry(hass, entry: BluettiConfigEntry):
     for entity in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
         entity_registry.async_remove(entity.entity_id)
 
-    store = storage.Store(hass, 1, f"{DOMAIN}_data_{entry.entry_id}.json")
+    store: storage.Store[Any] = storage.Store(hass, 1, f"{DOMAIN}_data_{entry.entry_id}.json")
     await store.async_remove()
