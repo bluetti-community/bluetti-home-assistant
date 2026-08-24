@@ -5,10 +5,10 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from homeassistant.helpers.json import JSONEncoder
+from pybluetti import UserProduct
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti.const import DOMAIN
-from custom_components.bluetti.model.product import UserProduct
 from custom_components.bluetti.options_flow import BluettiOptionsFlowHandler
 
 

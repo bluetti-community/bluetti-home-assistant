@@ -3,12 +3,12 @@
 from homeassistant.components import application_credentials
 from homeassistant.setup import async_setup_component
 
-from custom_components.bluetti.api.bluetti import APPLICATION_PROFILE
 from custom_components.bluetti.application_credentials import (
     async_ensure_default_credential,
     async_get_authorization_server,
 )
 from custom_components.bluetti.const import DOMAIN
+from custom_components.bluetti.profile.application_profile import APPLICATION_PROFILE
 
 
 async def test_async_get_authorization_server(hass):

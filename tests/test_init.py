@@ -30,20 +30,20 @@ async def test_unload_entry_disconnects_websocket(hass):
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
 
-    stomp_client = MagicMock()
+    stomp_client = AsyncMock()
     entry.runtime_data = _runtime_data(stomp_client)
 
     result = await async_unload_entry(hass, entry)
 
     assert result is True
-    stomp_client.disconnect.assert_called_once()
+    stomp_client.disconnect.assert_awaited_once()
 
 
 async def test_unload_entry_survives_disconnect_error(hass):
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
 
-    stomp_client = MagicMock()
+    stomp_client = AsyncMock()
     stomp_client.disconnect.side_effect = RuntimeError("socket already closed")
     entry.runtime_data = _runtime_data(stomp_client)
 
@@ -65,12 +65,12 @@ async def test_remove_entry_disconnects_websocket(hass):
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
 
-    stomp_client = MagicMock()
+    stomp_client = AsyncMock()
     entry.runtime_data = _runtime_data(stomp_client)
 
     await async_remove_entry(hass, entry)
 
-    stomp_client.disconnect.assert_called_once()
+    stomp_client.disconnect.assert_awaited_once()
 
 
 async def test_remove_entry_without_runtime_data_does_not_raise(hass):
@@ -85,7 +85,7 @@ async def test_remove_entry_survives_disconnect_error(hass):
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
 
-    stomp_client = MagicMock()
+    stomp_client = AsyncMock()
     stomp_client.disconnect.side_effect = RuntimeError("boom")
     entry.runtime_data = _runtime_data(stomp_client)
 
