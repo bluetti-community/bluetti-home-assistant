@@ -70,6 +70,7 @@ async def test_sensor_uses_has_entity_name_and_device_info(hass):
     assert entity.name == "Battery Level"
     assert entity.unique_id == "SN1_SOC"
     assert entity.device_info["identifiers"] == {(DOMAIN, "SN1")}
+    assert entity.device_info["serial_number"] == "SN1"
     assert entity.native_value == "80"
     assert entity.available is True
 
