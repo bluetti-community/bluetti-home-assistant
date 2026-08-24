@@ -153,6 +153,46 @@ async def async_unload_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> 
             __LOGGER__.warning("Error while disconnecting websocket: %s", e)
     return unloaded
 
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: BluettiConfigEntry, device_entry: dr.DeviceEntry
+) -> bool:
+    """
+    Allow removing a single BLUETTI device from an existing entry.
+
+    Home Assistant calls this when the user clicks "Delete" on a device's
+    page; returning True lets it sever the device<->entry link (and cascade
+    to that device's entities) on its own. This only needs to stop polling
+    the device and drop it from the enabled-devices list, so a reload
+    doesn't recreate it - the same bookkeeping BluettiDevice._handle_unbind
+    does when the cloud reports the device unbound, minus the registry
+    cleanup and reload that HA already handles for a user-initiated removal.
+    """
+    device_ids = {
+        identifier for domain, identifier in device_entry.identifiers if domain == DOMAIN
+    }
+    if not device_ids:
+        return False
+
+    runtime_data = getattr(entry, "runtime_data", None)
+    if runtime_data:
+        runtime_data.bluetti_devices.devices = [
+            d for d in runtime_data.bluetti_devices.devices if d.device_id not in device_ids
+        ]
+        for device_id in device_ids:
+            coordinator = runtime_data.coordinators.pop(device_id, None)
+            if coordinator:
+                await coordinator.async_shutdown()
+
+    current_devices = entry.options.get("devices", [])
+    new_devices = [d for d in current_devices if d not in device_ids]
+    if new_devices != current_devices:
+        hass.config_entries.async_update_entry(
+            entry, options={**entry.options, "devices": new_devices}
+        )
+
+    return True
+
+
 async def async_remove_entry(hass, entry: BluettiConfigEntry):
     """Handle removal of an entry."""
     runtime_data = getattr(entry, "runtime_data", None)
