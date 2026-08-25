@@ -1,0 +1,92 @@
+name: Bug report
+description: Report a problem with the BLUETTI integration
+title: "[Bug] <Replace this part>"
+labels:
+  - bug
+body:
+  - type: checkboxes
+    id: existing-issue
+    attributes:
+      label: Is there an existing issue for this?
+      description: >
+        Please search the open and closed issues before filing a new one - many reports turn out
+        to share the same root cause (e.g. #101 and #102).
+      options:
+        - label: I searched and didn't find an existing issue for this problem
+          required: true
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant Version
+      description: Settings -> About
+      placeholder: 2026.8.2
+    validations:
+      required: true
+  - type: input
+    id: integration-version
+    attributes:
+      label: BLUETTI Integration Version
+      description: HACS -> BLUETTI, or check manifest.json's "version" field
+      placeholder: 1.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: device
+    attributes:
+      label: What device are you using?
+      description: See the Power Station Support List in the README for the full list.
+      options:
+        - AP300
+        - EL300 / AORA300
+        - EL320 / AORA320
+        - EL400
+        - EP13K
+        - EP2000
+        - EP6K
+        - EP760
+        - EP500Pro
+        - FP
+        - PR100V2 / EL100V2 / AORA100V2
+        - PR200V2 / Elite 200 V2 / AORA200
+        - PR30V2 / EL30V2
+        - RV5
+        - Balco260 / Balco500
+        - AC300 / AC500
+        - AC200PL / AC200L
+        - Other / not listed
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what's wrong.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: To Reproduce
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behaviour
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics dump (if the issue is about missing/wrong data)
+      description: >
+        Settings -> Devices & services -> BLUETTI -> three-dot menu (on the integration entry or
+        the device page) -> Download diagnostics. Tokens are already redacted before download.
+        For issues about missing or incorrect sensor/control values, this is usually the fastest
+        way to get a fix - it shows exactly what the BLUETTI cloud sends for your device.
+      render: json
