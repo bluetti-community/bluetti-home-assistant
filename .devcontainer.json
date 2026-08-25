@@ -1,0 +1,31 @@
+{
+    "name": "bluetti",
+    "image": "mcr.microsoft.com/devcontainers/python:3.13-bullseye",
+    "postCreateCommand": "scripts/setup",
+    "forwardPorts": [
+        8123
+    ],
+    "portsAttributes": {
+        "8123": {
+            "label": "Home Assistant",
+            "onAutoForward": "notify"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "charliermarsh.ruff",
+                "github.vscode-pull-request-github"
+            ],
+            "settings": {
+                "files.eol": "\n",
+                "editor.tabSize": 4,
+                "python.analysis.autoSearchPaths": false,
+                "editor.formatOnSave": true,
+                "files.trimTrailingWhitespace": true
+            }
+        }
+    },
+    "remoteUser": "vscode"
+}
