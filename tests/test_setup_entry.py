@@ -6,12 +6,15 @@ from pybluetti import UnifyResponse
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti import BluettiRuntimeData
+from custom_components.bluetti.binary_sensor import BluettiBinarySensor
+from custom_components.bluetti.binary_sensor import (
+    async_setup_entry as binary_sensor_setup_entry,
+)
 from custom_components.bluetti.const import DOMAIN
 from custom_components.bluetti.models import BluettiData, BluettiDevice
 from custom_components.bluetti.select import BluettiSelect
 from custom_components.bluetti.select import async_setup_entry as select_setup_entry
 from custom_components.bluetti.sensor import (
-    BluettiBinarySensor,
     BluettiEnergySensor,
     BluettiEstimatedBatteryPowerSensor,
     BluettiSensor,
@@ -61,16 +64,55 @@ async def test_sensor_setup_entry_creates_expected_entities(hass):
 
     await sensor_setup_entry(hass, entry, added.extend)
 
-    assert len(added) == 3  # SOC + InvWorkState sensors, plus the onLine binary sensor
+    # SOC + InvWorkState sensors; onLine is a binary_sensor entity, set up by
+    # the binary_sensor platform instead (see test_binary_sensor_setup_entry_*).
+    assert len(added) == 2
     sensors = [e for e in added if isinstance(e, BluettiSensor)]
-    binary_sensors = [e for e in added if isinstance(e, BluettiBinarySensor)]
     assert len(sensors) == 2
-    assert len(binary_sensors) == 1
+    assert not any(isinstance(e, BluettiBinarySensor) for e in added)
 
     enum_sensor = next(s for s in sensors if s._state_obj.fn_code == "InvWorkState")
     assert enum_sensor.native_value == "Grid"  # exercises the support_mode_values branch
 
-    assert binary_sensors[0].is_on is True
+
+async def test_binary_sensor_setup_entry_creates_expected_entities(hass):
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
+        state_list=[
+            {
+                "fnCode": "SOC", "fnName": "Battery", "fnValue": "50", "fnType": "SENSOR",
+                "sensorInfo": {"sensorType": "SensorDeviceClass.BATTERY", "unit": None},
+            },
+            {"fnCode": "onLine", "fnName": "Online", "fnValue": "1", "fnType": "SENSOR"},
+        ],
+    )
+    entry = _entry_with_devices(hass, [device])
+    added = []
+
+    await binary_sensor_setup_entry(hass, entry, added.extend)
+
+    assert len(added) == 1
+    binary_sensor = added[0]
+    assert isinstance(binary_sensor, BluettiBinarySensor)
+    assert binary_sensor.is_on is True
+    # entity_id is derived from the platform async_add_entities was invoked
+    # through, not the entity class - domain correctness is exercised by the
+    # real config-entry setup test in test_init.py, this only proves the
+    # entity itself is produced.
+
+
+async def test_binary_sensor_setup_entry_with_no_matching_states_adds_nothing(hass):
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
+        state_list=[{"fnCode": "SetCtrlAc", "fnName": "AC", "fnValue": "0", "fnType": "SWITCH"}],
+    )
+    entry = _entry_with_devices(hass, [device])
+    async_add_entities = MagicMock()
+
+    result = await binary_sensor_setup_entry(hass, entry, async_add_entities)
+
+    assert result is True
+    async_add_entities.assert_not_called()
 
 
 async def test_sensor_setup_entry_survives_sensor_info_missing_unit_key(hass):

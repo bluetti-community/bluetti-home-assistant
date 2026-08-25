@@ -4,6 +4,7 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.config_entries import ConfigEntryState
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti.const import DOMAIN
@@ -76,6 +77,44 @@ async def test_async_setup_entry_with_a_device(hass, enable_custom_integrations)
     assert devices[0].device_id == "SN1"
     assert "SN1" in entry.runtime_data.coordinators
     mock_stomp_cls.return_value.connect.assert_awaited_once()
+
+
+async def test_async_setup_entry_registers_binary_sensor_under_its_own_domain(hass, enable_custom_integrations):
+    # Regression test: BluettiBinarySensor entities used to be appended to
+    # the `entities` list handed to the sensor platform's async_add_entities,
+    # so they were registered under sensor.* instead of binary_sensor.* -
+    # entity_id domain is decided by which EntityPlatform.async_add_entities
+    # call registers the entity, not by the entity class's own base class.
+    state_list = [{"fnCode": "onLine", "fnName": "Online", "fnValue": "1", "fnType": "SENSOR"}]
+    entry = _entry(
+        hass,
+        products=[{"sn": "SN1", "name": "Device", "stateList": state_list, "online": "1"}],
+        devices=["SN1"],
+    )
+    status_data = MagicMock(sn="SN1", isBindByCurUser="1", online="1", stateList=state_list)
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(return_value=MagicMock()),
+         ), \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
+         patch("custom_components.bluetti.ProductClient") as mock_product_cls:
+        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_stomp_cls.return_value.connect = AsyncMock()
+        mock_product_cls.return_value.get_device_status = AsyncMock(
+            return_value=MagicMock(data=[status_data])
+        )
+
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    entity_registry = er.async_get(hass)
+    entity_id = entity_registry.async_get_entity_id("binary_sensor", DOMAIN, "SN1_onLine")
+    assert entity_id is not None
+    assert entity_registry.async_get_entity_id("sensor", DOMAIN, "SN1_onLine") is None
 
 
 async def test_async_setup_entry_with_multiple_devices_refreshes_concurrently(hass, enable_custom_integrations):

@@ -11,12 +11,12 @@ from homeassistant.components.sensor import (
 from homeassistant.exceptions import ServiceValidationError
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.bluetti.binary_sensor import BluettiBinarySensor
 from custom_components.bluetti.const import DOMAIN
 from custom_components.bluetti.coordinator import BluettiDeviceCoordinator
 from custom_components.bluetti.models import BluettiDevice, BluettiState
 from custom_components.bluetti.select import BluettiSelect
 from custom_components.bluetti.sensor import (
-    BluettiBinarySensor,
     BluettiEnergySensor,
     BluettiEstimatedBatteryPowerSensor,
     BluettiSensor,

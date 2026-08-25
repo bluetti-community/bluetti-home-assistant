@@ -14,6 +14,7 @@ Fixes:
 - Fix two spots (`options_flow.py`, `oauth.py`) where adding a device on an account with zero BLUETTI devices bound to it would crash instead of showing "no devices available".
 - Fix `set_state_value` crashing instead of just not applying the update if the cloud ever responds to a control command with a non-JSON body.
 - Fix `hassfest` validation failures: `icons.json`'s entity translation keys used the cloud's raw, mixed-case `fn_code` values, which don't match Home Assistant's required key pattern; and `manifest.json`'s `documentation` field pointed at a URL reserved for integrations already bundled in Home Assistant core, not a custom integration like this one.
+- Fix the "Online" binary sensor being registered under the `sensor.*` domain instead of `binary_sensor.*` - it was being added through the `sensor` platform's `async_add_entities` instead of its own `binary_sensor` platform (entity_id domain is decided by which platform registers the entity, not by the entity class's own base class). It now lives in its own `binary_sensor.py` platform file, matching `switch.py`/`select.py`.
 
 
 # 1.1.0 2026-08-20

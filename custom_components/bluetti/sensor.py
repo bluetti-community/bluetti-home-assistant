@@ -4,19 +4,15 @@ import logging
 from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, TypedDict
+from typing import TypedDict
 
-from homeassistant.components.binary_sensor import (
-    BinarySensorDeviceClass,
-    BinarySensorEntity,
-)
 from homeassistant.components.sensor import (
     RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfEnergy
+from homeassistant.const import PERCENTAGE, UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -63,14 +59,6 @@ SENSOR_MAP: dict[str, BaseSensorMetaInfo] = {
     }
 }
 
-# 映射 binary_sensor 类
-BINARY_SENSOR_MAP = {
-    "onLine": {
-        "device_class": BinarySensorDeviceClass.CONNECTIVITY,
-        "name": "Online",
-    }
-}
-
 
 def _power_value_getter(state: BluettiState) -> Callable[[], str | float | None]:
     """Bind `state` by value, not by the loop variable's final reference."""
@@ -88,7 +76,7 @@ async def async_setup_entry(
     config_entry: BluettiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> bool:
-    """Set up Bluetti sensors (including binary sensors) from config entry."""
+    """Set up Bluetti sensors from config entry."""
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
     entities: list[BluettiEntity] = []
 
@@ -123,8 +111,6 @@ async def async_setup_entry(
                     entities.append(
                         BluettiEnergySensor(device, state, _power_value_getter(state))
                     )
-            if state.fn_type == "SENSOR" and state.fn_code in BINARY_SENSOR_MAP:
-                entities.append(BluettiBinarySensor(device, state, BINARY_SENSOR_MAP[state.fn_code]))
 
         # Some models (e.g. Balco260) don't report battery charge/discharge
         # power directly - approximate it from the power balance of what
@@ -305,21 +291,3 @@ class BluettiEstimatedBatteryPowerSensor(BluettiEntity, SensorEntity):
         if net is None:
             return None
         return max(net, 0.0) if self._charging else max(-net, 0.0)
-
-
-class BluettiBinarySensor(BluettiEntity, BinarySensorEntity):
-    """Bluetti binary sensor for online/offline state."""
-
-    def __init__(self, device: BluettiDevice, state: BluettiState, meta: dict[str, Any]) -> None:
-        super().__init__(device, state)
-        self._meta = meta
-
-        self._attr_name = meta["name"]
-        self._attr_device_class = meta.get("device_class")
-        # Connectivity status is diagnostic information, not a primary
-        # measurement.
-        self._attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    @property
-    def is_on(self) -> bool:
-        return self._state_obj.fn_value == "1"

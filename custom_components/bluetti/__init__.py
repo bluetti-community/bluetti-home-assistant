@@ -25,7 +25,12 @@ from .profile.application_profile import APPLICATION_PROFILE
 
 __LOGGER__ = logging.getLogger(__name__)
 
-_PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.SELECT]
+_PLATFORMS: list[Platform] = [
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.SWITCH,
+    Platform.SELECT,
+]
 
 
 @dataclass
