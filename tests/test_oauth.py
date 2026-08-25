@@ -4,10 +4,10 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.helpers import issue_registry as ir
+from pybluetti import UserProduct
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti.const import DOMAIN
-from custom_components.bluetti.model.product import UserProduct
 from custom_components.bluetti.oauth import (
     ISSUE_ID_OAUTH_EXPIRED,
     AsyncConfigEntryAuth,

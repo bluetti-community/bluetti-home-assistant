@@ -3,6 +3,9 @@ New:
 - The device's serial number now shows up in its Device Info panel (Settings -> Devices & services -> BLUETTI -> device page), matching how other Home Assistant integrations surface it.
 - A single device can now be removed from an existing multi-device setup via its device page's "Delete" button, without having to remove and re-add the whole integration. This only stops Home Assistant from tracking the device - it does not unbind it from your BLUETTI account, so it can be added back later via Settings -> Devices & services -> BLUETTI -> Configure.
 
+Internal:
+- The BLUETTI cloud API client (HTTP + websocket push updates) now lives in a standalone package, [`pybluetti`](https://pypi.org/project/pybluetti/), instead of being embedded in this repo. Along the way, the websocket transport moved off the blocking `websocket-client` library (run on a dedicated thread) onto `aiohttp`'s native async websocket client - fully async, no threads. No user-visible behavior change; `manifest.json` now depends on `pybluetti>=0.1.0` instead of `pydantic`/`stomper`/`websocket-client` directly.
+
 Fixes:
 - Fix the device's real serial number appearing in plain text in downloaded diagnostics (in the device list, the `coordinators` keys, and the enabled-devices list under `entry_options`), even though the same serial is redacted everywhere else in the dump. It's now aliased to a stable "device_N" per dump instead, so devices in a multi-device dump can still be told apart without exposing the actual serial number.
 - Fix the integration getting permanently stuck failing to set up with "BLUETTI setup failed: Implementation not available" if the underlying OAuth Application Credential is ever lost (e.g. a partial backup restore, or an entry created without going through the config flow). The default credential is now automatically re-imported and setup retried once, instead of requiring a manual remove-and-re-add of the integration.

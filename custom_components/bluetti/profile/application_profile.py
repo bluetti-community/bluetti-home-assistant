@@ -41,3 +41,9 @@ class ApplicationProfile:
 
         __LOGGER__.info("Load profile " f"{self.__configFile} of `{INTEGRATION_NAME}` integration successfully.")
         self.config = __yaml__["bluetti"]
+
+
+# The application profile. Was previously defined in api/bluetti.py, which
+# moved to the pybluetti package; relocated here since this is where the
+# class it instantiates lives.
+APPLICATION_PROFILE = ApplicationProfile()

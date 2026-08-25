@@ -9,8 +9,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from pybluetti import ApplicationRuntimeException
 
-from .application_exception import ApplicationRuntimeException
 from .models import BluettiDevice
 
 _LOGGER = logging.getLogger(__name__)

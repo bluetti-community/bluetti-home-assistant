@@ -13,16 +13,14 @@ from homeassistant.helpers import config_entry_oauth2_flow, storage
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from pybluetti import ProductClient, StompClient, UserProduct
 
-from .api.bluetti import APPLICATION_PROFILE
-from .api.product_client import ProductClient
-from .api.websocket import StompClient
 from .application_credentials import async_ensure_default_credential
-from .const import DOMAIN
+from .const import DOMAIN, EVENT_TOKEN_EXPIRED
 from .coordinator import BluettiDeviceCoordinator
-from .model.product import UserProduct
 from .models import BluettiData
 from .oauth import AsyncConfigEntryAuth, AuthTokenRefresh
+from .profile.application_profile import APPLICATION_PROFILE
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -89,10 +87,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
 
         # await oAuth2Session.async_ensure_token_valid()
         access_token = oAuth2Session.token["access_token"]
-        product_client = ProductClient(httpSession, access_token,hass)
-        # products = await product_client.get_user_products()
-        # print(products.data[0].__class__)
-        # print(products.data)
+        product_client = ProductClient(
+            httpSession,
+            APPLICATION_PROFILE.config["server"]["gateway"],
+            access_token,
+            on_auth_expired=lambda: hass.bus.fire(EVENT_TOKEN_EXPIRED),
+        )
     except Exception as err:
         raise ConfigEntryNotReady(f"BLUETTI setup failed: {err}") from err
 
@@ -101,8 +101,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     bluetti_devices = BluettiData(hass, selected_products)
 
     # Register WebSocket
-    stomp_client = StompClient(APPLICATION_PROFILE.config["server"]["wss"], access_token, bluetti_devices.web_socket_message_handler,hass)
-    stomp_client.connect()
+    stomp_client = StompClient(
+        httpSession,
+        APPLICATION_PROFILE.config["server"]["wss"],
+        access_token,
+        bluetti_devices.web_socket_message_handler,
+        on_auth_expired=lambda: hass.bus.fire(EVENT_TOKEN_EXPIRED),
+    )
+    await stomp_client.connect()
 
     coordinators: dict[str, BluettiDeviceCoordinator] = {}
     for device in bluetti_devices.devices:
@@ -148,7 +154,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> 
     runtime_data = getattr(entry, "runtime_data", None)
     if unloaded and runtime_data:
         try:
-            runtime_data.stomp_client.disconnect()
+            await runtime_data.stomp_client.disconnect()
         except Exception as e:
             __LOGGER__.warning("Error while disconnecting websocket: %s", e)
     return unloaded
@@ -198,7 +204,7 @@ async def async_remove_entry(hass, entry: BluettiConfigEntry):
     runtime_data = getattr(entry, "runtime_data", None)
     if runtime_data:
         try:
-            runtime_data.stomp_client.disconnect()
+            await runtime_data.stomp_client.disconnect()
         except Exception as e:
             __LOGGER__.warning("Error while disconnecting websocket: %s", e)
 

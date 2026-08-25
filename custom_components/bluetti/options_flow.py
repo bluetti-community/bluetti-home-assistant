@@ -14,8 +14,10 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlowResult, OptionsFlow
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from pybluetti import ProductClient
 
-from .api.product_client import ProductClient
+from .const import EVENT_TOKEN_EXPIRED
+from .profile.application_profile import APPLICATION_PROFILE
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -51,7 +53,12 @@ class BluettiOptionsFlowHandler(OptionsFlow):
 
         access_token = entry.data["token"]["access_token"]
         http_session = async_get_clientsession(self.hass)
-        product_client = ProductClient(http_session, access_token, self.hass)
+        product_client = ProductClient(
+            http_session,
+            APPLICATION_PROFILE.config["server"]["gateway"],
+            access_token,
+            on_auth_expired=lambda: self.hass.bus.fire(EVENT_TOKEN_EXPIRED),
+        )
         try:
             products = await product_client.get_user_products()
         except Exception as err:

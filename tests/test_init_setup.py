@@ -34,6 +34,7 @@ async def test_async_setup_entry_with_no_devices(hass, enable_custom_integration
          patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
          patch("custom_components.bluetti.StompClient") as mock_stomp_cls:
         mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_stomp_cls.return_value.connect = AsyncMock()
 
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
@@ -41,7 +42,7 @@ async def test_async_setup_entry_with_no_devices(hass, enable_custom_integration
     assert entry.state is ConfigEntryState.LOADED
     assert entry.runtime_data.bluetti_devices.devices == []
     assert entry.runtime_data.coordinators == {}
-    mock_stomp_cls.return_value.connect.assert_called_once()
+    mock_stomp_cls.return_value.connect.assert_awaited_once()
 
 
 async def test_async_setup_entry_with_a_device(hass, enable_custom_integrations):
@@ -61,6 +62,7 @@ async def test_async_setup_entry_with_a_device(hass, enable_custom_integrations)
          patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
          patch("custom_components.bluetti.ProductClient") as mock_product_cls:
         mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_stomp_cls.return_value.connect = AsyncMock()
         mock_product_cls.return_value.get_device_status = AsyncMock(
             return_value=MagicMock(data=[status_data])
         )
@@ -73,7 +75,7 @@ async def test_async_setup_entry_with_a_device(hass, enable_custom_integrations)
     assert len(devices) == 1
     assert devices[0].device_id == "SN1"
     assert "SN1" in entry.runtime_data.coordinators
-    mock_stomp_cls.return_value.connect.assert_called_once()
+    mock_stomp_cls.return_value.connect.assert_awaited_once()
 
 
 async def test_async_setup_entry_with_multiple_devices_refreshes_concurrently(hass, enable_custom_integrations):
@@ -101,9 +103,10 @@ async def test_async_setup_entry_with_multiple_devices_refreshes_concurrently(ha
              AsyncMock(return_value=MagicMock()),
          ), \
          patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
-         patch("custom_components.bluetti.StompClient"), \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
          patch("custom_components.bluetti.ProductClient") as mock_product_cls:
         mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_stomp_cls.return_value.connect = AsyncMock()
         mock_product_cls.return_value.get_device_status = AsyncMock(side_effect=fake_get_device_status)
 
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -135,6 +138,7 @@ async def test_async_setup_entry_reimports_missing_oauth_credential(hass, enable
          patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
          patch("custom_components.bluetti.StompClient") as mock_stomp_cls:
         mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_stomp_cls.return_value.connect = AsyncMock()
 
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
@@ -142,7 +146,7 @@ async def test_async_setup_entry_reimports_missing_oauth_credential(hass, enable
     assert entry.state is ConfigEntryState.LOADED
     mock_ensure_credential.assert_awaited_once_with(hass)
     assert mock_get_impl.await_count == 2
-    mock_stomp_cls.return_value.connect.assert_called_once()
+    mock_stomp_cls.return_value.connect.assert_awaited_once()
 
 
 async def test_async_setup_entry_retries_on_failure(hass, enable_custom_integrations):

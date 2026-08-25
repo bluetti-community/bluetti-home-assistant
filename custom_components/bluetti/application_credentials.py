@@ -7,8 +7,8 @@ from homeassistant.components.application_credentials import (
 )
 from homeassistant.core import HomeAssistant
 
-from .api.bluetti import APPLICATION_PROFILE
 from .const import DOMAIN
+from .profile.application_profile import APPLICATION_PROFILE
 
 
 async def async_get_authorization_server(hass: HomeAssistant) -> AuthorizationServer:
