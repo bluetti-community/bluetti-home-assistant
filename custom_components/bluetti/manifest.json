@@ -11,7 +11,7 @@
   "documentation": "https://github.com/bluetti-community/bluetti-home-assistant",
   "integration_type": "hub",
   "iot_class": "cloud_push",
-  "issue_tracker": "https://github.com/bluetti-official/bluetti-home-assistant/issues",
+  "issue_tracker": "https://github.com/bluetti-community/bluetti-home-assistant/issues",
   "quality_scale": "gold",
   "requirements": [
     "pybluetti>=0.1.0"

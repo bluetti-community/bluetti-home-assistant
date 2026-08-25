@@ -8,7 +8,7 @@ die von BLUETTI offiziell unterstützt wird. Mit dieser ist es möglich BLUETTI
 Smart Power Station-Geräte in Home Assistant verwenden.
 
 Das GitHub-Repository der Integration ist:
-[https://github.com/bluetti-official/bluetti-home-assistant](https://github.com/bluetti-official/bluetti-home-assistant).
+[https://github.com/bluetti-community/bluetti-home-assistant](https://github.com/bluetti-community/bluetti-home-assistant).
 
 ## ✨ Funktionen
 
@@ -68,7 +68,7 @@ Es gibt zwei Wege diese Integration zu installieren.
 2. Klone das `BLUETTI Power Station Integration` Github Repository.
 
    ```bash
-   git clone https://github.com/bluetti-official/bluetti-home-assistant.git
+   git clone https://github.com/bluetti-community/bluetti-home-assistant.git
    ```
 
 3. Oder lade den ZIP-Ordner herunter und entpacke den Inhalt in den
@@ -93,7 +93,7 @@ können andere Integrationen von Drittanbietern installiert werden.
 
 2. Fügen Sie das Repository hinzu und wählen Sie den Typ aus:
    - **Repository:**
-     [https://github.com/bluetti-official/bluetti-home-assistant.git](https://github.com/bluetti-official/bluetti-home-assistant.git)
+     [https://github.com/bluetti-community/bluetti-home-assistant.git](https://github.com/bluetti-community/bluetti-home-assistant.git)
    - **Typauswahl/Art:** Integration
 
 3. Auf der Seite „Integration“ von HACS sehen Sie dann die Integration
@@ -165,4 +165,4 @@ kann.
 ## 📮 Unterstützung & Feedback
 
 💬 Haben Sie Probleme oder Anregungen? Erstellen Sie ein Issue auf GitHub:
-[https://github.com/bluetti-official/bluetti-home-assistant/issues](https://github.com/bluetti-official/bluetti-home-assistant/issues)
+[https://github.com/bluetti-community/bluetti-home-assistant/issues](https://github.com/bluetti-community/bluetti-home-assistant/issues)

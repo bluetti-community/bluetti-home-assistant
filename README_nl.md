@@ -8,7 +8,7 @@ Assistant, officieel ondersteund door BLUETTI. Hiermee kun je BLUETTI slimme
 powerstations gebruiken binnen Home Assistant.
 
 De GitHub-repository van de integratie is:
-[https://github.com/bluetti-official/bluetti-home-assistant](https://github.com/bluetti-official/bluetti-home-assistant).
+[https://github.com/bluetti-community/bluetti-home-assistant](https://github.com/bluetti-community/bluetti-home-assistant).
 
 ## ✨ Functies
 
@@ -67,7 +67,7 @@ Er zijn twee manieren om de `BLUETTI powerstation-integratie` te installeren:
 2. Clone de GitHub-repository van de `BLUETTI powerstation-integratie`:
 
    ```bash
-   git clone https://github.com/bluetti-official/bluetti-home-assistant.git
+   git clone https://github.com/bluetti-community/bluetti-home-assistant.git
    ```
 
 3. Of download het zip-bestand van de integratie en pak het uit in de map
@@ -97,7 +97,7 @@ toevoegt.
 
 2. Voeg de volgende repository toe en selecteer het juiste type:
    - **Repository:**
-     [https://github.com/bluetti-official/bluetti-home-assistant.git](https://github.com/bluetti-official/bluetti-home-assistant.git)
+     [https://github.com/bluetti-community/bluetti-home-assistant.git](https://github.com/bluetti-community/bluetti-home-assistant.git)
    - **Type:** Integration
 
 3. Ga daarna naar de pagina **Integraties** in HACS. De `BLUETTI`-integratie
@@ -165,4 +165,4 @@ zijn dat `Home Assistant` toegang heeft tot de BLUETTI-powerstations.
 ## 📮 Ondersteuning & feedback
 
 💬 Heb je problemen of suggesties? Maak een issue aan op GitHub:
-[https://github.com/bluetti-official/bluetti-home-assistant/issues](https://github.com/bluetti-official/bluetti-home-assistant/issues)
+[https://github.com/bluetti-community/bluetti-home-assistant/issues](https://github.com/bluetti-community/bluetti-home-assistant/issues)

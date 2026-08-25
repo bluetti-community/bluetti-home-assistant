@@ -6,7 +6,7 @@
 Інтеграція BLUETTI Power Station - це офіційний компонент Home Assistant, який підтримується компанією BLUETTI. Вона дозволяє використовувати розумні станції живлення BLUETTI в Home Assistant.
 
 Репозиторій інтеграції на GitHub:
-[https://github.com/bluetti-official/bluetti-home-assistant](https://github.com/bluetti-official/bluetti-home-assistant).
+[https://github.com/bluetti-community/bluetti-home-assistant](https://github.com/bluetti-community/bluetti-home-assistant).
 
 ## ✨ Можливості
 
@@ -66,7 +66,7 @@
 2. Клонуйте `BLUETTI Power Station Integration` GitHub репозиторій.
 
    ```bash
-   git clone https://github.com/bluetti-official/bluetti-home-assistant.git
+   git clone https://github.com/bluetti-community/bluetti-home-assistant.git
    ```
 
 3. Або завантажте інтегрований zip-файл і розпакуйте його в каталог
@@ -91,7 +91,7 @@ HACS — це плагін Home Assistant (користувачам спочат
 
 2. Додайте репозиторій і оберіть тип:
    - **Repository**:
-     [https://github.com/bluetti-official/bluetti-home-assistant.git](https://github.com/bluetti-official/bluetti-home-assistant.git)
+     [https://github.com/bluetti-community/bluetti-home-assistant.git](https://github.com/bluetti-community/bluetti-home-assistant.git)
    - **Type:** Інтеграція
 
 3. Потім на сторінці "Integration" HACS ви побачите інтеграцію «BLUETTI».
@@ -155,4 +155,4 @@ HACS — це плагін Home Assistant (користувачам спочат
 ## 📮 Підтримка та Відгуки
 
 💬 Є проблеми або пропозиції? Створіть запит на GitHub:
-[https://github.com/bluetti-official/bluetti-home-assistant/issues](https://github.com/bluetti-official/bluetti-home-assistant/issues)
+[https://github.com/bluetti-community/bluetti-home-assistant/issues](https://github.com/bluetti-community/bluetti-home-assistant/issues)
