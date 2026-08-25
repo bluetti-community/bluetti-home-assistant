@@ -101,7 +101,7 @@ async def test_async_setup_entry_with_multiple_devices_refreshes_concurrently(ha
              AsyncMock(return_value=MagicMock()),
          ), \
          patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
-         patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
+         patch("custom_components.bluetti.StompClient"), \
          patch("custom_components.bluetti.ProductClient") as mock_product_cls:
         mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
         mock_product_cls.return_value.get_device_status = AsyncMock(side_effect=fake_get_device_status)

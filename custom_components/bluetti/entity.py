@@ -11,7 +11,8 @@ from .models import BluettiDevice, BluettiState
 
 
 class BluettiEntity(CoordinatorEntity[BluettiDeviceCoordinator]):
-    """Common behavior shared by all BLUETTI entities.
+    """
+    Common behavior shared by all BLUETTI entities.
 
     Subclasses are expected to set self._attr_name after calling super().__init__(),
     since the name source (a device state's fn_name, or a static label) varies by

@@ -71,7 +71,7 @@ async def test_get_user_products_success():
     assert result.is_ok()
     assert result.data == []
     # GET requests must not send a body.
-    method, url, kwargs = session.calls[0]
+    _method, _url, kwargs = session.calls[0]
     assert kwargs["json"] is None
 
 

@@ -4,9 +4,8 @@ import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-from pytest_homeassistant_custom_component.common import MockConfigEntry
-
 from homeassistant.helpers.json import JSONEncoder
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti.const import ACCOUNT_UNIQUE_ID, DOMAIN, INTEGRATION_NAME
 from custom_components.bluetti.model.product import UserProduct

@@ -1,12 +1,16 @@
 """Copyright (C) 2025 BLUETTI Corporation."""
 
+from homeassistant.components.application_credentials import (
+    ClientCredential,
+    async_import_client_credential,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback
-from homeassistant.components.application_credentials import ClientCredential, async_import_client_credential
+
+from .api.bluetti import APPLICATION_PROFILE
 from .const import DOMAIN
 from .oauth import OAuth2FlowHandler
 from .options_flow import BluettiOptionsFlowHandler
-from .api.bluetti import APPLICATION_PROFILE
 
 
 class BluettiConfigFlow(OAuth2FlowHandler, domain=DOMAIN):

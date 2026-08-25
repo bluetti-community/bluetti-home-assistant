@@ -2,7 +2,8 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti import (
@@ -96,7 +97,7 @@ async def test_remove_entry_cleans_up_device_and_entity_registries(hass):
     entry.runtime_data = _runtime_data(MagicMock())
 
     device_registry = dr.async_get(hass)
-    device_entry = device_registry.async_get_or_create(
+    device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, "SN1")},
         name="Test Device",

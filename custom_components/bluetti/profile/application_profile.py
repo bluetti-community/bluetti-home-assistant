@@ -30,7 +30,7 @@ class ApplicationProfile:
 
     def __load_config(self):
         try:
-            with open(self.__configPath, "r") as file:
+            with open(self.__configPath) as file:
                 __yaml__ = yaml.safe_load(file)
         except (OSError, yaml.YAMLError) as err:
             __LOGGER__.error(
@@ -40,4 +40,4 @@ class ApplicationProfile:
             raise
 
         __LOGGER__.info("Load profile " f"{self.__configFile} of `{INTEGRATION_NAME}` integration successfully.")
-        self.config = __yaml__['bluetti']
+        self.config = __yaml__["bluetti"]

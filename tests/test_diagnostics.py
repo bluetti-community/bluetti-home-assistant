@@ -43,7 +43,7 @@ async def test_diagnostics_redacts_sensitive_data_and_lists_devices(hass):
 
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    assert diagnostics["entry_data"]["token"] == "**REDACTED**"
+    assert diagnostics["entry_data"]["token"] == "**REDACTED**"  # noqa: S105 - redaction placeholder, not a secret
     assert diagnostics["entry_data"]["products"] == "**REDACTED**"
     assert diagnostics["entry_options"] == {"devices": ["SN1"]}
 

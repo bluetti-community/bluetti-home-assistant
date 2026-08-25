@@ -68,7 +68,8 @@ def test_device_get_state_returns_none_for_missing_code():
 
 
 def test_state_falls_back_to_fn_code_when_fn_name_is_blank():
-    """Some fn_codes come back from the API without a localized fnName.
+    """
+    Some fn_codes come back from the API without a localized fnName.
 
     With has_entity_name = True, an empty entity name makes Home
     Assistant's frontend display the raw entity_id (which contains the

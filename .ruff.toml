@@ -1,0 +1,82 @@
+# The contents of this file is based on https://github.com/home-assistant/core/blob/dev/pyproject.toml
+# (same baseline used by other HA custom integrations, e.g. zendure/zendure-ha)
+
+target-version = "py313"
+
+[lint]
+select = [
+    "ALL",
+]
+
+ignore = [
+    # Formatter-incompatible / removed rules.
+    "D203", # no-blank-line-before-class (incompatible with formatter)
+    "D212", # multi-line-summary-first-line (incompatible with formatter)
+    "COM812", # incompatible with formatter
+    "ISC001", # incompatible with formatter
+
+    # Deliberately not enforced yet - the codebase predates this linter and
+    # fixing these means touching nearly every file. Bootstrapped the same
+    # way other HA custom integrations did (see zendure/zendure-ha): add
+    # the linter with a realistic baseline first, ratchet up over time
+    # rather than doing a giant mechanical PR that touches everything at
+    # once.
+    "ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN205", # missing type annotations
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+    "E501", # line-too-long
+    "SLF001", # private-member-access - this codebase's own tests/entities routinely
+              # reach into `_state_obj`/`_attr_*` by design (see entity.py/sensor.py)
+    "CPY001", # missing-copyright-notice - whether/how to add one is BLUETTI's call, not ours
+    "D1", # undocumented-* (D100-D107) - matches this project's "no comment unless the
+          # why is non-obvious" convention rather than mandating docstrings everywhere
+    "D200", "D205", "D301", "D400", "D401", "D415", "D419", "D417", # docstring content/format nitpicks
+
+    # Deliberately wrong for a Home Assistant component - `from .const import DOMAIN`
+    # (relative imports within the component) is the correct, expected pattern here,
+    # not an anti-pattern.
+    "TID252",
+
+    # Style/nitpick rules not worth the churn right now.
+    "N806", # non-lowercase-variable-in-function
+    "G004", # logging-f-string
+    "ERA001", # commented-out-code
+    "BLE001", # blind-except
+    "DTZ005", # call-datetime-now-without-tzinfo
+    "PLR0912", "PLR0911", "PLR0915", "PLR0917", # complexity/arg-count metrics
+    "N802", "N803", "N815", # non-lowercase naming (some fn_code-derived names mirror the cloud API's own casing)
+    "PLR0913", # too-many-arguments
+    "FBT001", "FBT002", "FBT003", # boolean positional argument nitpicks
+    "TRY400", # error-instead-of-exception
+    "TRY301", # raise-within-try
+    "TC001", "TC002", "TC003", # typing-only-import (would require restructuring around TYPE_CHECKING)
+    "RUF012", # mutable-class-default
+    "RUF013", # implicit-optional (tied up with the ANN family above)
+    "RUF001", "RUF002", "RUF003", # ambiguous-unicode-character - flags this codebase's
+                                   # existing Chinese-language comments, which stay as-is
+    "UP035", "UP042", "UP046", # typing modernization not worth the diff right now
+    "DTZ901", # datetime-min-max
+    "EXE002", # shebang-missing-executable-file
+    "PLC0415", # import-outside-top-level
+    "PGH003", # blanket-type-ignore
+    "TRY003", "EM101", "EM102", # exception message literal/f-string in raise
+    "PLR2004", # magic-value-comparison
+    "ARG001", "ARG002", "ARG004", # unused arguments - common and expected for HA
+                                   # callback/event-handler signatures
+    "PT011", "PT017", # pytest style nitpicks on existing, already-verified tests
+    "PTH100", "PTH120", "PTH123", # os.path vs pathlib - not touching the working
+                                   # profile-loading path logic as a linter side effect
+    "N818", # error-suffix-on-exception-name
+]
+
+[lint.per-file-ignores]
+# `assert` is the normal pytest idiom, not a production-code smell, here.
+"tests/**" = ["S101"]
+
+[lint.flake8-pytest-style]
+fixture-parentheses = false
+
+[lint.pyupgrade]
+keep-runtime-typing = true
+
+[lint.mccabe]
+max-complexity = 25

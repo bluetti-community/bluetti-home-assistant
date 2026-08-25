@@ -1,20 +1,19 @@
 """BLUETTI Cloud API for Python."""
-import aiohttp
 import logging
-
 from abc import abstractmethod
-from json import dumps, loads
-from typing import Any, TypeVar, Generic
+from json import dumps
+from typing import Any, Generic, TypeVar
 
-from pydantic import TypeAdapter
+import aiohttp
 from homeassistant.core import HomeAssistant
+from pydantic import TypeAdapter
 
-from .unify_response import UnifyResponse
-from ..const import Method,EVENT_TOKEN_EXPIRED
 from ..application_exception import ApplicationRuntimeException
+from ..const import EVENT_TOKEN_EXPIRED, Method
 from ..profile.application_profile import ApplicationProfile
+from .unify_response import UnifyResponse
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 # The application profile
 APPLICATION_PROFILE = ApplicationProfile()
@@ -22,6 +21,7 @@ APPLICATION_PROFILE = ApplicationProfile()
 
 class Bluetti(Generic[T]):
     """Base class describing interactions with BLUETTI cloud service."""
+
     _accessToken: str | None = None
     _headers: dict[str, str]
     _httpSession: aiohttp.ClientSession
@@ -55,7 +55,6 @@ class Bluetti(Generic[T]):
         - **responseType**: The type of response data type, do not include wrapper class `UnifyResponse`.
         - **method**: The HTTP method.
         """
-
         # when the method is 'GET', the request body must be null.
         if method == Method.GET:
             body = None
@@ -95,11 +94,8 @@ class Bluetti(Generic[T]):
                 unify_response = TypeAdapter(UnifyResponse[responseType]).validate_python(data)
                 # self.logger.debug("<====== Server response body: %s", dumps(data, indent=4, ensure_ascii=False))
                 # print(repr(unify_response))
-                if data.get('msgCode') == 805:
+                if data.get("msgCode") == 805:
                     self._hass.bus.fire(EVENT_TOKEN_EXPIRED)
                     self.logger.info("token have expired")
                 return unify_response
-            else:
-                data = await response.text()
-                # self.logger.debug("<====== Server response body: %s", data)
-                return data
+            return await response.text()

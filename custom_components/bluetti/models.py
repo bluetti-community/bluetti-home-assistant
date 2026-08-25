@@ -1,12 +1,15 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Optional, List
+
 import asyncio
 import json
 import logging
+from typing import TYPE_CHECKING
 
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.components import persistent_notification
+from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
+
 from .const import DOMAIN
 
 if TYPE_CHECKING:
@@ -19,11 +22,11 @@ manufacturer = "Bluetti"
 class BluettiData:
     """Data for the BLUETTI integration."""
 
-    def __init__(self, hass, devices: Optional[List[dict]] = None):
+    def __init__(self, hass, devices: list[dict] | None = None):
         self.devices = [
             BluettiDevice(
                 device_id=dev.sn,
-                on_line=dev.online or '0',
+                on_line=dev.online or "0",
                 name=dev.name,
                 sn=dev.sn,
                 model=dev.model,
@@ -61,7 +64,7 @@ class BluettiData:
 class BluettiState:
     """Represents a single function/state of the device."""
 
-    def __init__(self, fn_code: str, fn_name: str, fn_value: str, fn_type: str, support_mode_values: Optional[List[dict]] = None, sensor_info:dict=None):
+    def __init__(self, fn_code: str, fn_name: str, fn_value: str, fn_type: str, support_mode_values: list[dict] | None = None, sensor_info:dict=None):
         self.fn_code = fn_code
         self.fn_name = fn_name
         self.fn_value = fn_value
@@ -95,14 +98,14 @@ class BluettiState:
 class BluettiDevice:
     """Represents a single Bluetti device."""
 
-    def __init__(self, device_id: str, on_line: str, name: str, sn: str, model: str, state_list: Optional[List[dict]] = None):
+    def __init__(self, device_id: str, on_line: str, name: str, sn: str, model: str, state_list: list[dict] | None = None):
         self.device_id = device_id
         self.on_line = on_line
         self.name = name
         self.sn = sn
         self.model = model
         self.manufacturer = manufacturer
-        self.coordinator: "BluettiDeviceCoordinator | None" = None
+        self.coordinator: BluettiDeviceCoordinator | None = None
         self.states = [
             BluettiState(
                 fn_code=s.get("fnCode"),
@@ -128,7 +131,7 @@ class BluettiDevice:
     def __repr__(self):
         return f"<BluettiDevice id={self.device_id} name={self.name}>"
 
-    def get_state(self, fn_code: str) -> Optional[BluettiState]:
+    def get_state(self, fn_code: str) -> BluettiState | None:
         """Return state object by fn_code."""
         for s in self.states:
             if s.fn_code == fn_code:
@@ -143,7 +146,7 @@ class BluettiDevice:
 
         try:
             result = await self._api_client.control_device(
-                {'sn': self.device_id, 'fnCode': fn_code, 'fnValue': value}
+                {"sn": self.device_id, "fnCode": fn_code, "fnValue": value}
             )
         except Exception as err:
             raise HomeAssistantError(
@@ -160,7 +163,7 @@ class BluettiDevice:
 
     @property
     def online(self) -> bool:
-        return self.on_line == '1'
+        return self.on_line == "1"
 
     @property
     def battery_level(self) -> int:
@@ -170,7 +173,8 @@ class BluettiDevice:
         return 0
 
     async def async_refresh_from_api(self) -> None:
-        """Fetch the latest state from the BLUETTI cloud API and apply it.
+        """
+        Fetch the latest state from the BLUETTI cloud API and apply it.
 
         Raises on any failure so the coordinator can classify and surface it.
         """
@@ -182,7 +186,7 @@ class BluettiDevice:
         if data.sn != self.device_id:
             return
 
-        if data.isBindByCurUser == '0' and not self._unbind_processed:
+        if data.isBindByCurUser == "0" and not self._unbind_processed:
             await self._handle_unbind()
             return
 
@@ -196,9 +200,9 @@ class BluettiDevice:
     async def _handle_unbind(self):
         """Handle device unbinding: Clean up the device, entity, and configuration, and display the notification."""
         self._unbind_processed = True
-        
+
         __LOGGER__.info("Detected device unbinding: %s (%s)", self.name, self.device_id)
-        
+
         # Check if the necessary references exist
         if not self._hass or not self._entry:
             __LOGGER__.error(
@@ -228,10 +232,11 @@ class BluettiDevice:
 
             if device_entry:
                 # Delete all entities of the device
-                entities_to_remove = []
-                for entity_entry in er.async_entries_for_config_entry(entity_registry, entry_id):
-                    if entity_entry.device_id == device_entry.id:
-                        entities_to_remove.append(entity_entry.entity_id)
+                entities_to_remove = [
+                    entity_entry.entity_id
+                    for entity_entry in er.async_entries_for_config_entry(entity_registry, entry_id)
+                    if entity_entry.device_id == device_entry.id
+                ]
 
                 for entity_id in entities_to_remove:
                     try:
