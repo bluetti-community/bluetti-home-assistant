@@ -1,4 +1,4 @@
-# Unreleased
+# 1.2.0 2026-08-25
 New:
 - The device's serial number now shows up in its Device Info panel (Settings -> Devices & services -> BLUETTI -> device page), matching how other Home Assistant integrations surface it.
 - A single device can now be removed from an existing multi-device setup via its device page's "Delete" button, without having to remove and re-add the whole integration. This only stops Home Assistant from tracking the device - it does not unbind it from your BLUETTI account, so it can be added back later via Settings -> Devices & services -> BLUETTI -> Configure.
