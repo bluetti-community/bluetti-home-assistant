@@ -13,6 +13,7 @@ Fixes:
 - Fix the daily proactive OAuth token-refresh timer silently failing every single time it fired (a `TypeError` from a callback signature mismatch, found while adding strict typing) - the "check again in 24 hours" mechanism had effectively never worked.
 - Fix two spots (`options_flow.py`, `oauth.py`) where adding a device on an account with zero BLUETTI devices bound to it would crash instead of showing "no devices available".
 - Fix `set_state_value` crashing instead of just not applying the update if the cloud ever responds to a control command with a non-JSON body.
+- Fix `hassfest` validation failures: `icons.json`'s entity translation keys used the cloud's raw, mixed-case `fn_code` values, which don't match Home Assistant's required key pattern; and `manifest.json`'s `documentation` field pointed at a URL reserved for integrations already bundled in Home Assistant core, not a custom integration like this one.
 
 
 # 1.1.0 2026-08-20
