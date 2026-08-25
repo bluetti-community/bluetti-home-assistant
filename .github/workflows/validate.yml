@@ -38,7 +38,3 @@ jobs:
         uses: hacs/action@d556e736723344f83838d08488c983a15381059a # 22.5.0
         with:
           category: integration
-          # Remove this 'ignore' key once brand images are added under
-          # custom_components/bluetti/brand/ (see the "Install by HACS"
-          # section of README.md for details).
-          ignore: brands
