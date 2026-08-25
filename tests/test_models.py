@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from homeassistant.exceptions import HomeAssistantError
+from pybluetti import UnifyResponse
 
 from custom_components.bluetti.models import BluettiData, BluettiDevice, BluettiState
 
@@ -161,7 +162,7 @@ async def test_set_state_value_applies_optimistic_update_and_notifies_coordinato
         state_list=[{"fnCode": "SetCtrlAc", "fnName": "AC", "fnValue": "0", "fnType": "SWITCH"}],
     )
     device._api_client = AsyncMock()
-    device._api_client.control_device.return_value = SimpleNamespace(msgCode=0)
+    device._api_client.control_device.return_value = UnifyResponse(msgId="1", msgCode=0)
     device.coordinator = MagicMock()
 
     await device.set_state_value("SetCtrlAc", "1")
@@ -176,10 +177,30 @@ async def test_set_state_value_does_not_apply_on_server_error_code():
         state_list=[{"fnCode": "SetCtrlAc", "fnName": "AC", "fnValue": "0", "fnType": "SWITCH"}],
     )
     device._api_client = AsyncMock()
-    device._api_client.control_device.return_value = SimpleNamespace(msgCode=1)
+    device._api_client.control_device.return_value = UnifyResponse(msgId="1", msgCode=1)
     device.coordinator = MagicMock()
 
     await device.set_state_value("SetCtrlAc", "1")
+
+    assert device.get_state("SetCtrlAc").fn_value == "0"
+
+
+async def test_set_state_value_does_not_apply_on_non_json_response():
+    """
+    control_device() returns a plain str for a non-JSON server response.
+
+    Regression test: accessing .msgCode on that str used to crash with an
+    unhandled AttributeError instead of just not applying the update.
+    """
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
+        state_list=[{"fnCode": "SetCtrlAc", "fnName": "AC", "fnValue": "0", "fnType": "SWITCH"}],
+    )
+    device._api_client = AsyncMock()
+    device._api_client.control_device.return_value = "not json"
+    device.coordinator = MagicMock()
+
+    await device.set_state_value("SetCtrlAc", "1")  # must not raise
 
     assert device.get_state("SetCtrlAc").fn_value == "0"
 

@@ -4,14 +4,22 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+from typing import TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from pybluetti import ApplicationRuntimeException
 
 from .models import BluettiDevice
+
+if TYPE_CHECKING:
+    # Deliberately not a runtime import: __init__.py imports this module to
+    # define BluettiConfigEntry in the first place, so importing it back
+    # here would be circular. TYPE_CHECKING avoids that while still giving
+    # mypy the precise type (matches the same pattern models.py already
+    # uses for BluettiDeviceCoordinator).
+    from . import BluettiConfigEntry
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,7 +32,7 @@ AUTH_ERROR_CODES = {401, 805}
 class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
     """Coordinate REST polling and websocket-triggered refreshes for one device."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, device: BluettiDevice) -> None:
+    def __init__(self, hass: HomeAssistant, entry: BluettiConfigEntry, device: BluettiDevice) -> None:
         """Initialize the coordinator for a single BLUETTI device."""
         super().__init__(
             hass,

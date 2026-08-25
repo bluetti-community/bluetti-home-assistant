@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock
 
+from pybluetti import UnifyResponse
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti import BluettiRuntimeData
@@ -218,7 +219,7 @@ async def test_switch_setup_entry_creates_switch_and_controls_it(hass):
     assert switch.is_on is False
 
     async def fake_control_device(payload):
-        return MagicMock(msgCode=0)
+        return UnifyResponse(msgId="1", msgCode=0)
 
     device._api_client.control_device = fake_control_device
     await switch.async_turn_on()
@@ -247,7 +248,7 @@ async def test_select_setup_entry_creates_select_and_controls_it(hass):
     assert isinstance(select, BluettiSelect)
 
     async def fake_control_device(payload):
-        return MagicMock(msgCode=0)
+        return UnifyResponse(msgId="1", msgCode=0)
 
     device._api_client.control_device = fake_control_device
     await select.async_select_option("Silent")

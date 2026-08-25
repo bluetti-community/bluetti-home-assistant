@@ -1,3 +1,5 @@
+from typing import Any
+
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -18,7 +20,7 @@ async def async_setup_entry(
     """Set up Bluetti switches from config entry."""
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
 
-    entities = []
+    entities: list[BluettiSwitch] = []
     for device in bluetti_devices.devices:
         entities.extend(
             BluettiSwitch(device, state) for state in device.states if state.fn_type == "SWITCH"
@@ -33,7 +35,7 @@ async def async_setup_entry(
 class BluettiSwitch(BluettiEntity, SwitchEntity):
     """Representation of a Bluetti switch."""
 
-    def __init__(self, device: BluettiDevice, state: BluettiState):
+    def __init__(self, device: BluettiDevice, state: BluettiState) -> None:
         super().__init__(device, state)
         self._attr_name = state.fn_name
 
@@ -41,8 +43,8 @@ class BluettiSwitch(BluettiEntity, SwitchEntity):
     def is_on(self) -> bool:
         return self._state_obj.fn_value == "1"
 
-    async def async_turn_on(self, **kwargs):
+    async def async_turn_on(self, **kwargs: Any) -> None:
         await self._device.set_state_value(self._state_obj.fn_code, "1")
 
-    async def async_turn_off(self, **kwargs):
+    async def async_turn_off(self, **kwargs: Any) -> None:
         await self._device.set_state_value(self._state_obj.fn_code, "0")

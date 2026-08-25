@@ -22,6 +22,9 @@ class BluettiEntity(CoordinatorEntity[BluettiDeviceCoordinator]):
     _attr_has_entity_name = True
 
     def __init__(self, device: BluettiDevice, state: BluettiState) -> None:
+        assert device.coordinator is not None, (  # noqa: S101 - a real invariant, not test-only theater
+            "entities must be created after the device's coordinator is wired up"
+        )
         super().__init__(device.coordinator)
         self._device = device
         self._state_obj = state

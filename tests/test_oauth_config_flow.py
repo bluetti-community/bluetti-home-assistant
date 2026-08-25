@@ -192,3 +192,20 @@ async def test_reconfigure_token_updates_existing_entry(hass):
 
     updated = hass.config_entries.async_get_entry(existing_entry.entry_id)
     assert updated.data["token"] == {"access_token": "tok", "expires_at": 9999999999}
+
+
+async def test_reconfigure_token_missing_entry_aborts(hass):
+    """entry_id in context but the entry itself is gone (e.g. removed mid-flow)."""
+    flow = _make_flow(hass)
+    flow.context = {"entry_id": "does-not-exist"}
+    product = UserProduct(sn="SN1", name="Device", stateList=[], online="1")
+
+    with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
+         patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products = AsyncMock(
+            return_value=SimpleNamespace(data=[product])
+        )
+        result = await flow.async_step_select_devices(user_input=None)
+
+    assert result["type"] == "abort"
+    assert result["reason"] == "reconfigure_failed"

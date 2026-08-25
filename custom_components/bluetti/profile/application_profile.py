@@ -1,7 +1,10 @@
+import asyncio
 import logging
 import os
+from typing import Any
 
 import yaml
+from homeassistant.core import HomeAssistant
 
 from ..const import INTEGRATION_NAME
 
@@ -12,9 +15,9 @@ class ApplicationProfile:
     __active: str = ""
     __configFile: str = ""
     __configPath: str = ""
-    config: dict = {}
 
-    def __init__(self, active=None):
+    def __init__(self, active: str | None = None) -> None:
+        self.config: dict[str, Any] = {}
         self.__active = active or os.getenv("BLUETTI_PROFILE_ACTIVE", "").lower()
         __LOGGER__.info("Setting up application profile: %s", "prod" if self.__active == "" else self.__active)
 
@@ -25,10 +28,10 @@ class ApplicationProfile:
         self.__configPath = os.path.dirname(os.path.abspath(__file__)) + "/" + self.__configFile
 
     """加载运行环境的配置文件"""
-    def load_config(self, hass):
+    def load_config(self, hass: HomeAssistant) -> asyncio.Future[None]:
         return hass.async_add_executor_job(self.__load_config)
 
-    def __load_config(self):
+    def __load_config(self) -> None:
         try:
             with open(self.__configPath) as file:
                 __yaml__ = yaml.safe_load(file)

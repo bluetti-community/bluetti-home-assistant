@@ -1,19 +1,19 @@
 import logging
 import time
-from datetime import timedelta
-from typing import cast
+from datetime import datetime, timedelta
+from typing import Any, cast
 
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 from aiohttp import ClientSession
 from homeassistant import config_entries
 from homeassistant.components import persistent_notification
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
-from pybluetti import ProductClient
+from pybluetti import ProductClient, UserProduct
 
 from .const import (
     ACCOUNT_UNIQUE_ID,
@@ -35,17 +35,24 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
     DOMAIN = DOMAIN
     reauth_supported = True
 
+    _oauth_data: dict[str, Any]
+    _product_client: ProductClient
+    _products: list[UserProduct]
+    entry: config_entries.ConfigEntry
+
     @property
     def logger(self) -> logging.Logger:
         """Return logger."""
         return logging.getLogger(__name__)
 
-    async def async_oauth_create_entry(self, data: dict) -> config_entries.ConfigFlowResult:
+    async def async_oauth_create_entry(self, data: dict[str, Any]) -> config_entries.ConfigFlowResult:
         """Handle OAuth2 callback and create config entry."""
         self._oauth_data = data
         return await self.async_step_select_devices()
 
-    async def async_step_select_devices(self, user_input=None):
+    async def async_step_select_devices(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         """Let user select devices after OAuth2 login."""
         if user_input is not None:
             try:
@@ -123,6 +130,13 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
             __LOGGER__.error("Failed to fetch BLUETTI products: %s", err)
             return self.async_abort(reason="cannot_connect")
 
+        # Checked before iterating products.data below: it's `T | None` on
+        # the wire, and a cloud response that omits "data" entirely would
+        # otherwise crash the dict comprehension with an unhandled
+        # TypeError instead of aborting gracefully.
+        if not products.data:
+            return self.async_abort(reason="no_devices_available")
+
         self._product_client = product_client
         self._products = products.data
 
@@ -142,6 +156,8 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
         # reconfigure token
         if "entry_id" in self.context:
             cur_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+            if cur_entry is None:
+                return self.async_abort(reason="reconfigure_failed")
             __LOGGER__.info("reconfigure token")
             new_data = {**cur_entry.data,"token":self._oauth_data["token"]}
             self.hass.config_entries.async_update_entry(
@@ -150,10 +166,6 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
                 )
             await self.hass.config_entries.async_reload(cur_entry.entry_id)
             return self.async_abort(reason="success")
-
-        # 如果没有可用设备，显示错误
-        if not products.data:
-            return self.async_abort(reason="no_devices_available")
 
         # 已全部集成
         if not available_devices:
@@ -173,11 +185,14 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
             data_schema=schema,
         )
 
-    async def async_step_reconfigure(self, user_input=None):
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         """Reauth configure"""
-        self.entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
-        if not self.entry:
+        found_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        if found_entry is None:
             return self.async_abort(reason="reconfigure_failed")
+        self.entry = found_entry
 
         return await self.async_step_user()
 
@@ -197,24 +212,29 @@ class AsyncConfigEntryAuth:
     async def async_get_access_token(self) -> str:
         """Return a valid access token."""
         await self._oauth_session.async_ensure_token_valid()
-        return self._oauth_session.token["access_token"]
+        return cast("str", self._oauth_session.token["access_token"])
 
 
 class AuthTokenRefresh:
     """Handler Token expired and refresh token."""
 
-    def __init__(self,hass:HomeAssistant,entry,oauth_session: config_entry_oauth2_flow.OAuth2Session)->None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: config_entries.ConfigEntry,
+        oauth_session: config_entry_oauth2_flow.OAuth2Session,
+    ) -> None:
         self.hass = hass
         self.entry = entry
         self.oAuth2Session = oauth_session
         unsub = hass.bus.async_listen(EVENT_TOKEN_EXPIRED, self.on_token_expired_event)
         entry.async_on_unload(unsub)
 
-    async def on_token_expired_event(self,event):
+    async def on_token_expired_event(self, event: Event[Any]) -> None:
         __LOGGER__.info("on_token_expired_event")
         self.send_expired_notification()
 
-    def start_token_check(self):
+    def start_token_check(self) -> None:
         # first clear old notify
         persistent_notification.async_dismiss(self.hass,notification_id=NOTIFY_ID_TOKEN_EXPIRED)
         ir.async_delete_issue(self.hass, DOMAIN, ISSUE_ID_OAUTH_EXPIRED)
@@ -253,7 +273,7 @@ class AuthTokenRefresh:
         return False
 
     # show token expire notify
-    def send_expired_notification(self):
+    def send_expired_notification(self) -> None:
         reauth_url = f"/config/integrations/integration/{DOMAIN}"
         notification_message = (
             f"Your OAuth Have Expired！\n"
@@ -275,7 +295,17 @@ class AuthTokenRefresh:
         )
 
     # check token is in 7 day if in 7day refesh token
-    async def async_check_token_expiry(self):
+    async def async_check_token_expiry(self, now: datetime | None = None) -> None:
+        """
+        Check whether the token needs a refresh, and refresh it if so.
+
+        Registered directly as the callback for async_track_time_interval,
+        which always calls it with the current UTC time - `now` must be
+        accepted even though this method doesn't use it, or every timer
+        fire raises TypeError and silently breaks the daily proactive
+        check. Also called manually with no argument (start_token_check,
+        on a fresh timer registration), which is why it stays optional.
+        """
         __LOGGER__.info("check token is expired")
         expire_timestamp = self.oAuth2Session.token.get("expires_at")
         if expire_timestamp is None:

@@ -78,4 +78,10 @@ rules:
   # Platinum
   async-dependency: done
   inject-websession: done
-  strict-typing: todo
+  strict-typing:
+    status: todo
+    comment: >-
+      mypy --strict already passes locally and in CI (scripts/typecheck).
+      What's left is out of this repo's hands: the rule also requires the
+      integration's own entry in home-assistant/core's .strict-typing file,
+      only possible once actually submitted to core.
