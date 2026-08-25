@@ -2,6 +2,7 @@
 # from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -10,28 +11,32 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_entry_oauth2_flow, device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import storage
-from homeassistant.const import EVENT_HOMEASSISTANT_START
 
+from .coordinator import BluettiDeviceCoordinator
 from .models import BluettiData
 from .oauth import AsyncConfigEntryAuth,AuthTokenRefresh
 from .api.bluetti import APPLICATION_PROFILE
 from .api.product_client import ProductClient
 from .api.websocket import StompClient
-from .profile.application_profile import ApplicationProfile
 from .const import DOMAIN
 from .model.product import UserProduct
 
 __LOGGER__ = logging.getLogger(__name__)
 
-# TODO List the platforms that you want to support.
-# For your initial PR, limit it to 1 platform. Platform.LIGHT,
 _PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.SELECT]
 
-# Create ConfigEntry type alias with ConfigEntryAuth or AsyncConfigEntryAuth object
-type BluettiConfigEntry = ConfigEntry[BluettiData]
+
+@dataclass
+class BluettiRuntimeData:
+    """Runtime data stored on a BLUETTI config entry."""
+
+    auth: AsyncConfigEntryAuth
+    bluetti_devices: BluettiData
+    stomp_client: StompClient
+    coordinators: dict[str, BluettiDeviceCoordinator]
 
 
-# type Oauth2ConfigEntry = ConfigEntry[api.AsyncConfigEntryAuth]
+type BluettiConfigEntry = ConfigEntry[BluettiRuntimeData]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> bool:
@@ -55,14 +60,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
 
         httpSession = async_get_clientsession(hass)
         oAuth2Session = config_entry_oauth2_flow.OAuth2Session(hass, entry, implementation)
-
-        # If using a requests-based API lib
-        # entry.runtime_data = ConfigEntryAuth(hass, oAuth2Session)
-
-        # If using an aiohttp-based API lib
-        entry.runtime_data = AsyncConfigEntryAuth(
-            httpSession, oAuth2Session
-        )
+        auth = AsyncConfigEntryAuth(httpSession, oAuth2Session)
 
         authTokenRefresh = AuthTokenRefresh(hass,entry,oAuth2Session)
         authTokenRefresh.start_token_check()
@@ -84,60 +82,57 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     stomp_client = StompClient(APPLICATION_PROFILE.config["server"]["wss"], access_token, bluetti_devices.web_socket_message_handler,hass)
     stomp_client.connect()
 
+    coordinators: dict[str, BluettiDeviceCoordinator] = {}
     for device in bluetti_devices.devices:
         device._api_client = product_client
         device.name = device.sn
         device._hass = hass
         device._entry = entry
         device._entry_id = entry.entry_id
+        coordinators[device.device_id] = BluettiDeviceCoordinator(hass, entry, device)
 
-        # device._ws_manager = stomp_client
+    for coordinator in coordinators.values():
+        await coordinator.async_config_entry_first_refresh()
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
-        "bluettiDevices": bluetti_devices,
-        "stompClient": stomp_client,
-    }
+    entry.runtime_data = BluettiRuntimeData(
+        auth=auth,
+        bluetti_devices=bluetti_devices,
+        stomp_client=stomp_client,
+        coordinators=coordinators,
+    )
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
 
-    for device in bluetti_devices.devices:
-        await device.async_update()
+    # Reload the entry when the options flow adds more devices.
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
-    # async def _after_start(event):
-    #     # print(event)
-    #     for device in bluetti_devices.devices:
-    #         await device.async_update()
-
-    # hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _after_start)
     __LOGGER__.info('bluetti init ok')
 
     return True
 
 
-def web_socket_message_handler(message: str):
-    
-    __LOGGER__.debug(message)
+async def _async_update_listener(hass: HomeAssistant, entry: BluettiConfigEntry) -> None:
+    """Reload the entry when its options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
-# TODO Update entry annotation
+
 async def async_unload_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> bool:
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)
-    if unloaded:
-        data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
-        if data and "stompClient" in data:
-            try:
-                data["stompClient"].disconnect()
-            except Exception as e:
-                __LOGGER__.warning("Error while disconnecting websocket: %s", e)
+    runtime_data = getattr(entry, "runtime_data", None)
+    if unloaded and runtime_data:
+        try:
+            runtime_data.stomp_client.disconnect()
+        except Exception as e:
+            __LOGGER__.warning("Error while disconnecting websocket: %s", e)
     return unloaded
 
-async def async_remove_entry(hass, entry):
+async def async_remove_entry(hass, entry: BluettiConfigEntry):
     """Handle removal of an entry."""
-    data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
-    if data and "stompClient" in data:
-        stomp_client = data["stompClient"]
+    runtime_data = getattr(entry, "runtime_data", None)
+    if runtime_data:
         try:
-            stomp_client.disconnect()
+            runtime_data.stomp_client.disconnect()
         except Exception as e:
             __LOGGER__.warning("Error while disconnecting websocket: %s", e)
 
@@ -148,11 +143,6 @@ async def async_remove_entry(hass, entry):
     entity_registry = er.async_get(hass)
     for entity in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
         entity_registry.async_remove(entity.entity_id)
-
-    if DOMAIN in hass.data:
-        hass.data[DOMAIN].pop(entry.entry_id, None)
-        if not hass.data[DOMAIN]:
-            hass.data.pop(DOMAIN)
 
     store = storage.Store(hass, 1, f"{DOMAIN}_data_{entry.entry_id}.json")
     await store.async_remove()
