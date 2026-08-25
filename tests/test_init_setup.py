@@ -115,6 +115,36 @@ async def test_async_setup_entry_with_multiple_devices_refreshes_concurrently(ha
     assert all(c.last_update_success for c in coordinators.values())
 
 
+async def test_async_setup_entry_reimports_missing_oauth_credential(hass, enable_custom_integrations):
+    # If the Application Credential backing the OAuth2 implementation was
+    # ever lost (e.g. a partial backup restore), async_get_config_entry_
+    # implementation raises ValueError("Implementation not available").
+    # Setup should re-import the default credential and retry once instead
+    # of failing forever.
+    entry = _entry(hass)
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(side_effect=[ValueError("Implementation not available"), MagicMock()]),
+         ) as mock_get_impl, \
+         patch(
+             "custom_components.bluetti.async_ensure_default_credential",
+             AsyncMock(),
+         ) as mock_ensure_credential, \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls:
+        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.LOADED
+    mock_ensure_credential.assert_awaited_once_with(hass)
+    assert mock_get_impl.await_count == 2
+    mock_stomp_cls.return_value.connect.assert_called_once()
+
+
 async def test_async_setup_entry_retries_on_failure(hass, enable_custom_integrations):
     entry = _entry(hass)
 
@@ -127,3 +157,26 @@ async def test_async_setup_entry_retries_on_failure(hass, enable_custom_integrat
         await hass.async_block_till_done()
 
     assert entry.state is ConfigEntryState.SETUP_RETRY
+
+
+async def test_async_setup_entry_retries_when_credential_stays_missing(hass, enable_custom_integrations):
+    # Re-importing the default credential doesn't help if the underlying
+    # cause isn't a missing credential (e.g. the application_credentials
+    # component itself isn't ready yet) - setup should still fall back to
+    # Home Assistant's normal ConfigEntryNotReady retry instead of raising.
+    entry = _entry(hass)
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(side_effect=ValueError("Implementation not available")),
+         ), \
+         patch(
+             "custom_components.bluetti.async_ensure_default_credential",
+             AsyncMock(),
+         ) as mock_ensure_credential:
+        assert not await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    mock_ensure_credential.assert_awaited_once_with(hass)

@@ -1,13 +1,10 @@
 """Copyright (C) 2025 BLUETTI Corporation."""
 
-from homeassistant.components.application_credentials import (
-    ClientCredential,
-    async_import_client_credential,
-)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import callback
 
 from .api.bluetti import APPLICATION_PROFILE
+from .application_credentials import async_ensure_default_credential
 from .const import DOMAIN
 from .oauth import OAuth2FlowHandler
 from .options_flow import BluettiOptionsFlowHandler
@@ -18,13 +15,8 @@ class BluettiConfigFlow(OAuth2FlowHandler, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
-        # 在配置流开始时导入默认的客户端凭据
         await APPLICATION_PROFILE.load_config(self.hass)
-        await async_import_client_credential(
-            self.hass,
-            DOMAIN,
-            ClientCredential("HomeAssistant", "SG9tZUFzc2lzdGFudA=="),
-        )
+        await async_ensure_default_credential(self.hass)
         return await super().async_step_user(user_input)
 
     @staticmethod
