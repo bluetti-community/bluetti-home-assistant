@@ -60,7 +60,7 @@ def test_manifest_has_issue_tracker():
     # Required by HACS for default-repository inclusion.
     # https://hacs.xyz/docs/publish/integration
     manifest = json.loads(MANIFEST_PATH.read_text())
-    assert manifest["issue_tracker"] == "https://github.com/bluetti-official/bluetti-home-assistant/issues"
+    assert manifest["issue_tracker"] == "https://github.com/bluetti-community/bluetti-home-assistant/issues"
 
 
 def test_manifest_keys_are_sorted_domain_name_then_alphabetical():
