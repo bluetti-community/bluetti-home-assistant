@@ -32,7 +32,11 @@ class BluettiEntity(CoordinatorEntity[BluettiDeviceCoordinator]):
         self._attr_unique_id = f"{device.device_id}_{state.fn_code}"
         # fn_code doubles as the icon translation key (see icons.json); it's
         # a stable, bounded identifier already used for unique_id above.
-        self._attr_translation_key = state.fn_code
+        # Lowercased because translation keys must match hassfest's
+        # [a-z0-9-_]+ pattern, but the cloud's fn_code values are mixed-case
+        # (e.g. "SOC", "SetCtrlAc") - icons.json's keys are lowercased to
+        # match.
+        self._attr_translation_key = state.fn_code.lower()
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device.device_id)},
             name=device.name,

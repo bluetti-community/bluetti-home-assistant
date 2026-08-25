@@ -1,61 +1,61 @@
 {
   "entity": {
     "sensor": {
-      "SOC": {
+      "soc": {
         "default": "mdi:battery"
       },
-      "InvWorkState": {
+      "invworkstate": {
         "default": "mdi:solar-power"
       },
-      "ChgFullTime": {
+      "chgfulltime": {
         "default": "mdi:clock-outline"
       },
-      "ACLoadAllTotalPower": {
+      "acloadalltotalpower": {
         "default": "mdi:power-socket-eu"
       },
-      "DCLoadAllTotalPower": {
+      "dcloadalltotalpower": {
         "default": "mdi:current-dc"
       },
-      "PVAllTotalPower": {
+      "pvalltotalpower": {
         "default": "mdi:solar-power"
       },
-      "GridAllTotalPower": {
+      "gridalltotalpower": {
         "default": "mdi:transmission-tower"
       }
     },
     "binary_sensor": {
-      "onLine": {
+      "online": {
         "default": "mdi:lan-connect"
       }
     },
     "switch": {
-      "SetCtrlAc": {
+      "setctrlac": {
         "default": "mdi:power-socket-us"
       },
-      "SetCtrlDc": {
+      "setctrldc": {
         "default": "mdi:car-battery"
       },
-      "SetCtrlPowerOn": {
+      "setctrlpoweron": {
         "default": "mdi:power"
       },
-      "Storm_Mode_Cloud_Ctrl": {
+      "storm_mode_cloud_ctrl": {
         "default": "mdi:weather-lightning"
       },
-      "SetCtrlPowerOn-2": {
+      "setctrlpoweron-2": {
         "default": "mdi:sleep"
       }
     },
     "select": {
-      "SetCtrlWorkMode": {
+      "setctrlworkmode": {
         "default": "mdi:cog"
       },
-      "SetDCECO": {
+      "setdceco": {
         "default": "mdi:flash"
       },
-      "SetACECO": {
+      "setaceco": {
         "default": "mdi:power-plug"
       },
-      "InvWorkState": {
+      "invworkstate": {
         "default": "mdi:solar-power"
       }
     }
