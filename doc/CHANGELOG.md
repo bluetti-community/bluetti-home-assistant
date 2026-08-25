@@ -1,4 +1,7 @@
 # Unreleased
+New:
+- The device's serial number now shows up in its Device Info panel (Settings -> Devices & services -> BLUETTI -> device page), matching how other Home Assistant integrations surface it.
+
 Fixes:
 - Fix the integration getting permanently stuck failing to set up with "BLUETTI setup failed: Implementation not available" if the underlying OAuth Application Credential is ever lost (e.g. a partial backup restore, or an entry created without going through the config flow). The default credential is now automatically re-imported and setup retried once, instead of requiring a manual remove-and-re-add of the integration.
 

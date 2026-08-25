@@ -35,6 +35,7 @@ class BluettiEntity(CoordinatorEntity[BluettiDeviceCoordinator]):
             name=device.name,
             manufacturer=device.manufacturer,
             model=device.model,
+            serial_number=device.sn,
         )
 
     @property
