@@ -1,9 +1,6 @@
 {
   "entity": {
     "sensor": {
-      "soc": {
-        "default": "mdi:battery"
-      },
       "invworkstate": {
         "default": "mdi:solar-power"
       },
@@ -21,11 +18,6 @@
       },
       "gridalltotalpower": {
         "default": "mdi:transmission-tower"
-      }
-    },
-    "binary_sensor": {
-      "online": {
-        "default": "mdi:lan-connect"
       }
     },
     "switch": {
