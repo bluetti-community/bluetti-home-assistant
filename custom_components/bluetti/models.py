@@ -66,7 +66,7 @@ class BluettiData:
         sn = res["data"]["deviceSn"]
 
         device = self.get_device_by_sn(sn)
-        if device:
+        if device and device.control_mode != ControlMode.BLE:
             asyncio.run_coroutine_threadsafe(device.async_update(), self.loop)
 
     async def asyc_start_down_proto(self,hass):
