@@ -118,9 +118,26 @@ itself, both now fixed:
   early. This is a characteristic of the platform API every integration
   using `async_get_unit` shares, not a bug specific to this integration.
 
+## `home-assistant.io` documentation (2026-08-27)
+
+Drafted at `home-assistant.io/source/_integrations/bluetti.markdown`, in the
+real docs repo's format (front matter + `{% include %}`/`{% configuration_basic %}`
+tags), using `fronius`, `sofar`, and `flexit`'s real doc pages (fetched from
+`home-assistant/home-assistant.io`) as templates - `sofar`'s structure
+(config-flow, Modbus TCP, supported-devices/functions/limitations sections)
+is the closest match. Every claim in it (supported device families, entity
+list, push+30s-polling update behavior, the optional Balco260/EP2000 local
+Modbus feature, known limitations) is drawn directly from this repo's own
+`README.md`, not invented for the doc page.
+
+Not yet submitted - `home-assistant.io` PRs are normally opened alongside or
+after the `home-assistant/core` PR itself, once a reviewer has actually seen
+the code.
+
 ## What's still blocking an actual submission
 
 - A `home-assistant/brands` entry for `core_integrations/bluetti` (brands
   entries are normally added during actual PR review, not preemptively).
-- `home-assistant.io` documentation, using the RC/beta doc pages for
-  `fronius`, `sofar`, and `flexit` as templates.
+- Actually opening the `home-assistant/core` and `home-assistant.io` PRs -
+  both are real, publicly visible actions this draft branch deliberately
+  stops short of.
