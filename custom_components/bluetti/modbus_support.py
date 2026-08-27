@@ -10,5 +10,15 @@ MODBUS_CAPABLE_DEV_TYPES = {"balco260", "ep2000"}
 
 def modbus_dev_type_for_model(model: str | None) -> str | None:
     """Return the bluetti_modbus_lib device type for a cloud model string, or None."""
+    # Not always a bare "balco260"/"ep2000": a real BLUETTI cloud account's
+    # UserProduct.model has been observed as "Balco260-Balco260" - confirmed
+    # via a real diagnostics dump, not assumed. The suffix after the hyphen
+    # is a custom device name the user can set in the BLUETTI phone app (it
+    # happened to match the model name here), not a fixed duplication, so
+    # it can be anything. Match by containment rather than exact equality
+    # so an arbitrary custom name doesn't break detection.
     normalized = (model or "").strip().lower()
-    return normalized if normalized in MODBUS_CAPABLE_DEV_TYPES else None
+    for dev_type in MODBUS_CAPABLE_DEV_TYPES:
+        if dev_type in normalized:
+            return dev_type
+    return None

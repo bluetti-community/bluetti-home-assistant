@@ -11,6 +11,13 @@ from custom_components.bluetti.modbus_support import modbus_dev_type_for_model
         ("Balco260", "balco260"),
         ("EP2000", "ep2000"),
         ("balco260", "balco260"),
+        # Real-world format observed via a real account's diagnostics dump:
+        # "{model}-{custom device name from the BLUETTI phone app}". The
+        # custom name is arbitrary - it happened to be "Balco260" here, but
+        # must not be assumed to always match the model.
+        ("Balco260-Balco260", "balco260"),
+        ("Balco260-Chambre", "balco260"),
+        ("EP2000-Garage", "ep2000"),
         ("SMeter", None),
         ("AC200L", None),
         ("Unknown", None),
