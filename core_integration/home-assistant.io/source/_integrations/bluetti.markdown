@@ -2,13 +2,18 @@
 title: BLUETTI
 description: Instructions on how to integrate BLUETTI portable power stations with Home Assistant.
 ha_category:
+  - Binary sensor
   - Energy
+  - Select
+  - Sensor
+  - Switch
 ha_iot_class: Cloud Push
 ha_codeowners:
   - '@chpego'
 ha_domain: bluetti
 ha_platforms:
   - binary_sensor
+  - diagnostics
   - select
   - sensor
   - switch
@@ -59,6 +64,39 @@ The **BLUETTI** integration can provide the following entities, depending on wha
 
 - Online/offline connectivity status.
 
+## BLUETTI automation examples
+
+### Automation: Notify when the power station battery is low
+
+```yaml
+automation:
+  - alias: "Notify when the power station battery is low"
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.power_station_battery_level
+        below: 20
+    conditions: []
+    actions:
+      - action: notify.mobile_app_your_phone
+        data:
+          message: "The BLUETTI power station's battery is below 20%."
+```
+
+### Automation: Turn off the power station's AC output at night
+
+```yaml
+automation:
+  - alias: "Turn off the power station's AC output at night"
+    triggers:
+      - trigger: time
+        at: "23:00:00"
+    conditions: []
+    actions:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.power_station_ac_output
+```
+
 ## Data updates
 
 This integration is cloud-based by default: it talks to the BLUETTI cloud service, not directly to your power station over the local network.
@@ -69,7 +107,18 @@ This integration is cloud-based by default: it talks to the BLUETTI cloud servic
 
 ### Optional: local Modbus for Balco260 / EP2000
 
-Balco260 and EP2000 also expose a local Modbus TCP interface, in addition to the cloud API. For these models, once the device is enabled in this integration, go to the integration's **Configure** option and choose **Configure local Modbus** to add the device's IP address and port. This is entirely optional and additive:
+Balco260 and EP2000 also expose a local Modbus TCP interface, in addition to the cloud API. For these models, once the device is enabled in this integration, go to the integration's **Configure** option and select **Configure local Modbus**:
+
+{% configuration_basic %}
+Device:
+  description: "The BLUETTI power station to configure the local Modbus connection for."
+Host:
+  description: "The hostname or IP address of the device's local Modbus TCP interface."
+Port:
+  description: "The Modbus TCP port to connect to. The default is `502`."
+{% endconfiguration_basic %}
+
+This is entirely optional and additive:
 
 - It surfaces data the cloud API doesn't report (real battery charge/discharge energy, cycle count, per-string PV data), as extra sensors on the same device.
 - It does not replace the cloud connection - if the local Modbus connection drops, only those extra sensors go `unavailable`; the device's normal cloud-sourced entities and controls keep working.
