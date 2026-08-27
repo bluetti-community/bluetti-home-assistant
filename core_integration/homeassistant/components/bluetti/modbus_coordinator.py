@@ -93,5 +93,15 @@ class BluettiModbusCoordinator(DataUpdateCoordinator[dict[str, ClientReturnValue
         )
 
     async def _update_with_timeout(self) -> None:
-        async with asyncio.timeout(10):
+        # One async_update() call reads several register blocks sequentially
+        # (see modbus_connection's ReadPlan.execute), so this timeout must
+        # budget the whole sequence, not one request. A real production bug
+        # (see bluetti-modbus PR #26) traced recurring "Request cancelled
+        # outside library" errors to this same value being too tight for
+        # that - a single slow block (this device's Modbus TCP stack is
+        # known to become unresponsive under load) could consume nearly the
+        # whole budget, cancelling whichever block came next. 30s matches
+        # UPDATE_INTERVAL: an update that takes longer than a full poll
+        # cycle should fail and retry next cycle regardless.
+        async with asyncio.timeout(30):
             await self.device.async_update()

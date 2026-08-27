@@ -1,5 +1,6 @@
 """Tests for BluettiModbusCoordinator."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 from modbus_connection.exceptions import AcknowledgeError, ModbusConnectionError
@@ -71,3 +72,24 @@ async def test_gives_up_after_a_second_acknowledge_response(hass):
         await coordinator._async_update_data()
 
     assert device.async_update.await_count == 2
+
+
+async def test_survives_a_slow_update_within_the_overall_budget(hass):
+    """A single slow register block must not exhaust the whole update's timeout.
+
+    Regression test for the same "Request cancelled outside library" bug
+    fixed in bluetti-modbus PR #26: the per-update timeout budgets the whole
+    sequential multi-block read, not one request, so it must comfortably
+    survive one block being slow.
+    """
+    device = _device(values={"b_soc": 42})
+
+    async def slow_update() -> None:
+        await asyncio.sleep(15)
+
+    device.async_update = AsyncMock(side_effect=slow_update)
+    coordinator = BluettiModbusCoordinator(hass, MagicMock(), "SN1", device)
+
+    result = await coordinator._async_update_data()
+
+    assert result["b_soc"].value == 42
