@@ -201,11 +201,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> 
             await runtime_data.stomp_client.disconnect()
         except Exception as e:
             __LOGGER__.warning("Error while disconnecting websocket: %s", e)
-        for modbus_coordinator in runtime_data.modbus_coordinators.values():
-            try:
-                await modbus_coordinator.async_shutdown()
-            except Exception as e:
-                __LOGGER__.warning("Error while closing Modbus connection: %s", e)
+        # No explicit modbus_coordinators shutdown here: DataUpdateCoordinator
+        # (constructed with config_entry=entry) already registers its own
+        # async_shutdown via config_entry.async_on_unload - calling it again
+        # here would run BluettiModbusCoordinator.async_shutdown()'s
+        # connection-closing side effect twice.
     return unloaded
 
 async def async_remove_config_entry_device(

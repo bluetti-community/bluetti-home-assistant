@@ -256,6 +256,7 @@ async def test_async_setup_entry_wires_up_modbus_coordinator_for_capable_device(
             return_value=MagicMock(data=[status_data])
         )
         client_cls.return_value.read = AsyncMock(return_value=[])
+        client_cls.return_value.aclose = AsyncMock()
 
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()
@@ -297,6 +298,7 @@ async def test_modbus_first_refresh_failure_does_not_prevent_cloud_entities_from
             return_value=MagicMock(data=[status_data])
         )
         client_cls.return_value.read = AsyncMock(side_effect=ModbusConnectionError("no route to host"))
+        client_cls.return_value.aclose = AsyncMock()
 
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()

@@ -52,7 +52,14 @@ async def test_unload_entry_survives_disconnect_error(hass):
     assert result is True
 
 
-async def test_unload_entry_closes_modbus_coordinators(hass):
+async def test_unload_entry_does_not_explicitly_shut_down_modbus_coordinators(hass):
+    # DataUpdateCoordinator (constructed with config_entry=entry) already
+    # registers its own async_shutdown via config_entry.async_on_unload -
+    # an explicit call here would run BluettiModbusCoordinator's
+    # connection-closing side effect a second time. This is a regression
+    # test for that: a raw AsyncMock modbus_coordinator (not wired to any
+    # real config_entry.async_on_unload registration) must NOT be shut
+    # down by async_unload_entry itself.
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
 
@@ -68,26 +75,7 @@ async def test_unload_entry_closes_modbus_coordinators(hass):
     result = await async_unload_entry(hass, entry)
 
     assert result is True
-    modbus_coordinator.async_shutdown.assert_awaited_once()
-
-
-async def test_unload_entry_survives_modbus_shutdown_error(hass):
-    entry = MockConfigEntry(domain=DOMAIN)
-    entry.add_to_hass(hass)
-
-    modbus_coordinator = AsyncMock()
-    modbus_coordinator.async_shutdown.side_effect = RuntimeError("connection already closed")
-    entry.runtime_data = BluettiRuntimeData(
-        auth=MagicMock(),
-        bluetti_devices=MagicMock(devices=[]),
-        stomp_client=AsyncMock(),
-        coordinators={},
-        modbus_coordinators={"SN1": modbus_coordinator},
-    )
-
-    # Must not raise even though the Modbus shutdown failed.
-    result = await async_unload_entry(hass, entry)
-    assert result is True
+    modbus_coordinator.async_shutdown.assert_not_awaited()
 
 
 async def test_unload_entry_without_runtime_data_does_not_raise(hass):
