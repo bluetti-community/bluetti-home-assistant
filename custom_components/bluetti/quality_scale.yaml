@@ -13,14 +13,16 @@ rules:
   config-flow: done
   dependency-transparency: done
   # ^ pybluetti and modbus-connection are both properly published, versioned
-  #   PyPI packages. bluetti-modbus-lib is vendored, not pip-installed (see
-  #   custom_components/bluetti/vendor/bluetti_modbus_lib/VENDORED.md) - the
-  #   real PyPI project name is still owned by the original, unmaintained
-  #   author's package; vendoring (with source, commit, and a re-vendor
-  #   script all recorded) keeps the dependency's origin transparent without
-  #   a fake/renamed PyPI publish. Trade-off: picking up upstream fixes
-  #   needs a manual re-vendor (scripts/vendor_bluetti_modbus_lib.sh) rather
-  #   than a routine requirements bump.
+  #   PyPI packages. bluetti-modbus-lib's device library is vendored, not
+  #   pip-installed (see
+  #   custom_components/bluetti/vendor/bluetti_modbus_lib/VENDORED.md), even
+  #   though it's now published on PyPI as bluetti-modbus
+  #   (bluetti-community/bluetti-modbus) - vendoring (with source, commit,
+  #   and a re-vendor script all recorded) keeps the dependency's origin
+  #   transparent regardless. Trade-off: picking up upstream fixes needs a
+  #   manual re-vendor (scripts/vendor_bluetti_modbus_lib.sh) rather than a
+  #   routine requirements bump; switching to a real pip dependency on
+  #   bluetti-modbus is a natural follow-up now that it's published.
   docs-actions:
     status: exempt
     comment: No custom service actions are provided by this integration.
