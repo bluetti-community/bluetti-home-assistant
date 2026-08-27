@@ -181,6 +181,21 @@ fresh `home-assistant/core` dev checkout: 183 passed (182 + a new
 regression test simulating a 15s-slow block), 0 failed, ruff and hassfest
 clean.
 
+## Known open question: SMeter over local Modbus (2026-08-27)
+
+`modbus_support.py`'s `MODBUS_CAPABLE_DEV_TYPES` deliberately excludes
+`smeter`, even though `bluetti_modbus_lib.devices.getter.get_device()`
+supports it - the comment there assumed SMeter is a standalone accessory
+that never appears as its own `UserProduct.model` in a BLUETTI cloud
+account, so it could never be matched by the current cloud-binding-gated
+Modbus config flow. That assumption is unverified: no diagnostics dump in
+`doc/diagnostics/` includes an SMeter, and the user (who can test Balco260
+against real hardware) doesn't have one to check either. If SMeter does
+turn out to have its own cloud product entry, this is a small fix (add it
+to `MODBUS_CAPABLE_DEV_TYPES`); if it's genuinely local-only, supporting it
+would need a different UI path not gated by cloud binding - a real feature,
+not a one-line fix. Left out of this submission rather than guessed at.
+
 ## What's still blocking an actual submission
 
 Everything above is prepared and verified. What's left is entirely the act

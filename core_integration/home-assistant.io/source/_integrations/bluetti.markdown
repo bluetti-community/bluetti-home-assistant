@@ -125,6 +125,7 @@ This is entirely optional and additive:
 - **Cloud-dependent by default**: this integration relies on the BLUETTI cloud service (OAuth2 login and WebSocket push), and stops updating if BLUETTI's cloud service is unreachable. The optional local Modbus connection for Balco260/EP2000 is supplementary, not a replacement for the cloud connection.
 - **One BLUETTI account per Home Assistant install**: all devices from a given BLUETTI account are grouped under a single integration entry.
 - **Newly bound devices require a manual step**: after binding a new device to your BLUETTI account, use the integration's **Configure** option to add it - it isn't picked up automatically.
+- **SMeter accessories aren't supported over local Modbus yet**: only Balco260 and EP2000 can be configured with a local Modbus connection today. Whether an SMeter accessory shows up as its own device in a BLUETTI cloud account is unconfirmed, so support for it isn't implemented yet.
 - **Sensor coverage varies by model**: not every measurement or control reported by every power station model is mapped to a Home Assistant entity yet.
 
 ## Troubleshooting
