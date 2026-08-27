@@ -63,7 +63,7 @@ class BluettiData:
 
         res = json.loads(message)
         # load api
-        sn = res["data"]["deviceSn"]
+        sn = res["data"]["message"]["deviceSn"]
 
         device = self.get_device_by_sn(sn)
         if device and device.control_mode != ControlMode.BLE:
