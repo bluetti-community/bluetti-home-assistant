@@ -2,11 +2,7 @@
 title: BLUETTI
 description: Instructions on how to integrate BLUETTI portable power stations with Home Assistant.
 ha_category:
-  - Binary sensor
   - Energy
-  - Select
-  - Sensor
-  - Switch
 ha_iot_class: Cloud Push
 ha_codeowners:
   - '@chpego'
