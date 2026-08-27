@@ -22,6 +22,7 @@ from . import BluettiConfigEntry
 from .entity import BluettiEntity
 from .modbus_coordinator import BluettiModbusCoordinator
 from .modbus_entity import BluettiModbusEntity
+from .modbus_field_metadata import modbus_metadata_for
 from .models import BluettiData, BluettiDevice, BluettiState
 from .vendor.bluetti_modbus_lib.modbus.client import ClientReturnValue
 
@@ -324,19 +325,22 @@ class BluettiModbusSensor(BluettiModbusEntity, SensorEntity):
 
         field: ClientReturnValue | None = (coordinator.data or {}).get(field_name)
         self._attr_native_unit_of_measurement = field.unit if field else None
-        if field and field.device_class:
-            self._attr_device_class = SensorDeviceClass(field.device_class.value)
-        if field and field.state_class:
-            self._attr_state_class = SensorStateClass(field.state_class.value)
-        if field and field.category:
-            entity_category = EntityCategory(field.category.value)
+
+        metadata = modbus_metadata_for(field_name)
+        if metadata.device_class:
+            self._attr_device_class = metadata.device_class
+        if metadata.state_class:
+            self._attr_state_class = metadata.state_class
+        if metadata.category:
             # SensorEntity refuses entity_category CONFIG (it's reserved for
             # entities that can be adjusted; this integration only exposes
             # read-only Modbus sensors today) - surface it as diagnostic
             # instead of crashing entity registration.
-            if entity_category == EntityCategory.CONFIG:
-                entity_category = EntityCategory.DIAGNOSTIC
-            self._attr_entity_category = entity_category
+            self._attr_entity_category = (
+                EntityCategory.DIAGNOSTIC
+                if metadata.category == EntityCategory.CONFIG
+                else metadata.category
+            )
 
     @property
     def native_value(self) -> str | float | None:

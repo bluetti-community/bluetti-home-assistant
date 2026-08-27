@@ -4,9 +4,6 @@ from typing import Any
 from modbus_connection.model import RegisterField, WriteValidator, enum, float32, uint32
 from modbus_connection.model.fields import NumberField, StringField
 
-from .field_extras import DeviceClass, FieldCategory, FieldStateClass
-from .field_modifiers import set_category, set_device_class, set_state_class
-
 
 class BluettiStringField(StringField):
     def decode(self, words: list[int], scale_exponent: int | None = None) -> str:
@@ -87,43 +84,25 @@ def field(
     length: int = 1,
     count: int = 1,
     enum_type: type[Enum] | None = None,
-    category: FieldCategory | None = None,
-    state_class: FieldStateClass | None = None,
-    device_class: DeviceClass | None = None,
 ) -> RegisterField[Any]:
-    reg: RegisterField[Any] | None = None
-
     match t:
         case FieldType.INT16:
-            reg = int16(address, scale=scale, writable=writable, unit=unit)
+            return int16(address, scale=scale, writable=writable, unit=unit)
         case FieldType.UINT16:
-            reg = uint16(address, scale=scale, writable=writable, unit=unit)
+            return uint16(address, scale=scale, writable=writable, unit=unit)
         case FieldType.UINT32:
-            reg = uint32(
+            return uint32(
                 address, scale=scale, writable=writable, unit=unit, word_order="little"
             )
         case FieldType.FLOAT32:
-            reg = float32(
+            return float32(
                 address, scale=scale, writable=writable, unit=unit, word_order="little"
             )
         case FieldType.STRING:
-            reg = bluetti_string(address, length)
+            return bluetti_string(address, length)
         case FieldType.ENUM:
             # Every real caller (balco260.py, ep2000.py) passes enum_type
             # for FieldType.ENUM - the None default only exists because the
             # other FieldTypes don't use this parameter at all.
             assert enum_type is not None, "FieldType.ENUM requires enum_type"
-            reg = enum(address, enum_type, count=count, word_order="little")
-
-    # handle extras
-    if reg is not None:
-        if state_class is not None:
-            set_state_class(reg, state_class)
-
-        if category is not None:
-            set_category(reg, category)
-
-        if device_class is not None:
-            set_device_class(reg, device_class)
-
-    return reg
+            return enum(address, enum_type, count=count, word_order="little")
