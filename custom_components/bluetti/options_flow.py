@@ -13,6 +13,7 @@ import logging
 from typing import Any
 
 import voluptuous as vol
+from bluetti_modbus_lib.modbus.client import BluettiModbusClient
 from homeassistant.config_entries import ConfigEntry, ConfigFlowResult, OptionsFlow
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -28,7 +29,6 @@ from pybluetti import ProductClient, UserProduct
 from .const import EVENT_TOKEN_EXPIRED
 from .modbus_support import modbus_dev_type_for_model
 from .profile.application_profile import APPLICATION_PROFILE
-from .vendor.bluetti_modbus_lib.modbus.client import BluettiModbusClient
 
 __LOGGER__ = logging.getLogger(__name__)
 

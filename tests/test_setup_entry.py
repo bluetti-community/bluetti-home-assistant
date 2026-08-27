@@ -307,9 +307,7 @@ async def test_select_setup_entry_creates_select_and_controls_it(hass):
 async def test_sensor_setup_entry_creates_modbus_sensors_grouped_with_cloud_device(hass):
     from enum import Enum
 
-    from custom_components.bluetti.vendor.bluetti_modbus_lib.modbus.client import (
-        ClientReturnValue,
-    )
+    from bluetti_modbus_lib.modbus.client import ClientReturnValue
 
     class _FakeInverterStatus(Enum):
         STANDBY = 0

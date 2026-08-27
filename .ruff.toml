@@ -3,9 +3,6 @@
 
 target-version = "py313"
 
-# Vendored from bluetti-modbus-lib, which lints/tests itself in its own repo.
-extend-exclude = ["custom_components/bluetti/vendor"]
-
 [lint]
 select = [
     "ALL",
