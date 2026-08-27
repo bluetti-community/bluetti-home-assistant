@@ -196,13 +196,65 @@ to `MODBUS_CAPABLE_DEV_TYPES`); if it's genuinely local-only, supporting it
 would need a different UI path not gated by cloud binding - a real feature,
 not a one-line fix. Left out of this submission rather than guessed at.
 
-## What's still blocking an actual submission
+## Submitted (2026-08-27)
 
-Everything above is prepared and verified. What's left is entirely the act
-of submitting, each a real, publicly visible action on an external repo that
-this draft branch deliberately stops short of without explicit go-ahead:
+All three PRs are open and interlinked:
+`home-assistant/core#180440`, `home-assistant/home-assistant.io#47662`
+(against `next`), `home-assistant/brands#11055`.
 
-- Opening the `home-assistant/core` PR itself.
-- Moving the `brands/core_integrations/bluetti/` files staged here into a
-  PR against `home-assistant/brands`.
-- Opening the `home-assistant.io` documentation PR.
+## Restructured to sensor-only, first real CI review addressed (2026-08-27)
+
+A maintainer bot on `#180440` required new-integration PRs to add a single
+platform first (confirmed against the real, merged `sofar` PR precedent) -
+`binary_sensor`/`switch`/`select` were pulled out of this first PR (follow-up
+PRs once sensor-only is further along in review), Modbus stayed in since it
+was already decided to ship with the very first platform, not deferred.
+
+That restructuring, plus 17 Copilot review comments and hassfest's real
+per-rule validators (silently disabled earlier by an accidental
+`manifest.json` edit - see git history), surfaced a real batch of genuine
+bugs: a `device.name = device.sn` overwrite bug in `__init__.py`, a
+`modbus_dev_type_for_model` substring-containment bug, an unhandled
+non-`UnifyResponse` `set_state_value` result, an unredacted `modbus` options
+key in diagnostics, and the `quality_scale.yaml` gold claim downgraded to
+`silver` once `entity-translations`/`dynamic-devices` didn't survive
+checking against the actual rule docs.
+
+**Then a second, separate wave of real CI failures** turned up on the same
+PR (`scripts/lint` in this repo's own `CLAUDE.md` only runs ruff-check +
+scoped pylint on the diff - it doesn't run mypy, the full pylint (main config
+skips `--ignore-missing-annotations`, and tests get no such flag at all), or
+`prek`'s full `ruff format`/codespell/hassfest-validate pass, all of which
+real CI runs unconditionally):
+
+- `sensor.py`/`modbus_coordinator.py` had `except X, Y:` clauses - valid only
+  via PEP 758 on the Python 3.14 this project's CI (and this repo's own
+  verification instructions above) already target; `ruff format` confirmed
+  that's this codebase's canonical style, so these were left as-is once
+  confirmed rather than "fixed" to the parenthesized form.
+- hassfest: 7 `strings.json` abort keys referenced non-existent
+  `common::config_flow::abort::*` translation keys (a real bug from earlier
+  this session, invisible while hassfest's validator was accidentally
+  disabled).
+- pylint required a real `async_step_reauth`, two corrected type
+  annotations, 3 newly-translated exceptions, ~300 test-function annotations,
+  and `modbus_coordinator.py`/`modbus_entity.py` merged into
+  `coordinator.py`/`entity.py` (home-assistant's own pylint plugin requires
+  `DataUpdateCoordinator`/`CoordinatorEntity` subclasses live in modules with
+  those exact names).
+- A real cross-test hazard: `ApplicationProfile` is a module-level singleton
+  only populated by `config_flow.py`'s `async_step_user`; under real CI's
+  `pytest-xdist` (a separate worker process per test file), any test
+  reaching `options_flow.py`'s or `config_flow.py`'s product-fetch code
+  without having gone through `async_step_user` first in that same process
+  hit a bare `KeyError`. Both call sites now load it themselves
+  (idempotent) - verified by running every test file individually, not just
+  the full suite in one process, to actually catch this class of bug.
+
+Verified end-to-end in a real `home-assistant/core` dev checkout: full suite
+green (171 passed, every file individually too), `ruff check`/`ruff format`
+clean, pylint (main + tests) clean, mypy clean, hassfest clean. Pushed to
+`#180440`. The `home-assistant.io` PR (`#47662`) got the same treatment for
+its own review comments (grammar, `ha_release`, `ha_quality_scale` synced to
+`silver`, dropped `binary_sensor`/`select`/`switch` content to match the
+sensor-only PR, a My-link for Settings navigation).
