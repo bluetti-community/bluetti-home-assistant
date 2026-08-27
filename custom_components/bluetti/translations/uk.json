@@ -1,62 +1,217 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Обліковий запис уже налаштовано",
-            "already_in_progress": "Процес налаштування вже триває",
-            "authorize_url_timeout": "Тайм-аут при генерації URL-адреси авторизації.",
-            "missing_configuration": "Компонент не налаштовано. Будь ласка, ознайомтеся з документацією.",
-            "no_url_available": "URL-адреса не доступна. Для отримання інформації про цю помилку, [перегляньте розділ довідки]({docs_url})",
-            "oauth_error": "Отримано недійсні дані токена.",
-            "oauth_failed": "Помилка під час отримання токена доступу.",
-            "oauth_timeout": "Тайм-аут отримання токена OAuth.",
-            "oauth_unauthorized": "Помилка авторизації OAuth під час отримання токена доступу.",
-            "user_rejected_authorize": "Прив'язка облікового запису відхилена: {error}",
-            "all_devices_exists": "Усі пристрої та фізичні елементи під цим обліковим записом вже включені до інтеграційного пакета BLUETTI.",
-            "no_devices_available": "Поточний обліковий запис не має доступних пристроїв.",
-            "cannot_connect": "Не вдалося підключитися до сервера BLUETTI. Спробуйте ще раз.",
-            "reconfigure_failed": "Не вдалося знайти запис конфігурації для повторного налаштування.",
-            "success": "Ваші пристрої BLUETTI успішно додано."
-        },
-        "create_entry": {
-            "default": "Успішно автентифіковано"
-        },
-        "step": {
-            "pick_implementation": {
-                "title": "Оберіть метод автентифікації"
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Обліковий запис уже налаштовано",
+      "already_in_progress": "Процес налаштування вже триває",
+      "authorize_url_timeout": "Тайм-аут при генерації URL-адреси авторизації.",
+      "missing_configuration": "Компонент не налаштовано. Будь ласка, ознайомтеся з документацією.",
+      "no_url_available": "URL-адреса не доступна. Для отримання інформації про цю помилку, [перегляньте розділ довідки]({docs_url})",
+      "oauth_error": "Отримано недійсні дані токена.",
+      "oauth_failed": "Помилка під час отримання токена доступу.",
+      "oauth_timeout": "Тайм-аут отримання токена OAuth.",
+      "oauth_unauthorized": "Помилка авторизації OAuth під час отримання токена доступу.",
+      "user_rejected_authorize": "Прив'язка облікового запису відхилена: {error}",
+      "all_devices_exists": "Усі пристрої та фізичні елементи під цим обліковим записом вже включені до інтеграційного пакета BLUETTI.",
+      "no_devices_available": "Поточний обліковий запис не має доступних пристроїв.",
+      "cannot_connect": "Не вдалося підключитися до сервера BLUETTI. Спробуйте ще раз.",
+      "reconfigure_failed": "Не вдалося знайти запис конфігурації для повторного налаштування.",
+      "success": "Ваші пристрої BLUETTI успішно додано."
     },
-    "options": {
-        "step": {
-            "init": {
-                "title": "Додати пристрої BLUETTI",
-                "description": "Виберіть додаткові пристрої, прив'язані до вашого облікового запису BLUETTI, які ви хочете додати до Home Assistant.",
-                "data": {
-                    "devices": "Пристрої"
-                }
-            }
-        },
-        "abort": {
-            "no_devices_available": "Поточний обліковий запис не має доступних пристроїв.",
-            "all_devices_exists": "Усі пристрої та фізичні елементи під цим обліковим записом вже включені до інтеграційного пакета BLUETTI.",
-            "cannot_connect": "Не вдалося підключитися до сервера BLUETTI. Спробуйте ще раз."
-        }
+    "create_entry": {
+      "default": "Успішно автентифіковано"
     },
-    "exceptions": {
-        "command_failed": {
-            "message": "Помилка надсилання команди до {device_id}: {error}"
-        },
-        "select_option_read_only": {
-            "message": "{fn_code} доступний лише для читання і не може бути змінений"
-        },
-        "select_option_invalid": {
-            "message": "Недійсний варіант {option} для {fn_code}"
-        }
-    },
-    "issues": {
-        "oauth_expired": {
-            "title": "Автентифікація BLUETTI застаріла",
-            "description": "Термін дії авторизації вашого облікового запису BLUETTI закінчився. Перейдіть до налаштувань інтеграції та виберіть **Переналаштувати**, щоб увійти знову."
-        }
+    "step": {
+      "pick_implementation": {
+        "title": "Оберіть метод автентифікації"
+      }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Додати пристрої BLUETTI",
+        "description": "Виберіть додаткові пристрої, прив'язані до вашого облікового запису BLUETTI, які ви хочете додати до Home Assistant.",
+        "data": {
+          "devices": "Пристрої"
+        },
+        "menu_options": {
+          "add_devices": "Add BLUETTI devices",
+          "configure_modbus": "Configure local Modbus"
+        }
+      },
+      "configure_modbus": {
+        "title": "Configure local Modbus",
+        "description": "Enter the local Modbus TCP connection details for this device. This is optional and supplements the cloud connection with additional sensors - it does not replace it.",
+        "data": {
+          "device_sn": "Device",
+          "host": "Host",
+          "port": "Port"
+        }
+      }
+    },
+    "abort": {
+      "no_devices_available": "Поточний обліковий запис не має доступних пристроїв.",
+      "all_devices_exists": "Усі пристрої та фізичні елементи під цим обліковим записом вже включені до інтеграційного пакета BLUETTI.",
+      "cannot_connect": "Не вдалося підключитися до сервера BLUETTI. Спробуйте ще раз."
+    },
+    "error": {
+      "cannot_connect": "Failed to connect"
+    }
+  },
+  "exceptions": {
+    "command_failed": {
+      "message": "Помилка надсилання команди до {device_id}: {error}"
+    },
+    "select_option_read_only": {
+      "message": "{fn_code} доступний лише для читання і не може бути змінений"
+    },
+    "select_option_invalid": {
+      "message": "Недійсний варіант {option} для {fn_code}"
+    },
+    "modbus_error": {
+      "message": "Error communicating with the device over Modbus: {error}"
+    }
+  },
+  "issues": {
+    "oauth_expired": {
+      "title": "Автентифікація BLUETTI застаріла",
+      "description": "Термін дії авторизації вашого облікового запису BLUETTI закінчився. Перейдіть до налаштувань інтеграції та виберіть **Переналаштувати**, щоб увійти знову."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ac_o_e_total": {
+        "name": "Total AC Output Energy"
+      },
+      "ac_o_switch": {
+        "name": "AC Output Switch"
+      },
+      "b_c": {
+        "name": "Battery Current"
+      },
+      "b_c_total": {
+        "name": "Total Battery Current"
+      },
+      "b_cell_count": {
+        "name": "Cell Count"
+      },
+      "b_cycle_count": {
+        "name": "Battery Cycle Count"
+      },
+      "b_i_e": {
+        "name": "Total Battery Charged Energy"
+      },
+      "b_ntc_count": {
+        "name": "Temperature Sensor Count"
+      },
+      "b_o_e": {
+        "name": "Total Battery Discharged Energy"
+      },
+      "b_soc_high": {
+        "name": "Max Charge Limit (SoC High)"
+      },
+      "b_soc_low": {
+        "name": "Min Discharge Limit (SoC Low)"
+      },
+      "b_soh": {
+        "name": "Battery SoH"
+      },
+      "b_soh_total": {
+        "name": "Total Battery SoH"
+      },
+      "b_t_avg": {
+        "name": "Average Battery Temperature"
+      },
+      "b_type": {
+        "name": "Battery Type"
+      },
+      "b_v": {
+        "name": "Battery Voltage"
+      },
+      "b_v_total": {
+        "name": "Total Battery Voltage"
+      },
+      "d_inverter_fault": {
+        "name": "Inverter Fault"
+      },
+      "d_inverter_status": {
+        "name": "Inverter Status"
+      },
+      "d_inverter_total": {
+        "name": "Total Inverter Power"
+      },
+      "d_inverter_type": {
+        "name": "Inverter Type"
+      },
+      "d_inverter_warning": {
+        "name": "Inverter Warning"
+      },
+      "d_num_battery_packs": {
+        "name": "Number of Battery Packs"
+      },
+      "d_num_inverters": {
+        "name": "Inverter Count"
+      },
+      "g_i_e_total": {
+        "name": "Total Grid Import Energy"
+      },
+      "g_i_f": {
+        "name": "Grid Frequency"
+      },
+      "g_i_switch": {
+        "name": "Grid Charging Switch"
+      },
+      "g_o_e_total": {
+        "name": "Total Grid Export Energy"
+      },
+      "g_o_switch": {
+        "name": "Grid Feed-in Switch"
+      },
+      "pv_1_i_c": {
+        "name": "PV 1 Input Current"
+      },
+      "pv_1_i_p": {
+        "name": "PV 1 Input Power"
+      },
+      "pv_1_i_v": {
+        "name": "PV 1 Input Voltage"
+      },
+      "pv_2_i_c": {
+        "name": "PV 2 Input Current"
+      },
+      "pv_2_i_p": {
+        "name": "PV 2 Input Power"
+      },
+      "pv_2_i_v": {
+        "name": "PV 2 Input Voltage"
+      },
+      "pv_3_i_c": {
+        "name": "PV 3 Input Current"
+      },
+      "pv_3_i_p": {
+        "name": "PV 3 Input Power"
+      },
+      "pv_3_i_v": {
+        "name": "PV 3 Input Voltage"
+      },
+      "pv_4_i_c": {
+        "name": "PV 4 Input Current"
+      },
+      "pv_4_i_p": {
+        "name": "PV 4 Input Power"
+      },
+      "pv_4_i_v": {
+        "name": "PV 4 Input Voltage"
+      },
+      "pv_ac_e": {
+        "name": "PV AC Energy"
+      },
+      "pv_ac_p": {
+        "name": "PV AC Power"
+      },
+      "pv_i_e_total": {
+        "name": "Total PV Input Energy"
+      }
+    }
+  }
 }

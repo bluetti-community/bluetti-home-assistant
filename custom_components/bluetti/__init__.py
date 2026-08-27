@@ -3,7 +3,7 @@
 
 import asyncio
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -19,6 +19,8 @@ from pybluetti import ProductClient, StompClient, UserProduct
 from .application_credentials import async_ensure_default_credential
 from .const import DOMAIN, EVENT_TOKEN_EXPIRED
 from .coordinator import BluettiDeviceCoordinator
+from .modbus_coordinator import BluettiModbusCoordinator
+from .modbus_support import modbus_dev_type_for_model
 from .models import BluettiData
 from .oauth import AsyncConfigEntryAuth, AuthTokenRefresh
 from .profile.application_profile import APPLICATION_PROFILE
@@ -41,6 +43,10 @@ class BluettiRuntimeData:
     bluetti_devices: BluettiData
     stomp_client: StompClient
     coordinators: dict[str, BluettiDeviceCoordinator]
+    # Defaults empty: local Modbus is optional/opt-in per device, so most
+    # entries (and every existing test's BluettiRuntimeData construction)
+    # never populate this.
+    modbus_coordinators: dict[str, BluettiModbusCoordinator] = field(default_factory=dict)
 
 
 type BluettiConfigEntry = ConfigEntry[BluettiRuntimeData]
@@ -132,11 +138,43 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         *(coordinator.async_config_entry_first_refresh() for coordinator in coordinators.values())
     )
 
+    modbus_coordinators: dict[str, BluettiModbusCoordinator] = {}
+    for device in bluetti_devices.devices:
+        modbus_config = entry.options.get("modbus", {}).get(device.device_id)
+        dev_type = modbus_dev_type_for_model(device.model)
+        if modbus_config and dev_type:
+            modbus_coordinators[device.device_id] = BluettiModbusCoordinator(
+                hass,
+                entry,
+                device.device_id,
+                modbus_config["host"],
+                modbus_config["port"],
+                dev_type,
+            )
+
+    if modbus_coordinators:
+        # Local Modbus is optional/supplementary - a hiccup here must not
+        # fail the whole entry (and take the cloud entities down with it)
+        # the way a bare gather would. A failed first refresh just leaves
+        # that device's Modbus entities unavailable until the coordinator's
+        # own next poll succeeds.
+        results = await asyncio.gather(
+            *(
+                coordinator.async_config_entry_first_refresh()
+                for coordinator in modbus_coordinators.values()
+            ),
+            return_exceptions=True,
+        )
+        for device_id, result in zip(modbus_coordinators, results, strict=True):
+            if isinstance(result, Exception):
+                __LOGGER__.warning("Initial Modbus read failed for %s: %s", device_id, result)
+
     entry.runtime_data = BluettiRuntimeData(
         auth=auth,
         bluetti_devices=bluetti_devices,
         stomp_client=stomp_client,
         coordinators=coordinators,
+        modbus_coordinators=modbus_coordinators,
     )
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
@@ -163,6 +201,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> 
             await runtime_data.stomp_client.disconnect()
         except Exception as e:
             __LOGGER__.warning("Error while disconnecting websocket: %s", e)
+        for modbus_coordinator in runtime_data.modbus_coordinators.values():
+            try:
+                await modbus_coordinator.async_shutdown()
+            except Exception as e:
+                __LOGGER__.warning("Error while closing Modbus connection: %s", e)
     return unloaded
 
 async def async_remove_config_entry_device(
@@ -194,12 +237,17 @@ async def async_remove_config_entry_device(
             coordinator = runtime_data.coordinators.pop(device_id, None)
             if coordinator:
                 await coordinator.async_shutdown()
+            modbus_coordinator = runtime_data.modbus_coordinators.pop(device_id, None)
+            if modbus_coordinator:
+                await modbus_coordinator.async_shutdown()
 
     current_devices = entry.options.get("devices", [])
     new_devices = [d for d in current_devices if d not in device_ids]
-    if new_devices != current_devices:
+    current_modbus = entry.options.get("modbus", {})
+    new_modbus = {sn: cfg for sn, cfg in current_modbus.items() if sn not in device_ids}
+    if new_devices != current_devices or new_modbus != current_modbus:
         hass.config_entries.async_update_entry(
-            entry, options={**entry.options, "devices": new_devices}
+            entry, options={**entry.options, "devices": new_devices, "modbus": new_modbus}
         )
 
     return True

@@ -158,8 +158,8 @@ store, other third-party integrations can be installed.
 
 ## 🔄 How Data Is Updated
 
-This integration is cloud-based: it talks to the BLUETTI cloud service, not
-directly to your power station over the local network.
+This integration is cloud-based by default: it talks to the BLUETTI cloud
+service, not directly to your power station over the local network.
 
 - **Push updates**: the integration keeps a WebSocket connection open to the
   BLUETTI cloud. When your power station reports a change (e.g. you toggle
@@ -171,6 +171,25 @@ directly to your power station over the local network.
 - **Availability**: if the BLUETTI cloud is unreachable or your account's
   authorization expires, affected entities are marked `unavailable` in Home
   Assistant rather than showing stale data.
+
+### Optional: local Modbus for Balco260 / EP2000
+
+Balco260 and EP2000 also expose a local Modbus TCP interface, in addition to
+the cloud API. For these models, once the device is enabled in this
+integration, go to **Settings -> Devices & services -> BLUETTI -> Configure**
+and choose **Configure local Modbus** to add the device's IP address and
+port. This is entirely optional and additive:
+
+- It surfaces data the cloud API doesn't report (real battery
+  charge/discharge energy, cycle count, per-string PV data), as extra
+  sensors on the same device.
+- It does not replace the cloud connection - if the local Modbus connection
+  drops, only those extra sensors go `unavailable`; the device's normal
+  cloud-sourced entities and controls keep working.
+- It is polled every 30 seconds, matching the cloud path. Bluetti's Modbus
+  TCP stack is known to become unresponsive under connection/polling
+  pressure, so this integration deliberately keeps one persistent
+  connection per device rather than reconnecting on every poll.
 
 ## 🧩 Example Automations
 
@@ -251,10 +270,12 @@ Please check the **network**, **ports** and **firewall** to ensure that
    
 ## ⚠️ Known Limitations
 
-- **Cloud-dependent**: this integration relies on the BLUETTI cloud service
-  (OAuth2 login + WebSocket push). It does not work with BLUETTI power
-  stations over the local network, and stops updating if BLUETTI's cloud
-  service is unreachable.
+- **Cloud-dependent by default**: this integration relies on the BLUETTI
+  cloud service (OAuth2 login + WebSocket push), and stops updating if
+  BLUETTI's cloud service is unreachable. Balco260 and EP2000 can
+  additionally be configured with a local Modbus connection (see "How Data
+  Is Updated" above) for the data the cloud API doesn't report, but this is
+  optional and supplementary, not a replacement for the cloud connection.
 - **One BLUETTI account per Home Assistant install**: all devices from a
   given BLUETTI account are grouped under a single integration entry. If
   you have devices on multiple BLUETTI accounts, only the most recently

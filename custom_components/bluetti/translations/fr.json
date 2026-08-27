@@ -1,62 +1,217 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Le compte est déjà configuré",
-            "already_in_progress": "Le flux de configuration est déjà en cours",
-            "authorize_url_timeout": "Délai d'attente dépassé lors de la génération de l'URL d'autorisation.",
-            "missing_configuration": "Le composant n'est pas configuré. Veuillez suivre la documentation.",
-            "no_url_available": "Aucune URL disponible. Pour plus d'informations sur cette erreur, [consultez la section d'aide]({docs_url})",
-            "oauth_error": "Données de jeton invalides reçues.",
-            "oauth_failed": "Erreur lors de l'obtention du jeton d'accès.",
-            "oauth_timeout": "Délai d'attente dépassé lors de la résolution du jeton OAuth.",
-            "oauth_unauthorized": "Erreur d'autorisation OAuth lors de l'obtention du jeton d'accès.",
-            "user_rejected_authorize": "Liaison du compte rejetée : {error}",
-            "all_devices_exists": "Tous les appareils et éléments physiques associés à ce compte ont déjà été inclus dans le package intégré BLUETTI.",
-            "no_devices_available": "Le compte actuel ne possède aucun appareil disponible.",
-            "cannot_connect": "Échec de la connexion au serveur BLUETTI. Veuillez réessayer.",
-            "reconfigure_failed": "L'entrée de configuration à reconfigurer est introuvable.",
-            "success": "Vos appareils BLUETTI ont été ajoutés avec succès."
-        },
-        "create_entry": {
-            "default": "Authentification réussie"
-        },
-        "step": {
-            "pick_implementation": {
-                "title": "Choisir la méthode d'authentification"
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Le compte est déjà configuré",
+      "already_in_progress": "Le flux de configuration est déjà en cours",
+      "authorize_url_timeout": "Délai d'attente dépassé lors de la génération de l'URL d'autorisation.",
+      "missing_configuration": "Le composant n'est pas configuré. Veuillez suivre la documentation.",
+      "no_url_available": "Aucune URL disponible. Pour plus d'informations sur cette erreur, [consultez la section d'aide]({docs_url})",
+      "oauth_error": "Données de jeton invalides reçues.",
+      "oauth_failed": "Erreur lors de l'obtention du jeton d'accès.",
+      "oauth_timeout": "Délai d'attente dépassé lors de la résolution du jeton OAuth.",
+      "oauth_unauthorized": "Erreur d'autorisation OAuth lors de l'obtention du jeton d'accès.",
+      "user_rejected_authorize": "Liaison du compte rejetée : {error}",
+      "all_devices_exists": "Tous les appareils et éléments physiques associés à ce compte ont déjà été inclus dans le package intégré BLUETTI.",
+      "no_devices_available": "Le compte actuel ne possède aucun appareil disponible.",
+      "cannot_connect": "Échec de la connexion au serveur BLUETTI. Veuillez réessayer.",
+      "reconfigure_failed": "L'entrée de configuration à reconfigurer est introuvable.",
+      "success": "Vos appareils BLUETTI ont été ajoutés avec succès."
     },
-    "options": {
-        "step": {
-            "init": {
-                "title": "Ajouter des appareils BLUETTI",
-                "description": "Sélectionnez les appareils supplémentaires associés à votre compte BLUETTI que vous souhaitez ajouter à Home Assistant.",
-                "data": {
-                    "devices": "Appareils"
-                }
-            }
-        },
-        "abort": {
-            "no_devices_available": "Le compte actuel ne possède aucun appareil disponible.",
-            "all_devices_exists": "Tous les appareils et éléments physiques associés à ce compte ont déjà été inclus dans le package intégré BLUETTI.",
-            "cannot_connect": "Échec de la connexion au serveur BLUETTI. Veuillez réessayer."
-        }
+    "create_entry": {
+      "default": "Authentification réussie"
     },
-    "exceptions": {
-        "command_failed": {
-            "message": "Erreur lors de l'envoi de la commande à {device_id} : {error}"
-        },
-        "select_option_read_only": {
-            "message": "{fn_code} est en lecture seule et ne peut pas être modifié"
-        },
-        "select_option_invalid": {
-            "message": "Option {option} invalide pour {fn_code}"
-        }
-    },
-    "issues": {
-        "oauth_expired": {
-            "title": "Authentification BLUETTI expirée",
-            "description": "L'autorisation de votre compte BLUETTI a expiré. Accédez aux paramètres de l'intégration et sélectionnez **Reconfigurer** pour vous reconnecter."
-        }
+    "step": {
+      "pick_implementation": {
+        "title": "Choisir la méthode d'authentification"
+      }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ajouter des appareils BLUETTI",
+        "description": "Sélectionnez les appareils supplémentaires associés à votre compte BLUETTI que vous souhaitez ajouter à Home Assistant.",
+        "data": {
+          "devices": "Appareils"
+        },
+        "menu_options": {
+          "add_devices": "Add BLUETTI devices",
+          "configure_modbus": "Configure local Modbus"
+        }
+      },
+      "configure_modbus": {
+        "title": "Configure local Modbus",
+        "description": "Enter the local Modbus TCP connection details for this device. This is optional and supplements the cloud connection with additional sensors - it does not replace it.",
+        "data": {
+          "device_sn": "Device",
+          "host": "Host",
+          "port": "Port"
+        }
+      }
+    },
+    "abort": {
+      "no_devices_available": "Le compte actuel ne possède aucun appareil disponible.",
+      "all_devices_exists": "Tous les appareils et éléments physiques associés à ce compte ont déjà été inclus dans le package intégré BLUETTI.",
+      "cannot_connect": "Échec de la connexion au serveur BLUETTI. Veuillez réessayer."
+    },
+    "error": {
+      "cannot_connect": "Failed to connect"
+    }
+  },
+  "exceptions": {
+    "command_failed": {
+      "message": "Erreur lors de l'envoi de la commande à {device_id} : {error}"
+    },
+    "select_option_read_only": {
+      "message": "{fn_code} est en lecture seule et ne peut pas être modifié"
+    },
+    "select_option_invalid": {
+      "message": "Option {option} invalide pour {fn_code}"
+    },
+    "modbus_error": {
+      "message": "Error communicating with the device over Modbus: {error}"
+    }
+  },
+  "issues": {
+    "oauth_expired": {
+      "title": "Authentification BLUETTI expirée",
+      "description": "L'autorisation de votre compte BLUETTI a expiré. Accédez aux paramètres de l'intégration et sélectionnez **Reconfigurer** pour vous reconnecter."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ac_o_e_total": {
+        "name": "Total AC Output Energy"
+      },
+      "ac_o_switch": {
+        "name": "AC Output Switch"
+      },
+      "b_c": {
+        "name": "Battery Current"
+      },
+      "b_c_total": {
+        "name": "Total Battery Current"
+      },
+      "b_cell_count": {
+        "name": "Cell Count"
+      },
+      "b_cycle_count": {
+        "name": "Battery Cycle Count"
+      },
+      "b_i_e": {
+        "name": "Total Battery Charged Energy"
+      },
+      "b_ntc_count": {
+        "name": "Temperature Sensor Count"
+      },
+      "b_o_e": {
+        "name": "Total Battery Discharged Energy"
+      },
+      "b_soc_high": {
+        "name": "Max Charge Limit (SoC High)"
+      },
+      "b_soc_low": {
+        "name": "Min Discharge Limit (SoC Low)"
+      },
+      "b_soh": {
+        "name": "Battery SoH"
+      },
+      "b_soh_total": {
+        "name": "Total Battery SoH"
+      },
+      "b_t_avg": {
+        "name": "Average Battery Temperature"
+      },
+      "b_type": {
+        "name": "Battery Type"
+      },
+      "b_v": {
+        "name": "Battery Voltage"
+      },
+      "b_v_total": {
+        "name": "Total Battery Voltage"
+      },
+      "d_inverter_fault": {
+        "name": "Inverter Fault"
+      },
+      "d_inverter_status": {
+        "name": "Inverter Status"
+      },
+      "d_inverter_total": {
+        "name": "Total Inverter Power"
+      },
+      "d_inverter_type": {
+        "name": "Inverter Type"
+      },
+      "d_inverter_warning": {
+        "name": "Inverter Warning"
+      },
+      "d_num_battery_packs": {
+        "name": "Number of Battery Packs"
+      },
+      "d_num_inverters": {
+        "name": "Inverter Count"
+      },
+      "g_i_e_total": {
+        "name": "Total Grid Import Energy"
+      },
+      "g_i_f": {
+        "name": "Grid Frequency"
+      },
+      "g_i_switch": {
+        "name": "Grid Charging Switch"
+      },
+      "g_o_e_total": {
+        "name": "Total Grid Export Energy"
+      },
+      "g_o_switch": {
+        "name": "Grid Feed-in Switch"
+      },
+      "pv_1_i_c": {
+        "name": "PV 1 Input Current"
+      },
+      "pv_1_i_p": {
+        "name": "PV 1 Input Power"
+      },
+      "pv_1_i_v": {
+        "name": "PV 1 Input Voltage"
+      },
+      "pv_2_i_c": {
+        "name": "PV 2 Input Current"
+      },
+      "pv_2_i_p": {
+        "name": "PV 2 Input Power"
+      },
+      "pv_2_i_v": {
+        "name": "PV 2 Input Voltage"
+      },
+      "pv_3_i_c": {
+        "name": "PV 3 Input Current"
+      },
+      "pv_3_i_p": {
+        "name": "PV 3 Input Power"
+      },
+      "pv_3_i_v": {
+        "name": "PV 3 Input Voltage"
+      },
+      "pv_4_i_c": {
+        "name": "PV 4 Input Current"
+      },
+      "pv_4_i_p": {
+        "name": "PV 4 Input Power"
+      },
+      "pv_4_i_v": {
+        "name": "PV 4 Input Voltage"
+      },
+      "pv_ac_e": {
+        "name": "PV AC Energy"
+      },
+      "pv_ac_p": {
+        "name": "PV AC Power"
+      },
+      "pv_i_e_total": {
+        "name": "Total PV Input Energy"
+      }
+    }
+  }
 }

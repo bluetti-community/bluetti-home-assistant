@@ -12,6 +12,15 @@ rules:
   config-flow-test-coverage: done
   config-flow: done
   dependency-transparency: done
+  # ^ pybluetti and modbus-connection are both properly published, versioned
+  #   PyPI packages. bluetti-modbus-lib is vendored, not pip-installed (see
+  #   custom_components/bluetti/vendor/bluetti_modbus_lib/VENDORED.md) - the
+  #   real PyPI project name is still owned by the original, unmaintained
+  #   author's package; vendoring (with source, commit, and a re-vendor
+  #   script all recorded) keeps the dependency's origin transparent without
+  #   a fake/renamed PyPI publish. Trade-off: picking up upstream fixes
+  #   needs a manual re-vendor (scripts/vendor_bluetti_modbus_lib.sh) rather
+  #   than a routine requirements bump.
   docs-actions:
     status: exempt
     comment: No custom service actions are provided by this integration.
@@ -43,10 +52,17 @@ rules:
   diagnostics: done
   discovery-update-info:
     status: exempt
-    comment: Cloud-based integration; there is no local network discovery protocol to update from.
+    comment: >-
+      Devices are added via the BLUETTI cloud account; the optional local
+      Modbus connection (host/port) must still be entered manually - there is
+      no discovery protocol for BLUETTI's Modbus TCP interface either.
   discovery:
     status: exempt
-    comment: Cloud-based integration authenticated via OAuth2; devices cannot be discovered on the local network.
+    comment: >-
+      Devices are added via the BLUETTI cloud account (OAuth2); the optional
+      local Modbus connection (host/port) must still be entered manually,
+      since there is no discovery protocol (mDNS/SSDP/etc.) for BLUETTI's
+      Modbus TCP interface.
   docs-data-update: done
   docs-examples: done
   docs-known-limitations: done
@@ -63,12 +79,14 @@ rules:
       The entity set is small and deliberate; every entity is a primary
       measurement or control, not diagnostic noise, so none warrant being
       disabled by default.
-  entity-translations:
-    status: exempt
-    comment: >-
-      Entity names are provided dynamically by the BLUETTI cloud API per
-      device/firmware (fnName), not static strings known at development
-      time, so a translation_key cannot be used.
+  entity-translations: done
+  # ^ Cloud-sourced entities remain untranslated by necessity: their names
+  #   are provided dynamically by the BLUETTI cloud API per device/firmware
+  #   (fnName), not static strings known at development time (see entity.py).
+  #   Modbus-sourced entities (modbus_entity.py) use field names from
+  #   bluetti_modbus_lib, which ARE known at development time, and do carry
+  #   real translation_key/strings.json entries - satisfying this rule for
+  #   the portion of the integration where it's actually possible.
   exception-translations: done
   icon-translations: done
   reconfiguration-flow: done

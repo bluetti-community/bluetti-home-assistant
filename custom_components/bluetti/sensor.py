@@ -4,6 +4,7 @@ import logging
 from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
+from enum import Enum
 from typing import TypedDict
 
 from homeassistant.components.sensor import (
@@ -12,14 +13,17 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, UnitOfEnergy
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfEnergy
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import BluettiConfigEntry
 from .entity import BluettiEntity
+from .modbus_coordinator import BluettiModbusCoordinator
+from .modbus_entity import BluettiModbusEntity
 from .models import BluettiData, BluettiDevice, BluettiState
+from .vendor.bluetti_modbus_lib.modbus.client import ClientReturnValue
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -59,6 +63,14 @@ SENSOR_MAP: dict[str, BaseSensorMetaInfo] = {
     }
 }
 
+# Modbus fields with a direct cloud-sourced equivalent already surfaced
+# above (ac_o_p_total ~ ACLoadAllTotalPower, pv_i_p_total ~ PVAllTotalPower,
+# g_i_p_total ~ GridAllTotalPower, b_soc_total/b_soc ~ SOC) - skipped to
+# avoid two near-identical sensors on the same device. Everything else the
+# vendored device object reports is exposed, so newly vendored fields show
+# up automatically instead of needing to be added to an include-list.
+MODBUS_FIELDS_DUPLICATING_CLOUD = {"ac_o_p_total", "pv_i_p_total", "g_i_p_total", "b_soc_total", "b_soc"}
+
 
 def _power_value_getter(state: BluettiState) -> Callable[[], str | float | None]:
     """Bind `state` by value, not by the loop variable's final reference."""
@@ -78,7 +90,7 @@ async def async_setup_entry(
 ) -> bool:
     """Set up Bluetti sensors from config entry."""
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
-    entities: list[BluettiEntity] = []
+    entities: list[BluettiEntity | BluettiModbusEntity] = []
 
     for device in bluetti_devices.devices:
         for state in device.states:
@@ -134,6 +146,15 @@ async def async_setup_entry(
                         _estimated_power_value_getter(battery_sensor),
                     )
                 )
+
+    for device_id, modbus_coordinator in config_entry.runtime_data.modbus_coordinators.items():
+        modbus_device = bluetti_devices.get_device_by_sn(device_id)
+        if modbus_device is None:
+            continue
+        for field_name in modbus_coordinator.data or {}:
+            if field_name in MODBUS_FIELDS_DUPLICATING_CLOUD:
+                continue
+            entities.append(BluettiModbusSensor(modbus_device, modbus_coordinator, field_name))
 
     if entities:
         async_add_entities(entities)
@@ -291,3 +312,36 @@ class BluettiEstimatedBatteryPowerSensor(BluettiEntity, SensorEntity):
         if net is None:
             return None
         return max(net, 0.0) if self._charging else max(-net, 0.0)
+
+
+class BluettiModbusSensor(BluettiModbusEntity, SensorEntity):
+    """Sensor sourced from a device's optional local Modbus connection."""
+
+    def __init__(
+        self, device: BluettiDevice, coordinator: BluettiModbusCoordinator, field_name: str
+    ) -> None:
+        super().__init__(device, coordinator, field_name)
+
+        field: ClientReturnValue | None = (coordinator.data or {}).get(field_name)
+        self._attr_native_unit_of_measurement = field.unit if field else None
+        if field and field.device_class:
+            self._attr_device_class = SensorDeviceClass(field.device_class.value)
+        if field and field.state_class:
+            self._attr_state_class = SensorStateClass(field.state_class.value)
+        if field and field.category:
+            entity_category = EntityCategory(field.category.value)
+            # SensorEntity refuses entity_category CONFIG (it's reserved for
+            # entities that can be adjusted; this integration only exposes
+            # read-only Modbus sensors today) - surface it as diagnostic
+            # instead of crashing entity registration.
+            if entity_category == EntityCategory.CONFIG:
+                entity_category = EntityCategory.DIAGNOSTIC
+            self._attr_entity_category = entity_category
+
+    @property
+    def native_value(self) -> str | float | None:
+        field = (self.coordinator.data or {}).get(self._field_name)
+        if field is None:
+            return None
+        value = field.value
+        return value.name if isinstance(value, Enum) else value

@@ -29,9 +29,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements_test.txt
-          # Runtime dependency from custom_components/bluetti/manifest.json -
-          # pytest-homeassistant-custom-component doesn't install it itself.
-          pip install "pybluetti>=0.1.0"
+          # Runtime dependencies from custom_components/bluetti/manifest.json -
+          # pytest-homeassistant-custom-component doesn't install them itself.
+          pip install "pybluetti>=0.1.0" "modbus-connection[pymodbus]>=4.10.0"
 
       - name: Run pytest with coverage
         run: |
