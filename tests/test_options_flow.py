@@ -200,6 +200,63 @@ async def test_configure_modbus_shows_form_with_only_modbus_capable_enabled_devi
     assert list(result["data_schema"].schema["device_sn"].container) == ["SN1"]
 
 
+def _schema_default(schema, key):
+    return next(k for k in schema.schema if k == key).default()
+
+
+async def test_configure_modbus_prefills_existing_connection_for_the_default_device(hass):
+    entry = _entry(
+        hass,
+        products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
+        devices=["SN1"],
+        modbus={"SN1": {"host": "10.2.1.60", "port": 1502}},
+    )
+    flow = _flow(hass, entry)
+
+    result = await flow.async_step_configure_modbus(user_input=None)
+
+    schema = result["data_schema"]
+    assert _schema_default(schema, "device_sn") == "SN1"
+    assert _schema_default(schema, "host") == "10.2.1.60"
+    assert _schema_default(schema, "port") == 1502
+
+
+async def test_configure_modbus_prefills_blank_when_nothing_saved_yet(hass):
+    entry = _entry(
+        hass,
+        products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
+        devices=["SN1"],
+    )
+    flow = _flow(hass, entry)
+
+    result = await flow.async_step_configure_modbus(user_input=None)
+
+    schema = result["data_schema"]
+    assert _schema_default(schema, "host") == ""
+    assert _schema_default(schema, "port") == 502
+
+
+async def test_configure_modbus_preserves_just_typed_values_after_a_failed_attempt(hass):
+    entry = _entry(
+        hass,
+        products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
+        devices=["SN1"],
+    )
+    flow = _flow(hass, entry)
+    client = MagicMock()
+    client.read = AsyncMock(side_effect=ModbusConnectionError("no route to host"))
+    client.aclose = AsyncMock()
+
+    with patch("custom_components.bluetti.options_flow.BluettiModbusClient", return_value=client):
+        result = await flow.async_step_configure_modbus(
+            user_input={"device_sn": "SN1", "host": "10.2.1.99", "port": 1503}
+        )
+
+    schema = result["data_schema"]
+    assert _schema_default(schema, "host") == "10.2.1.99"
+    assert _schema_default(schema, "port") == 1503
+
+
 async def test_configure_modbus_success_stores_connection_in_options(hass):
     entry = _entry(
         hass,

@@ -188,13 +188,22 @@ class BluettiOptionsFlowHandler(OptionsFlow):
                 # call's data instead.
                 return self.async_create_entry(data={**entry.options, "modbus": modbus_options})
 
+        # Pre-fill with whatever the user just typed (re-showing the form
+        # after a failed connectivity check), else the currently saved
+        # connection for the default (first) device - reopening this step
+        # to tweak an existing connection should not start from blank.
+        default_sn = (user_input or {}).get("device_sn") or next(iter(modbus_capable), None)
+        existing = entry.options.get("modbus", {}).get(default_sn, {}) if default_sn else {}
+        default_host = (user_input or {}).get("host", existing.get("host", ""))
+        default_port = (user_input or {}).get("port", existing.get("port", 502))
+
         schema = vol.Schema(
             {
-                vol.Required("device_sn"): vol.In(
+                vol.Required("device_sn", default=default_sn): vol.In(
                     {sn: f"{product.name} ({sn})" for sn, product in modbus_capable.items()}
                 ),
-                vol.Required("host"): TextSelector(),
-                vol.Required("port", default=502): vol.All(
+                vol.Required("host", default=default_host): TextSelector(),
+                vol.Required("port", default=default_port): vol.All(
                     NumberSelector(
                         NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
                     ),
