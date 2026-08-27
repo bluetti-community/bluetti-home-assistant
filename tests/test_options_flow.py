@@ -53,7 +53,11 @@ async def test_shows_form_with_available_devices(hass):
         result = await flow.async_step_init(user_input=None)
 
     assert result["type"] == "form"
-    assert result["step_id"] == "init"
+    # step_id matches the method that actually owns the form
+    # (async_step_add_devices), not the router (async_step_init) that
+    # delegated to it - this is what lets the real flow manager correctly
+    # re-invoke async_step_add_devices on submit instead of re-routing.
+    assert result["step_id"] == "add_devices"
 
 
 async def test_no_devices_available_aborts(hass):
@@ -217,9 +221,12 @@ async def test_configure_modbus_success_stores_connection_in_options(hass):
     client_cls.assert_called_once_with("10.2.1.60", 502, "balco260")
     client.aclose.assert_awaited_once()
     assert result["type"] == "create_entry"
-
-    updated = hass.config_entries.async_get_entry(entry.entry_id)
-    assert updated.options["modbus"] == {"SN1": {"host": "10.2.1.60", "port": 502}}
+    # async_create_entry's data REPLACES entry.options wholesale once the
+    # real OptionsFlowManager applies it (not exercised by calling the step
+    # method directly, see test_configure_modbus_through_real_flow_manager_
+    # preserves_devices below) - assert on the returned data itself here.
+    assert result["data"]["modbus"] == {"SN1": {"host": "10.2.1.60", "port": 502}}
+    assert result["data"]["devices"] == ["SN1"]
 
 
 async def test_configure_modbus_connection_failure_reshows_form_with_error(hass):
@@ -244,3 +251,81 @@ async def test_configure_modbus_connection_failure_reshows_form_with_error(hass)
 
     updated = hass.config_entries.async_get_entry(entry.entry_id)
     assert "modbus" not in updated.options
+
+
+async def test_configure_modbus_through_real_flow_manager_preserves_devices(
+    hass, enable_custom_integrations
+):
+    # Regression test for a real bug found via real-hardware testing:
+    # OptionsFlowManager.async_finish_flow() applies async_create_entry's
+    # data by REPLACING entry.options wholesale - calling the step method
+    # directly (as the other tests above do) never exercises that real
+    # code path, so it couldn't catch this. Going through the actual flow
+    # manager here is the only way to verify entry.options ends up correct.
+    entry = _entry(
+        hass,
+        products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
+        devices=["SN1"],
+    )
+    client = MagicMock()
+    client.read = AsyncMock(return_value=[])
+    client.aclose = AsyncMock()
+
+    with patch("custom_components.bluetti.options_flow.BluettiModbusClient", return_value=client):
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        assert result["type"] == "menu"
+
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"next_step_id": "configure_modbus"}
+        )
+        assert result["type"] == "form"
+        assert result["step_id"] == "configure_modbus"
+
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"device_sn": "SN1", "host": "10.2.1.60", "port": 502}
+        )
+
+    assert result["type"] == "create_entry"
+
+    updated = hass.config_entries.async_get_entry(entry.entry_id)
+    assert updated.options["devices"] == ["SN1"]
+    assert updated.options["modbus"] == {"SN1": {"host": "10.2.1.60", "port": 502}}
+
+
+async def test_add_devices_through_real_flow_manager_preserves_modbus(
+    hass, enable_custom_integrations
+):
+    # Mirror regression test: adding more devices afterwards must not wipe
+    # an already-configured Modbus connection for another device.
+    entry = _entry(
+        hass,
+        products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
+        devices=["SN1"],
+        modbus={"SN1": {"host": "10.2.1.60", "port": 502}},
+    )
+    products = [UserProduct(sn="SN2", name="New Device", stateList=[], online="1")]
+
+    with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
+         patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products = AsyncMock(
+            return_value=SimpleNamespace(data=products)
+        )
+        mock_client_cls.return_value.bind_devices = AsyncMock()
+
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        assert result["type"] == "menu"
+
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"next_step_id": "add_devices"}
+        )
+        assert result["type"] == "form"
+
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"devices": ["SN2"]}
+        )
+
+    assert result["type"] == "create_entry"
+
+    updated = hass.config_entries.async_get_entry(entry.entry_id)
+    assert set(updated.options["devices"]) == {"SN1", "SN2"}
+    assert updated.options["modbus"] == {"SN1": {"host": "10.2.1.60", "port": 502}}

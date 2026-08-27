@@ -87,7 +87,14 @@ class BluettiOptionsFlowHandler(OptionsFlow):
                 entry, data={**entry.data, "products": merged_products}
             )
 
-            return self.async_create_entry(data={"devices": merged_devices})
+            # async_create_entry's data REPLACES entry.options wholesale (see
+            # OptionsFlowManager.async_finish_flow) - carry the existing
+            # "modbus" key forward explicitly, or configuring a device's
+            # local Modbus connection would get silently wiped the next
+            # time more devices are added here.
+            return self.async_create_entry(
+                data={"devices": merged_devices, "modbus": entry.options.get("modbus", {})}
+            )
 
         access_token = entry.data["token"]["access_token"]
         http_session = async_get_clientsession(self.hass)
@@ -132,7 +139,7 @@ class BluettiOptionsFlowHandler(OptionsFlow):
             }
         )
 
-        return self.async_show_form(step_id="init", data_schema=schema)
+        return self.async_show_form(step_id="add_devices", data_schema=schema)
 
     async def async_step_configure_modbus(
         self, user_input: dict[str, Any] | None = None
@@ -172,10 +179,14 @@ class BluettiOptionsFlowHandler(OptionsFlow):
                     **entry.options.get("modbus", {}),
                     sn: {"host": host, "port": port},
                 }
-                self.hass.config_entries.async_update_entry(
-                    entry, options={**entry.options, "modbus": modbus_options}
-                )
-                return self.async_create_entry(data={})
+                # async_create_entry's data REPLACES entry.options wholesale
+                # (see OptionsFlowManager.async_finish_flow) - a bare
+                # async_update_entry() call here, followed by
+                # async_create_entry(data={}), would have the second call
+                # immediately wipe out what the first one just set (including
+                # "devices"). Pass the full merged options as this single
+                # call's data instead.
+                return self.async_create_entry(data={**entry.options, "modbus": modbus_options})
 
         schema = vol.Schema(
             {

@@ -29,11 +29,8 @@
   "options": {
     "step": {
       "init": {
-        "title": "BLUETTI-Geräte hinzufügen",
-        "description": "Wählen Sie weitere Geräte aus, die mit Ihrem BLUETTI-Konto verknüpft sind und die Sie zu Home Assistant hinzufügen möchten.",
-        "data": {
-          "devices": "Geräte"
-        },
+        "title": "BLUETTI options",
+        "description": "What would you like to do?",
         "menu_options": {
           "add_devices": "Add BLUETTI devices",
           "configure_modbus": "Configure local Modbus"
@@ -46,6 +43,13 @@
           "device_sn": "Device",
           "host": "Host",
           "port": "Port"
+        }
+      },
+      "add_devices": {
+        "title": "BLUETTI-Geräte hinzufügen",
+        "description": "Wählen Sie weitere Geräte aus, die mit Ihrem BLUETTI-Konto verknüpft sind und die Sie zu Home Assistant hinzufügen möchten.",
+        "data": {
+          "devices": "Geräte"
         }
       }
     },

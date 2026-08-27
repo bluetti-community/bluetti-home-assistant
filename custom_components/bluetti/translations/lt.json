@@ -29,11 +29,8 @@
   "options": {
     "step": {
       "init": {
-        "title": "Pridėti BLUETTI įrenginius",
-        "description": "Pasirinkite papildomus prie jūsų BLUETTI paskyros priskirtus įrenginius, kuriuos norite pridėti į Home Assistant.",
-        "data": {
-          "devices": "Įrenginiai"
-        },
+        "title": "BLUETTI options",
+        "description": "What would you like to do?",
         "menu_options": {
           "add_devices": "Add BLUETTI devices",
           "configure_modbus": "Configure local Modbus"
@@ -46,6 +43,13 @@
           "device_sn": "Device",
           "host": "Host",
           "port": "Port"
+        }
+      },
+      "add_devices": {
+        "title": "Pridėti BLUETTI įrenginius",
+        "description": "Pasirinkite papildomus prie jūsų BLUETTI paskyros priskirtus įrenginius, kuriuos norite pridėti į Home Assistant.",
+        "data": {
+          "devices": "Įrenginiai"
         }
       }
     },
