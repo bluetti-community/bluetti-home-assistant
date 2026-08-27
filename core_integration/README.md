@@ -149,6 +149,38 @@ Staged a copy of the real, existing assets (downloaded from
 `brands/core_integrations/bluetti/` here, so the eventual move is a copy of
 already-prepared files rather than a from-scratch brands PR.
 
+## Modbus per-update timeout fix (2026-08-27)
+
+A real production bug, reported from the user's own live Balco260: recurring
+"Request cancelled outside library" Modbus errors, citing a different
+register range each time. Traced through `pymodbus`/`modbus_connection`'s
+actual source (not guessed): `async_update()` reads several register blocks
+sequentially, but the surrounding `asyncio.timeout(10)` budgeted the whole
+sequence, not one block - a single slow block (this device's Modbus TCP
+stack is documented to become unresponsive under load) could exhaust nearly
+the whole budget, cancelling whichever block came next.
+
+Fixed in two places, since they're independent code paths:
+
+- `bluetti_modbus_lib.modbus.client.BluettiModbusClient._update_with_timeout`
+  (used by the HACS `custom_components/bluetti/` build, and by this Core
+  build's `options_flow.py` connectivity check via `get_device()`) - fixed
+  upstream in `bluetti-modbus`
+  [PR #26](https://github.com/bluetti-community/bluetti-modbus/pull/26),
+  released as `bluetti-modbus==0.1.1`. `manifest.json`'s pin bumped to
+  match.
+- `BluettiModbusCoordinator._update_with_timeout` here in
+  `modbus_coordinator.py` - a second, independent `asyncio.timeout(10)`
+  with the exact same structural flaw, since this coordinator calls
+  `device.async_update()` directly via `async_get_unit()`/`get_device()`
+  rather than through `BluettiModbusClient`. Bumping the pin alone would
+  not have fixed this half of it.
+
+Both widened to 30s, matching `UPDATE_INTERVAL`. Re-verified against a
+fresh `home-assistant/core` dev checkout: 183 passed (182 + a new
+regression test simulating a 15s-slow block), 0 failed, ruff and hassfest
+clean.
+
 ## What's still blocking an actual submission
 
 Everything above is prepared and verified. What's left is entirely the act
