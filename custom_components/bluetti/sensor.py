@@ -7,6 +7,7 @@ from decimal import Decimal
 from enum import Enum
 from typing import TypedDict
 
+from bluetti_modbus_lib.modbus.client import ClientReturnValue
 from homeassistant.components.sensor import (
     RestoreSensor,
     SensorDeviceClass,
@@ -24,7 +25,6 @@ from .modbus_coordinator import BluettiModbusCoordinator
 from .modbus_entity import BluettiModbusEntity
 from .modbus_field_metadata import modbus_metadata_for
 from .models import BluettiData, BluettiDevice, BluettiState
-from .vendor.bluetti_modbus_lib.modbus.client import ClientReturnValue
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -68,8 +68,9 @@ SENSOR_MAP: dict[str, BaseSensorMetaInfo] = {
 # above (ac_o_p_total ~ ACLoadAllTotalPower, pv_i_p_total ~ PVAllTotalPower,
 # g_i_p_total ~ GridAllTotalPower, b_soc_total/b_soc ~ SOC) - skipped to
 # avoid two near-identical sensors on the same device. Everything else the
-# vendored device object reports is exposed, so newly vendored fields show
-# up automatically instead of needing to be added to an include-list.
+# device object reports is exposed, so new fields added in a future
+# bluetti-modbus release show up automatically instead of needing to be
+# added to an include-list.
 MODBUS_FIELDS_DUPLICATING_CLOUD = {"ac_o_p_total", "pv_i_p_total", "g_i_p_total", "b_soc_total", "b_soc"}
 
 

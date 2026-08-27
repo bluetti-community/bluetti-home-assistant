@@ -6,15 +6,12 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+from bluetti_modbus_lib.modbus.client import BluettiModbusClient, ClientReturnValue
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from modbus_connection.exceptions import ModbusError
 
 from .const import DOMAIN
-from .vendor.bluetti_modbus_lib.modbus.client import (
-    BluettiModbusClient,
-    ClientReturnValue,
-)
 
 if TYPE_CHECKING:
     from . import BluettiConfigEntry
