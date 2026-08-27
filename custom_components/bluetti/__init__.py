@@ -152,22 +152,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
                 dev_type,
             )
 
-    if modbus_coordinators:
-        # Local Modbus is optional/supplementary - a hiccup here must not
-        # fail the whole entry (and take the cloud entities down with it)
-        # the way a bare gather would. A failed first refresh just leaves
-        # that device's Modbus entities unavailable until the coordinator's
-        # own next poll succeeds.
-        results = await asyncio.gather(
-            *(
-                coordinator.async_config_entry_first_refresh()
-                for coordinator in modbus_coordinators.values()
-            ),
-            return_exceptions=True,
-        )
-        for device_id, result in zip(modbus_coordinators, results, strict=True):
-            if isinstance(result, Exception):
-                __LOGGER__.warning("Initial Modbus read failed for %s: %s", device_id, result)
+    # Local Modbus is optional/supplementary - async_refresh() (not
+    # async_config_entry_first_refresh()) never raises ConfigEntryNotReady,
+    # so a device that doesn't answer just leaves that device's Modbus
+    # entities unavailable until the coordinator's own next poll succeeds,
+    # instead of failing the whole entry (and its cloud entities) too.
+    # Matches home-assistant/core's fronius integration, which uses the same
+    # async_refresh()-not-first_refresh() pattern for its own optional
+    # secondary Modbus coordinators.
+    await asyncio.gather(
+        *(coordinator.async_refresh() for coordinator in modbus_coordinators.values())
+    )
 
     entry.runtime_data = BluettiRuntimeData(
         auth=auth,
