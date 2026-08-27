@@ -1,62 +1,221 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Account is al geconfigureerd",
-            "already_in_progress": "Configuratieproces is al bezig",
-            "authorize_url_timeout": "Time-out bij het genereren van de autorisatie-URL.",
-            "missing_configuration": "De component is niet geconfigureerd. Volg de documentatie.",
-            "no_url_available": "Geen URL beschikbaar. Voor meer informatie over deze fout, [bekijk de helpsectie]({docs_url})",
-            "oauth_error": "Ongeldige tokengegevens ontvangen.",
-            "oauth_failed": "Fout bij het verkrijgen van toegangstoken.",
-            "oauth_timeout": "Time-out bij het ophalen van OAuth-token.",
-            "oauth_unauthorized": "OAuth-autorisatiefout bij het verkrijgen van toegangstoken.",
-            "user_rejected_authorize": "Accountkoppeling geweigerd: {error}",
-            "all_devices_exists": "Alle apparaten en fysieke items onder dit account zijn al opgenomen in het BLUETTI-integratiepakket.",
-            "no_devices_available": "Het huidige account heeft geen beschikbare apparaten.",
-            "cannot_connect": "Verbinding met de BLUETTI-server is mislukt. Probeer het opnieuw.",
-            "reconfigure_failed": "De te herconfigureren configuratie-invoer kon niet worden gevonden.",
-            "success": "Uw BLUETTI-apparaten zijn succesvol toegevoegd."
-        },
-        "create_entry": {
-            "default": "Succesvol geverifieerd"
-        },
-        "step": {
-            "pick_implementation": {
-                "title": "Kies een authenticatiemethode"
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Account is al geconfigureerd",
+      "already_in_progress": "Configuratieproces is al bezig",
+      "authorize_url_timeout": "Time-out bij het genereren van de autorisatie-URL.",
+      "missing_configuration": "De component is niet geconfigureerd. Volg de documentatie.",
+      "no_url_available": "Geen URL beschikbaar. Voor meer informatie over deze fout, [bekijk de helpsectie]({docs_url})",
+      "oauth_error": "Ongeldige tokengegevens ontvangen.",
+      "oauth_failed": "Fout bij het verkrijgen van toegangstoken.",
+      "oauth_timeout": "Time-out bij het ophalen van OAuth-token.",
+      "oauth_unauthorized": "OAuth-autorisatiefout bij het verkrijgen van toegangstoken.",
+      "user_rejected_authorize": "Accountkoppeling geweigerd: {error}",
+      "all_devices_exists": "Alle apparaten en fysieke items onder dit account zijn al opgenomen in het BLUETTI-integratiepakket.",
+      "no_devices_available": "Het huidige account heeft geen beschikbare apparaten.",
+      "cannot_connect": "Verbinding met de BLUETTI-server is mislukt. Probeer het opnieuw.",
+      "reconfigure_failed": "De te herconfigureren configuratie-invoer kon niet worden gevonden.",
+      "success": "Uw BLUETTI-apparaten zijn succesvol toegevoegd."
     },
-    "options": {
-        "step": {
-            "init": {
-                "title": "BLUETTI-apparaten toevoegen",
-                "description": "Selecteer eventuele extra apparaten die aan uw BLUETTI-account zijn gekoppeld en die u aan Home Assistant wilt toevoegen.",
-                "data": {
-                    "devices": "Apparaten"
-                }
-            }
-        },
-        "abort": {
-            "no_devices_available": "Het huidige account heeft geen beschikbare apparaten.",
-            "all_devices_exists": "Alle apparaten en fysieke items onder dit account zijn al opgenomen in het BLUETTI-integratiepakket.",
-            "cannot_connect": "Verbinding met de BLUETTI-server is mislukt. Probeer het opnieuw."
-        }
+    "create_entry": {
+      "default": "Succesvol geverifieerd"
     },
-    "exceptions": {
-        "command_failed": {
-            "message": "Fout bij het verzenden van het commando naar {device_id}: {error}"
-        },
-        "select_option_read_only": {
-            "message": "{fn_code} is alleen-lezen en kan niet worden gewijzigd"
-        },
-        "select_option_invalid": {
-            "message": "Ongeldige optie {option} voor {fn_code}"
-        }
-    },
-    "issues": {
-        "oauth_expired": {
-            "title": "BLUETTI-authenticatie verlopen",
-            "description": "De autorisatie van uw BLUETTI-account is verlopen. Ga naar de instellingen van de integratie en selecteer **Herconfigureren** om opnieuw in te loggen."
-        }
+    "step": {
+      "pick_implementation": {
+        "title": "Kies een authenticatiemethode"
+      }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "BLUETTI-opties",
+        "description": "Wat wilt u doen?",
+        "menu_options": {
+          "add_devices": "BLUETTI-apparaten toevoegen",
+          "configure_modbus": "Lokale Modbus configureren"
+        }
+      },
+      "configure_modbus": {
+        "title": "Lokale Modbus configureren",
+        "description": "Voer de lokale Modbus TCP-verbindingsgegevens voor dit apparaat in. Dit is optioneel en vult de cloudverbinding aan met extra sensoren - het vervangt deze niet.",
+        "data": {
+          "device_sn": "Apparaat",
+          "host": "Host",
+          "port": "Poort"
+        }
+      },
+      "add_devices": {
+        "title": "BLUETTI-apparaten toevoegen",
+        "description": "Selecteer extra apparaten van uw BLUETTI-account die u aan Home Assistant wilt toevoegen.",
+        "data": {
+          "devices": "Apparaten"
+        }
+      }
+    },
+    "abort": {
+      "no_devices_available": "Het huidige account heeft geen beschikbare apparaten.",
+      "all_devices_exists": "Alle apparaten en fysieke items onder dit account zijn al opgenomen in het BLUETTI-integratiepakket.",
+      "cannot_connect": "Verbinding met de BLUETTI-server is mislukt. Probeer het opnieuw."
+    },
+    "error": {
+      "cannot_connect": "Verbinding mislukt"
+    }
+  },
+  "exceptions": {
+    "command_failed": {
+      "message": "Fout bij het verzenden van het commando naar {device_id}: {error}"
+    },
+    "select_option_read_only": {
+      "message": "{fn_code} is alleen-lezen en kan niet worden gewijzigd"
+    },
+    "select_option_invalid": {
+      "message": "Ongeldige optie {option} voor {fn_code}"
+    },
+    "modbus_error": {
+      "message": "Fout bij communicatie met het apparaat via Modbus: {error}"
+    }
+  },
+  "issues": {
+    "oauth_expired": {
+      "title": "BLUETTI-authenticatie verlopen",
+      "description": "De autorisatie van uw BLUETTI-account is verlopen. Ga naar de instellingen van de integratie en selecteer **Herconfigureren** om opnieuw in te loggen."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ac_o_e_total": {
+        "name": "Totale AC-uitgangsenergie"
+      },
+      "ac_o_switch": {
+        "name": "AC-uitgangsschakelaar"
+      },
+      "b_c": {
+        "name": "Batterijstroom"
+      },
+      "b_c_total": {
+        "name": "Totale batterijstroom"
+      },
+      "b_cell_count": {
+        "name": "Aantal cellen"
+      },
+      "b_cycle_count": {
+        "name": "Aantal batterijcycli"
+      },
+      "b_i_e": {
+        "name": "Totale geladen batterij-energie"
+      },
+      "b_ntc_count": {
+        "name": "Aantal temperatuursensoren"
+      },
+      "b_o_e": {
+        "name": "Totale ontladen batterij-energie"
+      },
+      "b_soc_high": {
+        "name": "Bovengrens laadniveau (SoC)"
+      },
+      "b_soc_low": {
+        "name": "Ondergrens ontlaadniveau (SoC)"
+      },
+      "b_soh": {
+        "name": "Batterijgezondheid (SoH)"
+      },
+      "b_soh_total": {
+        "name": "Totale batterijgezondheid (SoH)"
+      },
+      "b_t_avg": {
+        "name": "Gemiddelde batterijtemperatuur"
+      },
+      "b_type": {
+        "name": "Batterijtype"
+      },
+      "b_v": {
+        "name": "Batterijspanning"
+      },
+      "b_v_total": {
+        "name": "Totale batterijspanning"
+      },
+      "d_inverter_fault": {
+        "name": "Omvormerfout"
+      },
+      "d_inverter_status": {
+        "name": "Omvormerstatus"
+      },
+      "d_inverter_total": {
+        "name": "Totaal omvormervermogen"
+      },
+      "d_inverter_type": {
+        "name": "Omvormertype"
+      },
+      "d_inverter_warning": {
+        "name": "Omvormerwaarschuwing"
+      },
+      "d_num_battery_packs": {
+        "name": "Aantal batterijpakketten"
+      },
+      "d_num_inverters": {
+        "name": "Aantal omvormers"
+      },
+      "g_i_e_total": {
+        "name": "Totale netimportenergie"
+      },
+      "g_i_f": {
+        "name": "Netfrequentie"
+      },
+      "g_i_switch": {
+        "name": "Netladschakelaar"
+      },
+      "g_o_e_total": {
+        "name": "Totale netexportenergie"
+      },
+      "g_o_switch": {
+        "name": "Netterugleverschakelaar"
+      },
+      "pv_1_i_c": {
+        "name": "PV 1 ingangsstroom"
+      },
+      "pv_1_i_p": {
+        "name": "PV 1 ingangsvermogen"
+      },
+      "pv_1_i_v": {
+        "name": "PV 1 ingangsspanning"
+      },
+      "pv_2_i_c": {
+        "name": "PV 2 ingangsstroom"
+      },
+      "pv_2_i_p": {
+        "name": "PV 2 ingangsvermogen"
+      },
+      "pv_2_i_v": {
+        "name": "PV 2 ingangsspanning"
+      },
+      "pv_3_i_c": {
+        "name": "PV 3 ingangsstroom"
+      },
+      "pv_3_i_p": {
+        "name": "PV 3 ingangsvermogen"
+      },
+      "pv_3_i_v": {
+        "name": "PV 3 ingangsspanning"
+      },
+      "pv_4_i_c": {
+        "name": "PV 4 ingangsstroom"
+      },
+      "pv_4_i_p": {
+        "name": "PV 4 ingangsvermogen"
+      },
+      "pv_4_i_v": {
+        "name": "PV 4 ingangsspanning"
+      },
+      "pv_ac_e": {
+        "name": "PV AC-energie"
+      },
+      "pv_ac_p": {
+        "name": "PV AC-vermogen"
+      },
+      "pv_i_e_total": {
+        "name": "Totale PV-ingangsenergie"
+      }
+    }
+  }
 }

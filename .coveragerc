@@ -1,0 +1,5 @@
+[run]
+# Vendored from bluetti-modbus-lib, which lints/tests itself in its own repo -
+# see custom_components/bluetti/vendor/bluetti_modbus_lib/VENDORED.md.
+omit =
+    custom_components/bluetti/vendor/*

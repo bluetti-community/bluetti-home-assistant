@@ -52,6 +52,32 @@ async def test_unload_entry_survives_disconnect_error(hass):
     assert result is True
 
 
+async def test_unload_entry_does_not_explicitly_shut_down_modbus_coordinators(hass):
+    # DataUpdateCoordinator (constructed with config_entry=entry) already
+    # registers its own async_shutdown via config_entry.async_on_unload -
+    # an explicit call here would run BluettiModbusCoordinator's
+    # connection-closing side effect a second time. This is a regression
+    # test for that: a raw AsyncMock modbus_coordinator (not wired to any
+    # real config_entry.async_on_unload registration) must NOT be shut
+    # down by async_unload_entry itself.
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+
+    modbus_coordinator = AsyncMock()
+    entry.runtime_data = BluettiRuntimeData(
+        auth=MagicMock(),
+        bluetti_devices=MagicMock(devices=[]),
+        stomp_client=AsyncMock(),
+        coordinators={},
+        modbus_coordinators={"SN1": modbus_coordinator},
+    )
+
+    result = await async_unload_entry(hass, entry)
+
+    assert result is True
+    modbus_coordinator.async_shutdown.assert_not_awaited()
+
+
 async def test_unload_entry_without_runtime_data_does_not_raise(hass):
     """A config entry that never finished setup has no runtime_data yet."""
     entry = MockConfigEntry(domain=DOMAIN)
@@ -120,17 +146,21 @@ async def test_remove_entry_cleans_up_device_and_entity_registries(hass):
 
 
 async def test_remove_config_entry_device_stops_polling_and_updates_options(hass):
-    entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1", "SN2"]})
+    entry = MockConfigEntry(
+        domain=DOMAIN, options={"devices": ["SN1", "SN2"], "modbus": {"SN1": {"host": "10.2.1.60", "port": 502}}}
+    )
     entry.add_to_hass(hass)
 
-    device1 = BluettiDevice(device_id="SN1", on_line="1", name="First", sn="SN1", model="AC200L")
+    device1 = BluettiDevice(device_id="SN1", on_line="1", name="First", sn="SN1", model="Balco260")
     device2 = BluettiDevice(device_id="SN2", on_line="1", name="Second", sn="SN2", model="EL400")
     coordinator1 = AsyncMock()
+    modbus_coordinator1 = AsyncMock()
     entry.runtime_data = BluettiRuntimeData(
         auth=MagicMock(),
         bluetti_devices=MagicMock(devices=[device1, device2]),
         stomp_client=MagicMock(),
         coordinators={"SN1": coordinator1, "SN2": MagicMock()},
+        modbus_coordinators={"SN1": modbus_coordinator1},
     )
 
     device_registry = dr.async_get(hass)
@@ -139,17 +169,20 @@ async def test_remove_config_entry_device_stops_polling_and_updates_options(hass
         identifiers={(DOMAIN, "SN1")},
         name="First",
         manufacturer="Bluetti",
-        model="AC200L",
+        model="Balco260",
     )
 
     result = await async_remove_config_entry_device(hass, entry, device_entry)
 
     assert result is True
     coordinator1.async_shutdown.assert_awaited_once()
+    modbus_coordinator1.async_shutdown.assert_awaited_once()
     assert [d.device_id for d in entry.runtime_data.bluetti_devices.devices] == ["SN2"]
     assert "SN1" not in entry.runtime_data.coordinators
     assert "SN2" in entry.runtime_data.coordinators
+    assert "SN1" not in entry.runtime_data.modbus_coordinators
     assert entry.options["devices"] == ["SN2"]
+    assert entry.options["modbus"] == {}
 
 
 async def test_remove_config_entry_device_rejects_non_bluetti_device(hass):

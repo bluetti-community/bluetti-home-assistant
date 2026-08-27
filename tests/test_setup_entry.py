@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock
 
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.const import EntityCategory
 from pybluetti import UnifyResponse
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -17,6 +19,7 @@ from custom_components.bluetti.select import async_setup_entry as select_setup_e
 from custom_components.bluetti.sensor import (
     BluettiEnergySensor,
     BluettiEstimatedBatteryPowerSensor,
+    BluettiModbusSensor,
     BluettiSensor,
 )
 from custom_components.bluetti.sensor import (
@@ -26,7 +29,7 @@ from custom_components.bluetti.switch import BluettiSwitch
 from custom_components.bluetti.switch import async_setup_entry as switch_setup_entry
 
 
-def _entry_with_devices(hass, devices: list[BluettiDevice]) -> MockConfigEntry:
+def _entry_with_devices(hass, devices: list[BluettiDevice], modbus_coordinators=None) -> MockConfigEntry:
     for device in devices:
         device.coordinator = MagicMock()
     entry = MockConfigEntry(domain=DOMAIN)
@@ -34,7 +37,11 @@ def _entry_with_devices(hass, devices: list[BluettiDevice]) -> MockConfigEntry:
     bluetti_data = BluettiData.__new__(BluettiData)
     bluetti_data.devices = devices
     entry.runtime_data = BluettiRuntimeData(
-        auth=MagicMock(), bluetti_devices=bluetti_data, stomp_client=MagicMock(), coordinators={},
+        auth=MagicMock(),
+        bluetti_devices=bluetti_data,
+        stomp_client=MagicMock(),
+        coordinators={},
+        modbus_coordinators=modbus_coordinators or {},
     )
     return entry
 
@@ -295,6 +302,88 @@ async def test_select_setup_entry_creates_select_and_controls_it(hass):
     device._api_client.control_device = fake_control_device
     await select.async_select_option("Silent")
     assert select.current_option == "Silent"
+
+
+async def test_sensor_setup_entry_creates_modbus_sensors_grouped_with_cloud_device(hass):
+    from enum import Enum
+
+    from custom_components.bluetti.vendor.bluetti_modbus_lib.fields.field_extras import (
+        DeviceClass,
+        FieldCategory,
+        FieldStateClass,
+    )
+    from custom_components.bluetti.vendor.bluetti_modbus_lib.modbus.client import (
+        ClientReturnValue,
+    )
+
+    class _FakeInverterStatus(Enum):
+        STANDBY = 0
+
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="Balco260",
+        state_list=[
+            {
+                "fnCode": "SOC", "fnName": "Battery", "fnValue": "50", "fnType": "SENSOR",
+                "sensorInfo": {"sensorType": "SensorDeviceClass.BATTERY", "unit": None},
+            },
+        ],
+    )
+    fields = {
+        # Excluded - duplicates the cloud SOC sensor already added above.
+        "b_soc": ClientReturnValue(
+            name="b_soc", unit="%", value=42, category=None,
+            state_class=FieldStateClass.MEASUREMENT, device_class=DeviceClass.BATTERY,
+        ),
+        "b_cycle_count": ClientReturnValue(
+            name="b_cycle_count", unit=None, value=12,
+            category=FieldCategory.DIAGNOSTIC, state_class=None, device_class=None,
+        ),
+        # CONFIG must be remapped to DIAGNOSTIC - SensorEntity forbids CONFIG.
+        "b_soc_high": ClientReturnValue(
+            name="b_soc_high", unit="%", value=100,
+            category=FieldCategory.CONFIG, state_class=None, device_class=None,
+        ),
+        "d_inverter_status": ClientReturnValue(
+            name="d_inverter_status", unit=None, value=_FakeInverterStatus.STANDBY,
+            category=None, state_class=None, device_class=None,
+        ),
+        "g_i_f": ClientReturnValue(
+            name="g_i_f", unit="Hz", value=50.0, category=None,
+            state_class=FieldStateClass.MEASUREMENT, device_class=DeviceClass.FREQUENCY,
+        ),
+    }
+    modbus_coordinator = MagicMock(data=fields)
+
+    entry = _entry_with_devices(hass, [device], modbus_coordinators={"SN1": modbus_coordinator})
+    added = []
+
+    await sensor_setup_entry(hass, entry, added.extend)
+
+    modbus_sensors = {s._field_name: s for s in added if isinstance(s, BluettiModbusSensor)}
+    assert set(modbus_sensors) == {"b_cycle_count", "b_soc_high", "d_inverter_status", "g_i_f"}
+
+    cloud_sensor = next(e for e in added if isinstance(e, BluettiSensor))
+    assert modbus_sensors["b_cycle_count"].device_info["identifiers"] == cloud_sensor.device_info["identifiers"]
+
+    assert modbus_sensors["g_i_f"].device_class == SensorDeviceClass.FREQUENCY
+    assert modbus_sensors["g_i_f"].state_class == SensorStateClass.MEASUREMENT
+
+    assert modbus_sensors["b_soc_high"].entity_category == EntityCategory.DIAGNOSTIC
+    assert modbus_sensors["b_cycle_count"].native_value == 12
+    assert modbus_sensors["d_inverter_status"].native_value == "STANDBY"
+
+    modbus_coordinator.data = {}
+    assert modbus_sensors["b_cycle_count"].native_value is None
+
+
+async def test_sensor_setup_entry_skips_modbus_coordinator_for_unknown_device(hass):
+    entry = _entry_with_devices(hass, [], modbus_coordinators={"UNKNOWN_SN": MagicMock(data={})})
+    added = []
+
+    result = await sensor_setup_entry(hass, entry, added.extend)
+
+    assert result is True
+    assert added == []
 
 
 async def test_select_setup_entry_ignores_states_without_modes(hass):

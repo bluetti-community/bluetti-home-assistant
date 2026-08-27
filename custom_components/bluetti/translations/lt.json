@@ -1,62 +1,221 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Paskyra jau sukonfigūruota",
-            "already_in_progress": "Konfigūracija jau vykdoma",
-            "authorize_url_timeout": "Baigėsi skirtas laikas generuojant autorizacijos URL.",
-            "missing_configuration": "Komponentas nesukonfigūruotas. Prašome vadovautis dokumentacija.",
-            "no_url_available": "URL nepasiekiamas. Daugiau informacijos apie klaidą rasite [pagalbos skyriuje]({docs_url})",
-            "oauth_error": "Gautas negaliojantis prieigos žetonas.",
-            "oauth_failed": "Gaunant prieigos žetoną įvyko klaida.",
-            "oauth_timeout": "Baigėsi skirtas laikas apdoroti OAuth prieigos žetoną.",
-            "oauth_unauthorized": "Gaunant prieigos žetoną, įvyko OAuth protokolo autorizavimo klaida.",
-            "user_rejected_authorize": "Paskyros susiejimo klaida: {error}",
-            "all_devices_exists": "Visi paskyroje esantys įrenginiai jau yra įtraukti į integruotą BLUETTI paketą.",
-            "no_devices_available": "Paskyroje nėra palaikomų įrenginių.",
-            "cannot_connect": "Nepavyko prisijungti prie BLUETTI serverio. Bandykite dar kartą.",
-            "reconfigure_failed": "Nepavyko rasti perkonfigūruotino konfigūracijos įrašo.",
-            "success": "Jūsų BLUETTI įrenginiai sėkmingai pridėti."
-        },
-        "create_entry": {
-            "default": "Autentifikacija sėkminga"
-        },
-        "step": {
-            "pick_implementation": {
-                "title": "Pasirinkite autentifikavimo metodą"
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Paskyra jau sukonfigūruota",
+      "already_in_progress": "Konfigūracija jau vykdoma",
+      "authorize_url_timeout": "Baigėsi skirtas laikas generuojant autorizacijos URL.",
+      "missing_configuration": "Komponentas nesukonfigūruotas. Prašome vadovautis dokumentacija.",
+      "no_url_available": "URL nepasiekiamas. Daugiau informacijos apie klaidą rasite [pagalbos skyriuje]({docs_url})",
+      "oauth_error": "Gautas negaliojantis prieigos žetonas.",
+      "oauth_failed": "Gaunant prieigos žetoną įvyko klaida.",
+      "oauth_timeout": "Baigėsi skirtas laikas apdoroti OAuth prieigos žetoną.",
+      "oauth_unauthorized": "Gaunant prieigos žetoną, įvyko OAuth protokolo autorizavimo klaida.",
+      "user_rejected_authorize": "Paskyros susiejimo klaida: {error}",
+      "all_devices_exists": "Visi paskyroje esantys įrenginiai jau yra įtraukti į integruotą BLUETTI paketą.",
+      "no_devices_available": "Paskyroje nėra palaikomų įrenginių.",
+      "cannot_connect": "Nepavyko prisijungti prie BLUETTI serverio. Bandykite dar kartą.",
+      "reconfigure_failed": "Nepavyko rasti perkonfigūruotino konfigūracijos įrašo.",
+      "success": "Jūsų BLUETTI įrenginiai sėkmingai pridėti."
     },
-    "options": {
-        "step": {
-            "init": {
-                "title": "Pridėti BLUETTI įrenginius",
-                "description": "Pasirinkite papildomus prie jūsų BLUETTI paskyros priskirtus įrenginius, kuriuos norite pridėti į Home Assistant.",
-                "data": {
-                    "devices": "Įrenginiai"
-                }
-            }
-        },
-        "abort": {
-            "no_devices_available": "Paskyroje nėra palaikomų įrenginių.",
-            "all_devices_exists": "Visi šios paskyros įrenginiai ir fiziniai elementai jau yra įtraukti į integruotą BLUETTI paketą.",
-            "cannot_connect": "Nepavyko prisijungti prie BLUETTI serverio. Bandykite dar kartą."
-        }
+    "create_entry": {
+      "default": "Autentifikacija sėkminga"
     },
-    "exceptions": {
-        "command_failed": {
-            "message": "Klaida siunčiant komandą į {device_id}: {error}"
-        },
-        "select_option_read_only": {
-            "message": "{fn_code} yra tik skaitymui ir negali būti keičiamas"
-        },
-        "select_option_invalid": {
-            "message": "Netinkama parinktis {option} laukui {fn_code}"
-        }
-    },
-    "issues": {
-        "oauth_expired": {
-            "title": "BLUETTI autentifikacija baigėsi",
-            "description": "Jūsų BLUETTI paskyros autorizacija baigėsi. Eikite į integracijos nustatymus ir pasirinkite **Perkonfigūruoti**, kad prisijungtumėte iš naujo."
-        }
+    "step": {
+      "pick_implementation": {
+        "title": "Pasirinkite autentifikavimo metodą"
+      }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "BLUETTI parinktys",
+        "description": "Ką norite daryti?",
+        "menu_options": {
+          "add_devices": "Pridėti BLUETTI įrenginius",
+          "configure_modbus": "Konfigūruoti vietinį Modbus"
+        }
+      },
+      "configure_modbus": {
+        "title": "Konfigūruoti vietinį Modbus",
+        "description": "Įveskite vietinio Modbus TCP ryšio duomenis šiam įrenginiui. Tai neprivaloma ir papildo debesijos ryšį papildomais jutikliais - jo nepakeičia.",
+        "data": {
+          "device_sn": "Įrenginys",
+          "host": "Serveris",
+          "port": "Prievadas"
+        }
+      },
+      "add_devices": {
+        "title": "Pridėti BLUETTI įrenginius",
+        "description": "Pasirinkite papildomus įrenginius, susietus su jūsų BLUETTI paskyra, kuriuos norite pridėti į Home Assistant.",
+        "data": {
+          "devices": "Įrenginiai"
+        }
+      }
+    },
+    "abort": {
+      "no_devices_available": "Paskyroje nėra palaikomų įrenginių.",
+      "all_devices_exists": "Visi šios paskyros įrenginiai ir fiziniai elementai jau yra įtraukti į integruotą BLUETTI paketą.",
+      "cannot_connect": "Nepavyko prisijungti prie BLUETTI serverio. Bandykite dar kartą."
+    },
+    "error": {
+      "cannot_connect": "Nepavyko prisijungti"
+    }
+  },
+  "exceptions": {
+    "command_failed": {
+      "message": "Klaida siunčiant komandą į {device_id}: {error}"
+    },
+    "select_option_read_only": {
+      "message": "{fn_code} yra tik skaitymui ir negali būti keičiamas"
+    },
+    "select_option_invalid": {
+      "message": "Netinkama parinktis {option} laukui {fn_code}"
+    },
+    "modbus_error": {
+      "message": "Ryšio su įrenginiu per Modbus klaida: {error}"
+    }
+  },
+  "issues": {
+    "oauth_expired": {
+      "title": "BLUETTI autentifikacija baigėsi",
+      "description": "Jūsų BLUETTI paskyros autorizacija baigėsi. Eikite į integracijos nustatymus ir pasirinkite **Perkonfigūruoti**, kad prisijungtumėte iš naujo."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ac_o_e_total": {
+        "name": "Bendra KS išėjimo energija"
+      },
+      "ac_o_switch": {
+        "name": "KS išėjimo jungiklis"
+      },
+      "b_c": {
+        "name": "Baterijos srovė"
+      },
+      "b_c_total": {
+        "name": "Bendra baterijos srovė"
+      },
+      "b_cell_count": {
+        "name": "Elementų skaičius"
+      },
+      "b_cycle_count": {
+        "name": "Baterijos ciklų skaičius"
+      },
+      "b_i_e": {
+        "name": "Bendra įkrauta baterijos energija"
+      },
+      "b_ntc_count": {
+        "name": "Temperatūros jutiklių skaičius"
+      },
+      "b_o_e": {
+        "name": "Bendra iškrauta baterijos energija"
+      },
+      "b_soc_high": {
+        "name": "Viršutinė įkrovimo riba (SoC)"
+      },
+      "b_soc_low": {
+        "name": "Apatinė iškrovimo riba (SoC)"
+      },
+      "b_soh": {
+        "name": "Baterijos būklė (SoH)"
+      },
+      "b_soh_total": {
+        "name": "Bendra baterijos būklė (SoH)"
+      },
+      "b_t_avg": {
+        "name": "Vidutinė baterijos temperatūra"
+      },
+      "b_type": {
+        "name": "Baterijos tipas"
+      },
+      "b_v": {
+        "name": "Baterijos įtampa"
+      },
+      "b_v_total": {
+        "name": "Bendra baterijos įtampa"
+      },
+      "d_inverter_fault": {
+        "name": "Keitiklio gedimas"
+      },
+      "d_inverter_status": {
+        "name": "Keitiklio būsena"
+      },
+      "d_inverter_total": {
+        "name": "Bendra keitiklio galia"
+      },
+      "d_inverter_type": {
+        "name": "Keitiklio tipas"
+      },
+      "d_inverter_warning": {
+        "name": "Keitiklio įspėjimas"
+      },
+      "d_num_battery_packs": {
+        "name": "Baterijų paketų skaičius"
+      },
+      "d_num_inverters": {
+        "name": "Keitiklių skaičius"
+      },
+      "g_i_e_total": {
+        "name": "Bendra iš tinklo importuota energija"
+      },
+      "g_i_f": {
+        "name": "Tinklo dažnis"
+      },
+      "g_i_switch": {
+        "name": "Įkrovimo iš tinklo jungiklis"
+      },
+      "g_o_e_total": {
+        "name": "Bendra į tinklą eksportuota energija"
+      },
+      "g_o_switch": {
+        "name": "Energijos į tinklą tiekimo jungiklis"
+      },
+      "pv_1_i_c": {
+        "name": "PV 1 įėjimo srovė"
+      },
+      "pv_1_i_p": {
+        "name": "PV 1 įėjimo galia"
+      },
+      "pv_1_i_v": {
+        "name": "PV 1 įėjimo įtampa"
+      },
+      "pv_2_i_c": {
+        "name": "PV 2 įėjimo srovė"
+      },
+      "pv_2_i_p": {
+        "name": "PV 2 įėjimo galia"
+      },
+      "pv_2_i_v": {
+        "name": "PV 2 įėjimo įtampa"
+      },
+      "pv_3_i_c": {
+        "name": "PV 3 įėjimo srovė"
+      },
+      "pv_3_i_p": {
+        "name": "PV 3 įėjimo galia"
+      },
+      "pv_3_i_v": {
+        "name": "PV 3 įėjimo įtampa"
+      },
+      "pv_4_i_c": {
+        "name": "PV 4 įėjimo srovė"
+      },
+      "pv_4_i_p": {
+        "name": "PV 4 įėjimo galia"
+      },
+      "pv_4_i_v": {
+        "name": "PV 4 įėjimo įtampa"
+      },
+      "pv_ac_e": {
+        "name": "PV KS energija"
+      },
+      "pv_ac_p": {
+        "name": "PV KS galia"
+      },
+      "pv_i_e_total": {
+        "name": "Bendra PV įėjimo energija"
+      }
+    }
+  }
 }

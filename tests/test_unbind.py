@@ -55,10 +55,13 @@ async def test_handle_unbind_without_hass_or_entry_returns_early(hass):
 
 
 async def test_handle_unbind_full_cleanup(hass):
-    entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1", "SN2"]})
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        options={"devices": ["SN1", "SN2"], "modbus": {"SN1": {"host": "10.2.1.60", "port": 502}}},
+    )
     entry.add_to_hass(hass)
 
-    device = BluettiDevice(device_id="SN1", on_line="1", name="Test Device", sn="SN1", model="AC200L")
+    device = BluettiDevice(device_id="SN1", on_line="1", name="Test Device", sn="SN1", model="Balco260")
     other_device = BluettiDevice(device_id="SN2", on_line="1", name="Other", sn="SN2", model="AC200L")
 
     device_registry = dr.async_get(hass)
@@ -67,18 +70,20 @@ async def test_handle_unbind_full_cleanup(hass):
         identifiers={(DOMAIN, "SN1")},
         name="Test Device",
         manufacturer="Bluetti",
-        model="AC200L",
+        model="Balco260",
     )
     entity_registry = er.async_get(hass)
     entity_registry.async_get_or_create(
         "sensor", DOMAIN, "SN1_SOC", config_entry=entry, device_id=device_entry.id,
     )
 
+    modbus_coordinator = AsyncMock()
     entry.runtime_data = BluettiRuntimeData(
         auth=MagicMock(),
         bluetti_devices=MagicMock(devices=[device, other_device]),
         stomp_client=MagicMock(),
         coordinators={"SN1": MagicMock(), "SN2": MagicMock()},
+        modbus_coordinators={"SN1": modbus_coordinator},
     )
 
     device._hass = hass
@@ -97,10 +102,13 @@ async def test_handle_unbind_full_cleanup(hass):
     # Removed from runtime data.
     assert entry.runtime_data.bluetti_devices.devices == [other_device]
     assert "SN1" not in entry.runtime_data.coordinators
+    assert "SN1" not in entry.runtime_data.modbus_coordinators
+    modbus_coordinator.async_shutdown.assert_awaited_once()
 
     # Removed from the config entry's enabled devices.
     updated = hass.config_entries.async_get_entry(entry.entry_id)
     assert updated.options["devices"] == ["SN2"]
+    assert updated.options["modbus"] == {}
 
     # A persistent notification was shown.
     mock_notify.assert_called_once()

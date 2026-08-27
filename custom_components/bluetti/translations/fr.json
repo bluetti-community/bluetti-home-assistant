@@ -1,62 +1,221 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Le compte est déjà configuré",
-            "already_in_progress": "Le flux de configuration est déjà en cours",
-            "authorize_url_timeout": "Délai d'attente dépassé lors de la génération de l'URL d'autorisation.",
-            "missing_configuration": "Le composant n'est pas configuré. Veuillez suivre la documentation.",
-            "no_url_available": "Aucune URL disponible. Pour plus d'informations sur cette erreur, [consultez la section d'aide]({docs_url})",
-            "oauth_error": "Données de jeton invalides reçues.",
-            "oauth_failed": "Erreur lors de l'obtention du jeton d'accès.",
-            "oauth_timeout": "Délai d'attente dépassé lors de la résolution du jeton OAuth.",
-            "oauth_unauthorized": "Erreur d'autorisation OAuth lors de l'obtention du jeton d'accès.",
-            "user_rejected_authorize": "Liaison du compte rejetée : {error}",
-            "all_devices_exists": "Tous les appareils et éléments physiques associés à ce compte ont déjà été inclus dans le package intégré BLUETTI.",
-            "no_devices_available": "Le compte actuel ne possède aucun appareil disponible.",
-            "cannot_connect": "Échec de la connexion au serveur BLUETTI. Veuillez réessayer.",
-            "reconfigure_failed": "L'entrée de configuration à reconfigurer est introuvable.",
-            "success": "Vos appareils BLUETTI ont été ajoutés avec succès."
-        },
-        "create_entry": {
-            "default": "Authentification réussie"
-        },
-        "step": {
-            "pick_implementation": {
-                "title": "Choisir la méthode d'authentification"
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Le compte est déjà configuré",
+      "already_in_progress": "Le flux de configuration est déjà en cours",
+      "authorize_url_timeout": "Délai d'attente dépassé lors de la génération de l'URL d'autorisation.",
+      "missing_configuration": "Le composant n'est pas configuré. Veuillez suivre la documentation.",
+      "no_url_available": "Aucune URL disponible. Pour plus d'informations sur cette erreur, [consultez la section d'aide]({docs_url})",
+      "oauth_error": "Données de jeton invalides reçues.",
+      "oauth_failed": "Erreur lors de l'obtention du jeton d'accès.",
+      "oauth_timeout": "Délai d'attente dépassé lors de la résolution du jeton OAuth.",
+      "oauth_unauthorized": "Erreur d'autorisation OAuth lors de l'obtention du jeton d'accès.",
+      "user_rejected_authorize": "Liaison du compte rejetée : {error}",
+      "all_devices_exists": "Tous les appareils et éléments physiques associés à ce compte ont déjà été inclus dans le package intégré BLUETTI.",
+      "no_devices_available": "Le compte actuel ne possède aucun appareil disponible.",
+      "cannot_connect": "Échec de la connexion au serveur BLUETTI. Veuillez réessayer.",
+      "reconfigure_failed": "L'entrée de configuration à reconfigurer est introuvable.",
+      "success": "Vos appareils BLUETTI ont été ajoutés avec succès."
     },
-    "options": {
-        "step": {
-            "init": {
-                "title": "Ajouter des appareils BLUETTI",
-                "description": "Sélectionnez les appareils supplémentaires associés à votre compte BLUETTI que vous souhaitez ajouter à Home Assistant.",
-                "data": {
-                    "devices": "Appareils"
-                }
-            }
-        },
-        "abort": {
-            "no_devices_available": "Le compte actuel ne possède aucun appareil disponible.",
-            "all_devices_exists": "Tous les appareils et éléments physiques associés à ce compte ont déjà été inclus dans le package intégré BLUETTI.",
-            "cannot_connect": "Échec de la connexion au serveur BLUETTI. Veuillez réessayer."
-        }
+    "create_entry": {
+      "default": "Authentification réussie"
     },
-    "exceptions": {
-        "command_failed": {
-            "message": "Erreur lors de l'envoi de la commande à {device_id} : {error}"
-        },
-        "select_option_read_only": {
-            "message": "{fn_code} est en lecture seule et ne peut pas être modifié"
-        },
-        "select_option_invalid": {
-            "message": "Option {option} invalide pour {fn_code}"
-        }
-    },
-    "issues": {
-        "oauth_expired": {
-            "title": "Authentification BLUETTI expirée",
-            "description": "L'autorisation de votre compte BLUETTI a expiré. Accédez aux paramètres de l'intégration et sélectionnez **Reconfigurer** pour vous reconnecter."
-        }
+    "step": {
+      "pick_implementation": {
+        "title": "Choisir la méthode d'authentification"
+      }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options BLUETTI",
+        "description": "Que souhaitez-vous faire ?",
+        "menu_options": {
+          "add_devices": "Ajouter des appareils BLUETTI",
+          "configure_modbus": "Configurer le Modbus local"
+        }
+      },
+      "configure_modbus": {
+        "title": "Configurer le Modbus local",
+        "description": "Entrez les informations de connexion Modbus TCP locale pour cet appareil. C'est optionnel et vient compléter la connexion cloud avec des capteurs supplémentaires - cela ne la remplace pas.",
+        "data": {
+          "device_sn": "Appareil",
+          "host": "Hôte",
+          "port": "Port"
+        }
+      },
+      "add_devices": {
+        "title": "Ajouter des appareils BLUETTI",
+        "description": "Sélectionnez les appareils supplémentaires associés à votre compte BLUETTI que vous souhaitez ajouter à Home Assistant.",
+        "data": {
+          "devices": "Appareils"
+        }
+      }
+    },
+    "abort": {
+      "no_devices_available": "Le compte actuel ne possède aucun appareil disponible.",
+      "all_devices_exists": "Tous les appareils et éléments physiques associés à ce compte ont déjà été inclus dans le package intégré BLUETTI.",
+      "cannot_connect": "Échec de la connexion au serveur BLUETTI. Veuillez réessayer."
+    },
+    "error": {
+      "cannot_connect": "Échec de la connexion"
+    }
+  },
+  "exceptions": {
+    "command_failed": {
+      "message": "Erreur lors de l'envoi de la commande à {device_id} : {error}"
+    },
+    "select_option_read_only": {
+      "message": "{fn_code} est en lecture seule et ne peut pas être modifié"
+    },
+    "select_option_invalid": {
+      "message": "Option {option} invalide pour {fn_code}"
+    },
+    "modbus_error": {
+      "message": "Erreur de communication avec l'appareil via Modbus : {error}"
+    }
+  },
+  "issues": {
+    "oauth_expired": {
+      "title": "Authentification BLUETTI expirée",
+      "description": "L'autorisation de votre compte BLUETTI a expiré. Accédez aux paramètres de l'intégration et sélectionnez **Reconfigurer** pour vous reconnecter."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "ac_o_e_total": {
+        "name": "Énergie de sortie CA totale"
+      },
+      "ac_o_switch": {
+        "name": "Interrupteur sortie CA"
+      },
+      "b_c": {
+        "name": "Courant batterie"
+      },
+      "b_c_total": {
+        "name": "Courant batterie total"
+      },
+      "b_cell_count": {
+        "name": "Nombre de cellules"
+      },
+      "b_cycle_count": {
+        "name": "Nombre de cycles de la batterie"
+      },
+      "b_i_e": {
+        "name": "Énergie totale chargée (batterie)"
+      },
+      "b_ntc_count": {
+        "name": "Nombre de capteurs de température"
+      },
+      "b_o_e": {
+        "name": "Énergie totale déchargée (batterie)"
+      },
+      "b_soc_high": {
+        "name": "Limite haute de charge (SoC)"
+      },
+      "b_soc_low": {
+        "name": "Limite basse de décharge (SoC)"
+      },
+      "b_soh": {
+        "name": "État de santé batterie (SoH)"
+      },
+      "b_soh_total": {
+        "name": "État de santé batterie total (SoH)"
+      },
+      "b_t_avg": {
+        "name": "Température moyenne batterie"
+      },
+      "b_type": {
+        "name": "Type de batterie"
+      },
+      "b_v": {
+        "name": "Tension batterie"
+      },
+      "b_v_total": {
+        "name": "Tension batterie totale"
+      },
+      "d_inverter_fault": {
+        "name": "Défaut onduleur"
+      },
+      "d_inverter_status": {
+        "name": "État onduleur"
+      },
+      "d_inverter_total": {
+        "name": "Puissance onduleur totale"
+      },
+      "d_inverter_type": {
+        "name": "Type d'onduleur"
+      },
+      "d_inverter_warning": {
+        "name": "Avertissement onduleur"
+      },
+      "d_num_battery_packs": {
+        "name": "Nombre de packs batterie"
+      },
+      "d_num_inverters": {
+        "name": "Nombre d'onduleurs"
+      },
+      "g_i_e_total": {
+        "name": "Énergie importée du réseau (totale)"
+      },
+      "g_i_f": {
+        "name": "Fréquence réseau"
+      },
+      "g_i_switch": {
+        "name": "Interrupteur charge réseau"
+      },
+      "g_o_e_total": {
+        "name": "Énergie exportée vers le réseau (totale)"
+      },
+      "g_o_switch": {
+        "name": "Interrupteur injection réseau"
+      },
+      "pv_1_i_c": {
+        "name": "Courant entrée PV 1"
+      },
+      "pv_1_i_p": {
+        "name": "Puissance entrée PV 1"
+      },
+      "pv_1_i_v": {
+        "name": "Tension entrée PV 1"
+      },
+      "pv_2_i_c": {
+        "name": "Courant entrée PV 2"
+      },
+      "pv_2_i_p": {
+        "name": "Puissance entrée PV 2"
+      },
+      "pv_2_i_v": {
+        "name": "Tension entrée PV 2"
+      },
+      "pv_3_i_c": {
+        "name": "Courant entrée PV 3"
+      },
+      "pv_3_i_p": {
+        "name": "Puissance entrée PV 3"
+      },
+      "pv_3_i_v": {
+        "name": "Tension entrée PV 3"
+      },
+      "pv_4_i_c": {
+        "name": "Courant entrée PV 4"
+      },
+      "pv_4_i_p": {
+        "name": "Puissance entrée PV 4"
+      },
+      "pv_4_i_v": {
+        "name": "Tension entrée PV 4"
+      },
+      "pv_ac_e": {
+        "name": "Énergie PV CA"
+      },
+      "pv_ac_p": {
+        "name": "Puissance PV CA"
+      },
+      "pv_i_e_total": {
+        "name": "Énergie entrée PV totale"
+      }
+    }
+  }
 }
