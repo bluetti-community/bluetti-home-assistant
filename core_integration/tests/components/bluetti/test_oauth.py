@@ -1,12 +1,10 @@
 """Tests for oauth.py: OAuth2FlowHandler helpers and AuthTokenRefresh."""
 
-import time
 from datetime import datetime
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.helpers import issue_registry as ir
 from pybluetti import UserProduct
-from tests.common import MockConfigEntry
 
 from homeassistant.components.bluetti.const import DOMAIN
 from homeassistant.components.bluetti.oauth import (
@@ -15,6 +13,9 @@ from homeassistant.components.bluetti.oauth import (
     AuthTokenRefresh,
     OAuth2FlowHandler,
 )
+from homeassistant.helpers import issue_registry as ir
+
+from tests.common import MockConfigEntry
 
 
 def _refresher(hass, token: dict) -> tuple[AuthTokenRefresh, MockConfigEntry]:
@@ -26,11 +27,13 @@ def _refresher(hass, token: dict) -> tuple[AuthTokenRefresh, MockConfigEntry]:
 
 
 def test_logger_property():
+    """Logger property."""
     flow = OAuth2FlowHandler()
     assert flow.logger.name == "homeassistant.components.bluetti.oauth"
 
 
 async def test_async_oauth_create_entry_delegates_to_select_devices(hass):
+    """Async oauth create entry delegates to select devices."""
     flow = OAuth2FlowHandler()
     flow.hass = hass
     flow.async_step_select_devices = AsyncMock(return_value={"type": "abort", "reason": "success"})
@@ -43,6 +46,7 @@ async def test_async_oauth_create_entry_delegates_to_select_devices(hass):
 
 
 async def test_async_step_reconfigure_missing_entry_aborts(hass):
+    """Async step reconfigure missing entry aborts."""
     flow = OAuth2FlowHandler()
     flow.hass = hass
     flow.context = {"entry_id": "does-not-exist"}
@@ -54,6 +58,7 @@ async def test_async_step_reconfigure_missing_entry_aborts(hass):
 
 
 async def test_async_step_reconfigure_delegates_to_async_step_user(hass):
+    """Async step reconfigure delegates to async step user."""
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
 
@@ -70,6 +75,7 @@ async def test_async_step_reconfigure_delegates_to_async_step_user(hass):
 
 
 async def test_token_refresh_init_subscribes_and_unsubs_on_unload(hass):
+    """Token refresh init subscribes and unsubs on unload."""
     refresher, entry = _refresher(hass, {})
     assert refresher.entry is entry
 
@@ -78,6 +84,7 @@ async def test_token_refresh_init_subscribes_and_unsubs_on_unload(hass):
 
 
 async def test_on_token_expired_event_sends_notification(hass):
+    """On token expired event sends notification."""
     refresher, _entry = _refresher(hass, {})
     refresher.send_expired_notification = MagicMock()
 
@@ -87,21 +94,25 @@ async def test_on_token_expired_event_sends_notification(hass):
 
 
 def test_is_token_valid_no_token(hass):
+    """Is token valid no token."""
     refresher, _entry = _refresher(hass, {})
     assert refresher.is_token_valid() is False
 
 
 def test_is_token_valid_expires_at_in_future(hass):
+    """Is token valid expires at in future."""
     refresher, _entry = _refresher(hass, {"expires_at": time.time() + 1000})
     assert refresher.is_token_valid() is True
 
 
 def test_is_token_valid_expires_at_in_past(hass):
+    """Is token valid expires at in past."""
     refresher, _entry = _refresher(hass, {"expires_at": time.time() - 1000})
     assert refresher.is_token_valid() is False
 
 
 def test_is_token_valid_expires_in_created_at_future(hass):
+    """Is token valid expires in created at future."""
     refresher, _entry = _refresher(
         hass, {"created_at": time.time(), "expires_in": 1000}
     )
@@ -109,6 +120,7 @@ def test_is_token_valid_expires_in_created_at_future(hass):
 
 
 def test_is_token_valid_expires_in_created_at_past(hass):
+    """Is token valid expires in created at past."""
     refresher, _entry = _refresher(
         hass, {"created_at": time.time() - 5000, "expires_in": 100}
     )
@@ -116,11 +128,13 @@ def test_is_token_valid_expires_in_created_at_past(hass):
 
 
 def test_is_token_valid_no_recognizable_fields(hass):
+    """Is token valid no recognizable fields."""
     refresher, _entry = _refresher(hass, {"some_other_field": True})
     assert refresher.is_token_valid() is False
 
 
 async def test_start_token_check_invalid_token_sends_notification(hass):
+    """Start token check invalid token sends notification."""
     refresher, _entry = _refresher(hass, {})
     refresher.send_expired_notification = MagicMock()
     refresher.async_check_token_expiry = AsyncMock()
@@ -133,6 +147,7 @@ async def test_start_token_check_invalid_token_sends_notification(hass):
 
 
 async def test_start_token_check_valid_token_schedules_interval(hass):
+    """Start token check valid token schedules interval."""
     refresher, _entry = _refresher(hass, {"expires_at": time.time() + 1000})
     refresher.send_expired_notification = MagicMock()
     refresher.async_check_token_expiry = AsyncMock()
@@ -147,6 +162,7 @@ async def test_start_token_check_valid_token_schedules_interval(hass):
 
 
 def test_send_expired_notification_creates_notification(hass):
+    """Send expired notification creates notification."""
     refresher, _entry = _refresher(hass, {})
 
     with patch("homeassistant.components.bluetti.oauth.persistent_notification.async_create") as mock_create:
@@ -162,6 +178,7 @@ def test_send_expired_notification_creates_notification(hass):
 
 
 async def test_start_token_check_clears_issue_when_token_becomes_valid(hass):
+    """Start token check clears issue when token becomes valid."""
     refresher, _entry = _refresher(hass, {"expires_at": time.time() + 1000})
     refresher.async_check_token_expiry = AsyncMock()
     ir.async_create_issue(
@@ -177,8 +194,7 @@ async def test_start_token_check_clears_issue_when_token_becomes_valid(hass):
 
 
 async def test_async_check_token_expiry_accepts_the_timer_callback_signature(hass):
-    """
-    async_track_time_interval always invokes its callback with a datetime.
+    """async_track_time_interval always invokes its callback with a datetime.
 
     Regression test: this method is registered directly as that callback in
     start_token_check - if it didn't accept a positional `now`, every timer
@@ -193,6 +209,7 @@ async def test_async_check_token_expiry_accepts_the_timer_callback_signature(has
 
 
 async def test_async_check_token_expiry_no_expires_at_logs_and_returns(hass):
+    """Async check token expiry no expires at logs and returns."""
     refresher, _entry = _refresher(hass, {})
     refresher.send_expired_notification = MagicMock()
 
@@ -202,6 +219,7 @@ async def test_async_check_token_expiry_no_expires_at_logs_and_returns(hass):
 
 
 async def test_async_check_token_expiry_already_expired(hass):
+    """Async check token expiry already expired."""
     refresher, _entry = _refresher(hass, {"expires_at": time.time() - 10})
     refresher.send_expired_notification = MagicMock()
 
@@ -211,6 +229,7 @@ async def test_async_check_token_expiry_already_expired(hass):
 
 
 async def test_async_check_token_expiry_not_due_soon_does_nothing(hass):
+    """Async check token expiry not due soon does nothing."""
     refresher, _entry = _refresher(hass, {"expires_at": time.time() + 3600 * 24 * 30})
     refresher.send_expired_notification = MagicMock()
 
@@ -220,6 +239,7 @@ async def test_async_check_token_expiry_not_due_soon_does_nothing(hass):
 
 
 async def test_async_check_token_expiry_recent_refresh_is_skipped(hass):
+    """Async check token expiry recent refresh is skipped."""
     entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": time.time() - 60})
     entry.add_to_hass(hass)
     session = MagicMock()
@@ -232,6 +252,7 @@ async def test_async_check_token_expiry_recent_refresh_is_skipped(hass):
 
 
 async def test_async_check_token_expiry_refreshes_and_reloads(hass):
+    """Async check token expiry refreshes and reloads."""
     entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": 0.0})
     entry.add_to_hass(hass)
     session = MagicMock()
@@ -249,6 +270,7 @@ async def test_async_check_token_expiry_refreshes_and_reloads(hass):
 
 
 async def test_async_check_token_expiry_refresh_failure_is_logged(hass):
+    """Async check token expiry refresh failure is logged."""
     entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": 0.0})
     entry.add_to_hass(hass)
     session = MagicMock()
@@ -261,6 +283,7 @@ async def test_async_check_token_expiry_refresh_failure_is_logged(hass):
 
 
 async def test_async_get_access_token_ensures_validity_first():
+    """Async get access token ensures validity first."""
     session = MagicMock()
     session.async_ensure_token_valid = AsyncMock()
     session.token = {"access_token": "fresh-token"}
@@ -269,10 +292,11 @@ async def test_async_get_access_token_ensures_validity_first():
     token = await auth.async_get_access_token()
 
     session.async_ensure_token_valid.assert_awaited_once()
-    assert token == "fresh-token"  # noqa: S105 - fake test fixture value, not a secret
+    assert token == "fresh-token"
 
 
 async def test_select_devices_shows_form_with_available_devices(hass):
+    """Select devices shows form with available devices."""
     flow = OAuth2FlowHandler()
     flow.hass = hass
     flow.context = {}

@@ -1,5 +1,4 @@
 """The BLUETTI integration."""
-# from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
@@ -71,7 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
             for p in all_products_data
         ]
 
-        """OAUTH2: get the access token."""
+        # OAUTH2: get the access token.
         try:
             implementation = (
                 await config_entry_oauth2_flow.async_get_config_entry_implementation(
@@ -98,17 +97,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
             )
         __LOGGER__.debug("OAuth implementation is: %s", implementation.__class__)
 
-        httpSession = async_get_clientsession(hass)
-        oAuth2Session = config_entry_oauth2_flow.OAuth2Session(hass, entry, implementation)
-        auth = AsyncConfigEntryAuth(httpSession, oAuth2Session)
+        http_session = async_get_clientsession(hass)
+        oauth_session = config_entry_oauth2_flow.OAuth2Session(hass, entry, implementation)
+        auth = AsyncConfigEntryAuth(http_session, oauth_session)
 
-        authTokenRefresh = AuthTokenRefresh(hass,entry,oAuth2Session)
-        authTokenRefresh.start_token_check()
+        auth_token_refresh = AuthTokenRefresh(hass, entry, oauth_session)
+        auth_token_refresh.start_token_check()
 
-        # await oAuth2Session.async_ensure_token_valid()
-        access_token = oAuth2Session.token["access_token"]
+        # await oauth_session.async_ensure_token_valid()
+        access_token = oauth_session.token["access_token"]
         product_client = ProductClient(
-            httpSession,
+            http_session,
             APPLICATION_PROFILE.config["server"]["gateway"],
             access_token,
             on_auth_expired=lambda: hass.bus.fire(EVENT_TOKEN_EXPIRED),
@@ -122,7 +121,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
 
     # Register WebSocket
     stomp_client = StompClient(
-        httpSession,
+        http_session,
         APPLICATION_PROFILE.config["server"]["wss"],
         access_token,
         bluetti_devices.web_socket_message_handler,
@@ -132,11 +131,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
 
     coordinators: dict[str, BluettiDeviceCoordinator] = {}
     for device in bluetti_devices.devices:
-        device._api_client = product_client
+        device.bind_runtime(product_client, hass, entry)
         device.name = device.sn
-        device._hass = hass
-        device._entry = entry
-        device._entry_id = entry.entry_id
         coordinators[device.device_id] = BluettiDeviceCoordinator(hass, entry, device)
 
     # Each device's first refresh is an independent network round-trip, so
@@ -217,7 +213,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> 
     if unloaded and runtime_data:
         try:
             await runtime_data.stomp_client.disconnect()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - best-effort disconnect; must not block unload/removal
             __LOGGER__.warning("Error while disconnecting websocket: %s", e)
         # No explicit modbus_coordinators shutdown here: DataUpdateCoordinator
         # (constructed with config_entry=entry) already registers its own
@@ -286,7 +282,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> 
     if runtime_data:
         try:
             await runtime_data.stomp_client.disconnect()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - best-effort disconnect; must not block unload/removal
             __LOGGER__.warning("Error while disconnecting websocket: %s", e)
 
     device_registry = dr.async_get(hass)

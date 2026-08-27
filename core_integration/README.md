@@ -54,14 +54,43 @@ identical failure against unmodified `fronius`/`sofar` tests in the same
 checkout). `hassfest` reports every check clean except the one it's supposed
 to (`New integrations are required to at least reach the Bronze tier`) - the
 real, expected blocker until the `todo` items in `quality_scale.yaml` are
-resolved during actual review. `ruff check` is clean on every file touched
-for this Modbus rework (`modbus_coordinator.py`, `__init__.py`'s Modbus
-wiring, `test_modbus_coordinator.py`, `test_init_setup.py`); the rest of the
-tree (copied largely as-is from the HACS integration) still carries this
-project's original, looser lint bar and has pre-existing findings - mostly
-missing test docstrings (`D103`), a few blind `except Exception` clauses
-(`BLE001`), and non-lowercase local variables (`N806`) - real cleanup work
-before an actual submission, not something introduced by the Modbus rework.
+resolved during actual review. `ruff check` is clean across the entire tree
+(`homeassistant/components/bluetti/` and `tests/components/bluetti/`).
+
+## Lint cleanup (2026-08-27)
+
+The tree copied over from the HACS integration originally carried this
+project's own, looser lint bar - 289 findings under Core's stricter ruff
+config, none introduced by the Modbus rework itself. All resolved:
+
+- ~180 missing docstrings (`D1xx`) across tests and production code (entity
+  `__init__`s, properties, magic methods, modules, classes).
+- 8 files still had `from __future__ import annotations` (`TID251`) - banned
+  since Core requires Python 3.14+, which evaluates annotations lazily by
+  default (PEP 649).
+- Leftover Chinese-language comments and a misplaced/never-attached
+  docstring in `oauth.py` and `application_profile.py`, plus a full-width
+  `！` and full-width parentheses in comments (`RUF001`/`RUF003`) - translated
+  to English, since Core requires English-only source.
+- `BLE001` (14 blind `except Exception`): kept as `# noqa` with a one-line
+  reason where the catch is genuinely intentional - a cloud/OAuth SDK call at
+  a system boundary, or one step of `models.py`'s multi-step best-effort
+  device-unbind cleanup where one step's failure must not block the rest.
+- `SLF001` (5 private-attribute accesses across module/class boundaries):
+  four in `__init__.py` reaching into `BluettiDevice`'s `_api_client`/`_hass`/
+  `_entry`/`_entry_id` were replaced with a new `BluettiDevice.bind_runtime()`
+  method (`models.py`) - a real, if small, encapsulation fix, not just a
+  suppressed warning. The remaining one (`sensor.py`, reaching one sensor
+  class's `_state_obj` from another in the same module) is `noqa`'d instead,
+  since a public accessor for a single same-module call site would be
+  over-engineering.
+- `N806` (camelCase locals: `httpSession`, `oAuth2Session`,
+  `authTokenRefresh`, `sensorClass`) renamed to snake_case.
+- The rest (`PLC0415` local imports, an `ISC001` implicit string
+  concatenation, a stray unattached docstring) were straightforward
+  mechanical fixes.
+
+None of this changed behavior - the same 182 tests pass before and after.
 
 ## `quality_scale.yaml` audit (2026-08-27)
 
@@ -91,8 +120,6 @@ itself, both now fixed:
 
 ## What's still blocking an actual submission
 
-- The pre-existing ruff debt noted above, across the files not touched by
-  this rework.
 - A `home-assistant/brands` entry for `core_integrations/bluetti` (brands
   entries are normally added during actual PR review, not preemptively).
 - `home-assistant.io` documentation, using the RC/beta doc pages for

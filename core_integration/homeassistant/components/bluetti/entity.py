@@ -1,6 +1,5 @@
 """Base entity for the BLUETTI integration."""
 
-from __future__ import annotations
 
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -11,8 +10,7 @@ from .models import BluettiDevice, BluettiState
 
 
 class BluettiEntity(CoordinatorEntity[BluettiDeviceCoordinator]):
-    """
-    Common behavior shared by all BLUETTI entities.
+    """Common behavior shared by all BLUETTI entities.
 
     Subclasses are expected to set self._attr_name after calling super().__init__(),
     since the name source (a device state's fn_name, or a static label) varies by
@@ -22,7 +20,8 @@ class BluettiEntity(CoordinatorEntity[BluettiDeviceCoordinator]):
     _attr_has_entity_name = True
 
     def __init__(self, device: BluettiDevice, state: BluettiState) -> None:
-        assert device.coordinator is not None, (  # noqa: S101 - a real invariant, not test-only theater
+        """Initialize the entity from its owning device and cloud state."""
+        assert device.coordinator is not None, (
             "entities must be created after the device's coordinator is wired up"
         )
         super().__init__(device.coordinator)
@@ -47,6 +46,7 @@ class BluettiEntity(CoordinatorEntity[BluettiDeviceCoordinator]):
 
     @property
     def available(self) -> bool:
+        """Return whether the entity should be considered available."""
         if not super().available:
             return False
         # The power switch itself should stay controllable even if the

@@ -1,3 +1,5 @@
+"""Select platform for the BLUETTI integration."""
+
 from homeassistant.components.select import SelectEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
@@ -39,6 +41,7 @@ class BluettiSelect(BluettiEntity, SelectEntity):
     """Representation of a Bluetti select (mode choice)."""
 
     def __init__(self, device: BluettiDevice, state: BluettiState) -> None:
+        """Initialize the select from its owning device and cloud state."""
         super().__init__(device, state)
         self._attr_name = state.fn_name
 
@@ -57,9 +60,11 @@ class BluettiSelect(BluettiEntity, SelectEntity):
 
     @property
     def current_option(self) -> str:
+        """Return the device's current mode, as a display name."""
         return self._state_obj.get_name_for_value()
 
     async def async_select_option(self, option: str) -> None:
+        """Change to the given mode, by its display name."""
         if self._readonly:
             raise ServiceValidationError(
                 translation_domain=DOMAIN,

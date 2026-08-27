@@ -1,17 +1,19 @@
 """Tests for application_credentials.py."""
 
 from homeassistant.components import application_credentials
-from homeassistant.setup import async_setup_component
-
 from homeassistant.components.bluetti.application_credentials import (
     async_ensure_default_credential,
     async_get_authorization_server,
 )
 from homeassistant.components.bluetti.const import DOMAIN
-from homeassistant.components.bluetti.profile.application_profile import APPLICATION_PROFILE
+from homeassistant.components.bluetti.profile.application_profile import (
+    APPLICATION_PROFILE,
+)
+from homeassistant.setup import async_setup_component
 
 
 async def test_async_get_authorization_server(hass):
+    """Async get authorization server."""
     server = await async_get_authorization_server(hass)
 
     gateway_sso = APPLICATION_PROFILE.config["server"]["sso"]
@@ -25,6 +27,7 @@ def _stored_credential(hass):
 
 
 async def test_async_ensure_default_credential_imports_it(hass):
+    """Async ensure default credential imports it."""
     await async_setup_component(hass, "application_credentials", {})
 
     await async_ensure_default_credential(hass)
@@ -35,6 +38,7 @@ async def test_async_ensure_default_credential_imports_it(hass):
 
 
 async def test_async_ensure_default_credential_is_idempotent(hass):
+    """Async ensure default credential is idempotent."""
     # A missing credential (e.g. lost in a partial backup restore) must be
     # safe to re-import on every setup attempt, not just the first one.
     await async_setup_component(hass, "application_credentials", {})

@@ -3,13 +3,6 @@
 from datetime import timedelta
 
 import pytest
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorExtraStoredData,
-    SensorStateClass,
-)
-from homeassistant.exceptions import ServiceValidationError
-from tests.common import MockConfigEntry
 
 from homeassistant.components.bluetti.binary_sensor import BluettiBinarySensor
 from homeassistant.components.bluetti.const import DOMAIN
@@ -22,6 +15,14 @@ from homeassistant.components.bluetti.sensor import (
     BluettiSensor,
 )
 from homeassistant.components.bluetti.switch import BluettiSwitch
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorExtraStoredData,
+    SensorStateClass,
+)
+from homeassistant.exceptions import ServiceValidationError
+
+from tests.common import MockConfigEntry
 
 
 def _make_coordinator(hass) -> BluettiDeviceCoordinator:
@@ -55,6 +56,7 @@ def _make_coordinator(hass) -> BluettiDeviceCoordinator:
 
 
 async def test_sensor_uses_has_entity_name_and_device_info(hass):
+    """Sensor uses has entity name and device info."""
     coordinator = _make_coordinator(hass)
     state = coordinator.device.get_state("SOC")
     meta = {
@@ -76,6 +78,7 @@ async def test_sensor_uses_has_entity_name_and_device_info(hass):
 
 
 async def test_sensor_unavailable_when_device_offline(hass):
+    """Sensor unavailable when device offline."""
     coordinator = _make_coordinator(hass)
     coordinator.device.on_line = "0"
     state = coordinator.device.get_state("SOC")
@@ -87,6 +90,7 @@ async def test_sensor_unavailable_when_device_offline(hass):
 
 
 async def test_sensor_unavailable_when_coordinator_update_failed(hass):
+    """Sensor unavailable when coordinator update failed."""
     coordinator = _make_coordinator(hass)
     coordinator.last_update_success = False
     state = coordinator.device.get_state("SOC")
@@ -106,6 +110,7 @@ def _add_power_state(coordinator) -> BluettiState:
 
 
 async def test_energy_sensor_has_distinct_unique_id_and_energy_attributes(hass):
+    """Energy sensor has distinct unique id and energy attributes."""
     coordinator = _make_coordinator(hass)
     power_state = _add_power_state(coordinator)
     power_sensor = BluettiSensor(
@@ -127,6 +132,7 @@ async def test_energy_sensor_has_distinct_unique_id_and_energy_attributes(hass):
 
 
 async def test_energy_sensor_integrates_power_trapezoidally_over_time(hass, freezer):
+    """Energy sensor integrates power trapezoidally over time."""
     coordinator = _make_coordinator(hass)
     power_state = _add_power_state(coordinator)
     entity = BluettiEnergySensor(coordinator.device, power_state, lambda: power_state.fn_value)
@@ -156,6 +162,7 @@ async def test_energy_sensor_integrates_power_trapezoidally_over_time(hass, free
 
 
 async def test_energy_sensor_restores_previous_total_on_startup(hass):
+    """Energy sensor restores previous total on startup."""
     coordinator = _make_coordinator(hass)
     power_state = _add_power_state(coordinator)
     entity = BluettiEnergySensor(coordinator.device, power_state, lambda: power_state.fn_value)
@@ -175,6 +182,7 @@ async def test_energy_sensor_restores_previous_total_on_startup(hass):
 
 
 async def test_energy_sensor_treats_non_numeric_power_value_as_unknown(hass, freezer):
+    """Energy sensor treats non numeric power value as unknown."""
     coordinator = _make_coordinator(hass)
     power_state = _add_power_state(coordinator)
     entity = BluettiEnergySensor(coordinator.device, power_state, lambda: power_state.fn_value)
@@ -199,6 +207,7 @@ async def test_energy_sensor_treats_non_numeric_power_value_as_unknown(hass, fre
 
 
 async def test_energy_sensor_skips_integration_across_unavailable_gap(hass, freezer):
+    """Energy sensor skips integration across unavailable gap."""
     coordinator = _make_coordinator(hass)
     power_state = _add_power_state(coordinator)
     entity = BluettiEnergySensor(coordinator.device, power_state, lambda: power_state.fn_value)
@@ -254,6 +263,7 @@ def _make_estimated_battery_sensors(device, pv_state, grid_state, ac_load_state)
 
 
 async def test_estimated_battery_power_sensor_reports_charging_when_surplus(hass):
+    """Estimated battery power sensor reports charging when surplus."""
     # BLUETTI's cloud API doesn't report battery charge/discharge power for
     # every model (e.g. Balco260) - only PV/grid/AC load totals - so this is
     # estimated from the power balance instead.
@@ -272,6 +282,7 @@ async def test_estimated_battery_power_sensor_reports_charging_when_surplus(hass
 
 
 async def test_estimated_battery_power_sensor_reports_discharging_when_deficit(hass):
+    """Estimated battery power sensor reports discharging when deficit."""
     coordinator = _make_coordinator(hass)
     pv_state, grid_state, ac_load_state = _add_balance_states(coordinator, pv="0", grid="0", ac_load="400")
     charge_sensor, discharge_sensor = _make_estimated_battery_sensors(
@@ -284,6 +295,7 @@ async def test_estimated_battery_power_sensor_reports_discharging_when_deficit(h
 
 
 async def test_estimated_battery_power_sensor_zero_at_rest(hass):
+    """Estimated battery power sensor zero at rest."""
     coordinator = _make_coordinator(hass)
     # Matches the real Balco260 diagnostic dump this was modeled on:
     # PV=0, Grid=395, ACLoad=395, SOC=100% - grid fully covers the load.
@@ -297,6 +309,7 @@ async def test_estimated_battery_power_sensor_zero_at_rest(hass):
 
 
 async def test_estimated_battery_power_sensor_handles_non_numeric_input(hass):
+    """Estimated battery power sensor handles non numeric input."""
     coordinator = _make_coordinator(hass)
     pv_state, grid_state, ac_load_state = _add_balance_states(coordinator)
     grid_state.fn_value = None  # e.g. a transient malformed API response
@@ -306,6 +319,7 @@ async def test_estimated_battery_power_sensor_handles_non_numeric_input(hass):
 
 
 async def test_binary_sensor_reflects_state_value(hass):
+    """Binary sensor reflects state value."""
     coordinator = _make_coordinator(hass)
     state = coordinator.device.states[0]
     state.fn_value = "1"
@@ -317,6 +331,7 @@ async def test_binary_sensor_reflects_state_value(hass):
 
 
 async def test_switch_is_on_and_off(hass):
+    """Switch is on and off."""
     coordinator = _make_coordinator(hass)
     state = coordinator.device.get_state("SetCtrlAc")
 
@@ -328,11 +343,10 @@ async def test_switch_is_on_and_off(hass):
 
 
 async def test_switch_power_toggle_available_even_when_offline(hass):
+    """Switch power toggle available even when offline."""
     coordinator = _make_coordinator(hass)
     coordinator.device.on_line = "0"
     # SetCtrlPowerOn is not in the fixture state list; add it directly.
-    from homeassistant.components.bluetti.models import BluettiState
-
     power_state = BluettiState(
         fn_code="SetCtrlPowerOn", fn_name="Power", fn_value="1", fn_type="SWITCH"
     )
@@ -344,6 +358,7 @@ async def test_switch_power_toggle_available_even_when_offline(hass):
 
 
 async def test_select_current_option_and_editability(hass):
+    """Select current option and editability."""
     coordinator = _make_coordinator(hass)
     state = coordinator.device.get_state("SetCtrlWorkMode")
 
@@ -355,6 +370,7 @@ async def test_select_current_option_and_editability(hass):
 
 
 async def test_select_readonly_state_keeps_options_populated(hass):
+    """Select readonly state keeps options populated."""
     coordinator = _make_coordinator(hass)
     state = coordinator.device.get_state("InvWorkState")
 
@@ -368,6 +384,7 @@ async def test_select_readonly_state_keeps_options_populated(hass):
 
 
 async def test_select_readonly_option_cannot_be_changed(hass):
+    """Select readonly option cannot be changed."""
     coordinator = _make_coordinator(hass)
     state = coordinator.device.get_state("InvWorkState")
     entity = BluettiSelect(coordinator.device, state)
@@ -377,6 +394,7 @@ async def test_select_readonly_option_cannot_be_changed(hass):
 
 
 async def test_select_invalid_option_raises(hass):
+    """Select invalid option raises."""
     coordinator = _make_coordinator(hass)
     state = coordinator.device.get_state("SetCtrlWorkMode")
     entity = BluettiSelect(coordinator.device, state)

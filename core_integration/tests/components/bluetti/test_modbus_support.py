@@ -26,4 +26,5 @@ from homeassistant.components.bluetti.modbus_support import modbus_dev_type_for_
     ],
 )
 def test_modbus_dev_type_for_model(model, expected):
+    """Modbus dev type for model."""
     assert modbus_dev_type_for_model(model) == expected

@@ -2,15 +2,18 @@
 
 from unittest.mock import MagicMock
 
-from tests.common import MockConfigEntry
-
 from homeassistant.components.bluetti import BluettiRuntimeData
 from homeassistant.components.bluetti.const import DOMAIN
-from homeassistant.components.bluetti.diagnostics import async_get_config_entry_diagnostics
+from homeassistant.components.bluetti.diagnostics import (
+    async_get_config_entry_diagnostics,
+)
 from homeassistant.components.bluetti.models import BluettiDevice
+
+from tests.common import MockConfigEntry
 
 
 async def test_diagnostics_redacts_sensitive_data_and_lists_devices(hass):
+    """Diagnostics redacts sensitive data and lists devices."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={
@@ -43,7 +46,7 @@ async def test_diagnostics_redacts_sensitive_data_and_lists_devices(hass):
 
     diagnostics = await async_get_config_entry_diagnostics(hass, entry)
 
-    assert diagnostics["entry_data"]["token"] == "**REDACTED**"  # noqa: S105 - redaction placeholder, not a secret
+    assert diagnostics["entry_data"]["token"] == "**REDACTED**"
     assert diagnostics["entry_data"]["products"] == "**REDACTED**"
     assert diagnostics["entry_options"] == {"devices": ["device_1"]}
 
@@ -67,6 +70,7 @@ async def test_diagnostics_redacts_sensitive_data_and_lists_devices(hass):
 
 
 async def test_diagnostics_aliases_are_stable_and_correlate_across_multiple_devices(hass):
+    """Diagnostics aliases are stable and correlate across multiple devices."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         data={"auth_implementation": DOMAIN, "token": {}, "products": []},

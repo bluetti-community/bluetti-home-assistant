@@ -1,3 +1,5 @@
+"""Switch platform for the BLUETTI integration."""
+
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
@@ -36,15 +38,19 @@ class BluettiSwitch(BluettiEntity, SwitchEntity):
     """Representation of a Bluetti switch."""
 
     def __init__(self, device: BluettiDevice, state: BluettiState) -> None:
+        """Initialize the switch from its owning device and cloud state."""
         super().__init__(device, state)
         self._attr_name = state.fn_name
 
     @property
     def is_on(self) -> bool:
+        """Return true if the device reports this switch as on."""
         return self._state_obj.fn_value == "1"
 
     async def async_turn_on(self, **kwargs: Any) -> None:
+        """Turn the switch on."""
         await self._device.set_state_value(self._state_obj.fn_code, "1")
 
     async def async_turn_off(self, **kwargs: Any) -> None:
+        """Turn the switch off."""
         await self._device.set_state_value(self._state_obj.fn_code, "0")

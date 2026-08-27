@@ -1,6 +1,5 @@
 """Model-to-Modbus-device-type mapping for the optional local Modbus data source."""
 
-from __future__ import annotations
 
 # Matches bluetti_modbus_lib.devices.getter.get_device()'s recognized device
 # types. "smeter" is deliberately excluded - it's a standalone smart-meter

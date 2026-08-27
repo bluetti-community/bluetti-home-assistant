@@ -1,13 +1,14 @@
-from __future__ import annotations
+"""Sensor platform for the BLUETTI integration."""
 
-import logging
 from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
+import logging
 from typing import TypedDict
 
 from bluetti_modbus_lib.modbus.client import ClientReturnValue
+
 from homeassistant.components.sensor import (
     RestoreSensor,
     SensorDeviceClass,
@@ -34,11 +35,15 @@ PARALLEL_UPDATES = 0
 
 
 class BaseSensorMetaInfo(TypedDict):
+    """Static per-sensor-type metadata looked up from SENSOR_MAP."""
+
     device_class: SensorDeviceClass
     state_class: SensorStateClass | None
     unit: str | None
 
 class NamedSensorMetaInfo(BaseSensorMetaInfo):
+    """BaseSensorMetaInfo plus the display name for one specific sensor."""
+
     name: str
 
 SENSOR_MAP: dict[str, BaseSensorMetaInfo] = {
@@ -98,8 +103,8 @@ async def async_setup_entry(
         for state in device.states:
             if state.fn_type == "SENSOR" and state.sensor_info:
                 sensor_type = state.sensor_info.get("sensorType") or ""
-                sensorClass = SENSOR_MAP.get(sensor_type)
-                if sensorClass is None:
+                sensor_class = SENSOR_MAP.get(sensor_type)
+                if sensor_class is None:
                     __LOGGER__.warning(
                         "Unknown sensor type '%s' for fn_code=%s, skipping",
                         sensor_type, state.fn_code,
@@ -111,9 +116,9 @@ async def async_setup_entry(
                     # (e.g. ENUM) - a plain ["unit"] KeyError here would
                     # abort the whole loop, silently dropping every not-yet-
                     # processed sensor on every device (#101, #102).
-                    "unit": state.sensor_info.get("unit") or sensorClass["unit"],
-                    "device_class": sensorClass["device_class"],
-                    "state_class": sensorClass["state_class"]
+                    "unit": state.sensor_info.get("unit") or sensor_class["unit"],
+                    "device_class": sensor_class["device_class"],
+                    "state_class": sensor_class["state_class"]
                 }
                 entities.append(BluettiSensor(device, state, meta))
                 if meta["device_class"] == SensorDeviceClass.POWER:
@@ -144,7 +149,7 @@ async def async_setup_entry(
                 entities.append(battery_sensor)
                 entities.append(
                     BluettiEnergySensor(
-                        device, battery_sensor._state_obj,
+                        device, battery_sensor._state_obj,  # noqa: SLF001 - both classes live in this module
                         _estimated_power_value_getter(battery_sensor),
                     )
                 )
@@ -168,6 +173,7 @@ class BluettiSensor(BluettiEntity, SensorEntity):
     """Bluetti sensor for numeric or enum states."""
 
     def __init__(self, device: BluettiDevice, state: BluettiState, meta: NamedSensorMetaInfo) -> None:
+        """Initialize the sensor from its owning device, state, and metadata."""
         super().__init__(device, state)
         self._meta = meta
 
@@ -178,14 +184,14 @@ class BluettiSensor(BluettiEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
+        """Return the state's current value, or its mode name if it's a mode."""
         if self._state_obj.support_mode_values:
             return self._state_obj.get_name_for_value()
         return self._state_obj.fn_value
 
 
 class BluettiEnergySensor(BluettiEntity, RestoreSensor):
-    """
-    Cumulated energy (kWh) integrated from a BLUETTI power (W) sensor.
+    """Cumulated energy (kWh) integrated from a BLUETTI power (W) sensor.
 
     Mirrors what a manually added Home Assistant "Integral - Riemann sum"
     helper (trapezoidal method, kilo prefix, hours) would compute on top of
@@ -207,6 +213,7 @@ class BluettiEnergySensor(BluettiEntity, RestoreSensor):
         identity_state: BluettiState,
         power_getter: Callable[[], str | float | None],
     ) -> None:
+        """Initialize the energy sensor that will integrate power_getter's readings."""
         super().__init__(device, identity_state)
         self._power_getter = power_getter
 
@@ -221,6 +228,7 @@ class BluettiEnergySensor(BluettiEntity, RestoreSensor):
         self._last_updated: datetime | None = None
 
     async def async_added_to_hass(self) -> None:
+        """Restore the last integrated total and starting power reading."""
         await super().async_added_to_hass()
         last_data = await self.async_get_last_sensor_data()
         if last_data is not None and isinstance(last_data.native_value, (int, float, str, Decimal)):
@@ -256,12 +264,12 @@ class BluettiEnergySensor(BluettiEntity, RestoreSensor):
 
     @property
     def native_value(self) -> float:
+        """Return the total energy integrated so far, in kWh."""
         return round(self._total_kwh, 4)
 
 
 class BluettiEstimatedBatteryPowerSensor(BluettiEntity, SensorEntity):
-    """
-    Estimated battery charge or discharge power.
+    """Estimated battery charge or discharge power.
 
     BLUETTI's cloud API does not report battery charge/discharge power
     directly on every model (e.g. Balco260) - only PV, grid, and AC load
@@ -287,6 +295,7 @@ class BluettiEstimatedBatteryPowerSensor(BluettiEntity, SensorEntity):
         name: str,
         charging: bool,
     ) -> None:
+        """Initialize the estimator from the three real states it derives from."""
         identity_state = BluettiState(fn_code=fn_code, fn_name=name, fn_value="0", fn_type="SENSOR")
         super().__init__(device, identity_state)
         self._pv_state = pv_state
@@ -310,6 +319,7 @@ class BluettiEstimatedBatteryPowerSensor(BluettiEntity, SensorEntity):
 
     @property
     def native_value(self) -> float | None:
+        """Return the estimated charge or discharge power, whichever this sensor tracks."""
         net = self._net_power_w()
         if net is None:
             return None
@@ -322,6 +332,7 @@ class BluettiModbusSensor(BluettiModbusEntity, SensorEntity):
     def __init__(
         self, device: BluettiDevice, coordinator: BluettiModbusCoordinator, field_name: str
     ) -> None:
+        """Initialize the sensor from its owning device and Modbus field name."""
         super().__init__(device, coordinator, field_name)
 
         field: ClientReturnValue | None = (coordinator.data or {}).get(field_name)
@@ -345,6 +356,7 @@ class BluettiModbusSensor(BluettiModbusEntity, SensorEntity):
 
     @property
     def native_value(self) -> str | float | None:
+        """Return the field's current value from the coordinator's last poll."""
         field = (self.coordinator.data or {}).get(self._field_name)
         if field is None:
             return None

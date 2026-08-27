@@ -12,6 +12,7 @@ def _device() -> BluettiDevice:
 
 
 def test_available_false_when_coordinator_update_failed():
+    """Available false when coordinator update failed."""
     coordinator = MagicMock(last_update_success=False, data={"b_soc": MagicMock()})
     entity = BluettiModbusEntity(_device(), coordinator, "b_soc")
 
@@ -19,6 +20,7 @@ def test_available_false_when_coordinator_update_failed():
 
 
 def test_available_false_when_field_missing_from_coordinator_data():
+    """Available false when field missing from coordinator data."""
     coordinator = MagicMock(last_update_success=True, data={})
     entity = BluettiModbusEntity(_device(), coordinator, "b_soc")
 
@@ -26,6 +28,7 @@ def test_available_false_when_field_missing_from_coordinator_data():
 
 
 def test_available_true_when_field_present():
+    """Available true when field present."""
     coordinator = MagicMock(last_update_success=True, data={"b_soc": MagicMock()})
     entity = BluettiModbusEntity(_device(), coordinator, "b_soc")
 
@@ -33,6 +36,7 @@ def test_available_true_when_field_present():
 
 
 def test_device_info_uses_the_same_identifier_as_the_device():
+    """Device info uses the same identifier as the device."""
     coordinator = MagicMock(last_update_success=True, data={})
     entity = BluettiModbusEntity(_device(), coordinator, "b_soc")
 

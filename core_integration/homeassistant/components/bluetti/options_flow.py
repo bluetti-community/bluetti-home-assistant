@@ -72,7 +72,7 @@ class BluettiOptionsFlowHandler(OptionsFlow):
             selected = user_input["devices"]
             try:
                 await self._product_client.bind_devices({"bindSnList": selected})
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001 - cloud SDK call at a system boundary; any failure aborts the flow
                 __LOGGER__.error("Failed to bind BLUETTI devices: %s", err)
                 return self.async_abort(reason="cannot_connect")
 
@@ -107,7 +107,7 @@ class BluettiOptionsFlowHandler(OptionsFlow):
         )
         try:
             products = await product_client.get_user_products()
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001 - cloud SDK call at a system boundary; any failure aborts the flow
             __LOGGER__.error("Failed to fetch BLUETTI products: %s", err)
             return self.async_abort(reason="cannot_connect")
 

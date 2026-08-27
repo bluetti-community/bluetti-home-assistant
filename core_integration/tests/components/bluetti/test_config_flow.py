@@ -2,13 +2,13 @@
 
 from unittest.mock import AsyncMock, patch
 
+from homeassistant.components.bluetti.config_flow import BluettiConfigFlow
 from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.setup import async_setup_component
 
-from homeassistant.components.bluetti.config_flow import BluettiConfigFlow
-
 
 async def test_async_step_user_imports_credentials_and_delegates(hass):
+    """Async step user imports credentials and delegates."""
     await async_setup_component(hass, "application_credentials", {})
 
     flow = BluettiConfigFlow()

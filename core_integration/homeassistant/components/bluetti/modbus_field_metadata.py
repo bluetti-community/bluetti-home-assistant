@@ -1,6 +1,4 @@
-"""
-Home Assistant entity metadata (device_class/state_class/entity_category) for
-each bluetti_modbus_lib field name.
+"""Home Assistant entity metadata for each bluetti_modbus_lib field name.
 
 This lives here, not in bluetti_modbus_lib, deliberately: device_class,
 state_class, and entity_category are Home Assistant entity concepts, not
@@ -13,7 +11,6 @@ Built from bluetti-registers' modbus-tcp/{balco260,ep2000}.json schemas,
 which still carry this classification as data.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 
@@ -23,6 +20,8 @@ from homeassistant.const import EntityCategory
 
 @dataclass(frozen=True)
 class ModbusFieldMetadata:
+    """Home Assistant entity metadata for one bluetti_modbus_lib field name."""
+
     device_class: SensorDeviceClass | None = None
     state_class: SensorStateClass | None = None
     category: EntityCategory | None = None

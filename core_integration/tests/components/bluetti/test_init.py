@@ -2,10 +2,6 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
-from tests.common import MockConfigEntry
-
 from homeassistant.components.bluetti import (
     BluettiRuntimeData,
     _async_update_listener,
@@ -15,6 +11,9 @@ from homeassistant.components.bluetti import (
 )
 from homeassistant.components.bluetti.const import DOMAIN
 from homeassistant.components.bluetti.models import BluettiDevice
+from homeassistant.helpers import device_registry as dr, entity_registry as er
+
+from tests.common import MockConfigEntry
 
 
 def _runtime_data(stomp_client) -> BluettiRuntimeData:
@@ -27,6 +26,7 @@ def _runtime_data(stomp_client) -> BluettiRuntimeData:
 
 
 async def test_unload_entry_disconnects_websocket(hass):
+    """Unload entry disconnects websocket."""
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
 
@@ -40,6 +40,7 @@ async def test_unload_entry_disconnects_websocket(hass):
 
 
 async def test_unload_entry_survives_disconnect_error(hass):
+    """Unload entry survives disconnect error."""
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
 
@@ -53,6 +54,7 @@ async def test_unload_entry_survives_disconnect_error(hass):
 
 
 async def test_unload_entry_does_not_explicitly_shut_down_modbus_coordinators(hass):
+    """Unload entry does not explicitly shut down modbus coordinators."""
     # DataUpdateCoordinator (constructed with config_entry=entry) already
     # registers its own async_shutdown via config_entry.async_on_unload -
     # an explicit call here would run BluettiModbusCoordinator's
@@ -88,6 +90,7 @@ async def test_unload_entry_without_runtime_data_does_not_raise(hass):
 
 
 async def test_remove_entry_disconnects_websocket(hass):
+    """Remove entry disconnects websocket."""
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
 
@@ -108,6 +111,7 @@ async def test_remove_entry_without_runtime_data_does_not_raise(hass):
 
 
 async def test_remove_entry_survives_disconnect_error(hass):
+    """Remove entry survives disconnect error."""
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
 
@@ -120,6 +124,7 @@ async def test_remove_entry_survives_disconnect_error(hass):
 
 
 async def test_remove_entry_cleans_up_device_and_entity_registries(hass):
+    """Remove entry cleans up device and entity registries."""
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
     entry.runtime_data = _runtime_data(MagicMock())
@@ -146,6 +151,7 @@ async def test_remove_entry_cleans_up_device_and_entity_registries(hass):
 
 
 async def test_remove_config_entry_device_stops_polling_and_updates_options(hass):
+    """Remove config entry device stops polling and updates options."""
     entry = MockConfigEntry(
         domain=DOMAIN, options={"devices": ["SN1", "SN2"], "modbus": {"SN1": {"host": "10.2.1.60", "port": 502}}}
     )
@@ -186,6 +192,7 @@ async def test_remove_config_entry_device_stops_polling_and_updates_options(hass
 
 
 async def test_remove_config_entry_device_rejects_non_bluetti_device(hass):
+    """Remove config entry device rejects non bluetti device."""
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1"]})
     entry.add_to_hass(hass)
     entry.runtime_data = _runtime_data(MagicMock())
@@ -224,6 +231,7 @@ async def test_remove_config_entry_device_without_runtime_data_does_not_raise(ha
 
 
 async def test_remove_config_entry_device_leaves_options_untouched_when_already_absent(hass):
+    """Remove config entry device leaves options untouched when already absent."""
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN2"]})
     entry.add_to_hass(hass)
     entry.runtime_data = _runtime_data(MagicMock())
@@ -243,6 +251,7 @@ async def test_remove_config_entry_device_leaves_options_untouched_when_already_
 
 
 async def test_update_listener_reloads_entry(hass):
+    """Update listener reloads entry."""
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
 

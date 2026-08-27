@@ -1,32 +1,37 @@
 """Tests for the async_setup_entry() function of each entity platform."""
 
+from enum import Enum
 from unittest.mock import MagicMock
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.const import EntityCategory
+from bluetti_modbus_lib.modbus.client import ClientReturnValue
 from pybluetti import UnifyResponse
-from tests.common import MockConfigEntry
 
 from homeassistant.components.bluetti import BluettiRuntimeData
-from homeassistant.components.bluetti.binary_sensor import BluettiBinarySensor
 from homeassistant.components.bluetti.binary_sensor import (
+    BluettiBinarySensor,
     async_setup_entry as binary_sensor_setup_entry,
 )
 from homeassistant.components.bluetti.const import DOMAIN
 from homeassistant.components.bluetti.models import BluettiData, BluettiDevice
-from homeassistant.components.bluetti.select import BluettiSelect
-from homeassistant.components.bluetti.select import async_setup_entry as select_setup_entry
+from homeassistant.components.bluetti.select import (
+    BluettiSelect,
+    async_setup_entry as select_setup_entry,
+)
 from homeassistant.components.bluetti.sensor import (
     BluettiEnergySensor,
     BluettiEstimatedBatteryPowerSensor,
     BluettiModbusSensor,
     BluettiSensor,
-)
-from homeassistant.components.bluetti.sensor import (
     async_setup_entry as sensor_setup_entry,
 )
-from homeassistant.components.bluetti.switch import BluettiSwitch
-from homeassistant.components.bluetti.switch import async_setup_entry as switch_setup_entry
+from homeassistant.components.bluetti.switch import (
+    BluettiSwitch,
+    async_setup_entry as switch_setup_entry,
+)
+from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
+from homeassistant.const import EntityCategory
+
+from tests.common import MockConfigEntry
 
 
 def _entry_with_devices(hass, devices: list[BluettiDevice], modbus_coordinators=None) -> MockConfigEntry:
@@ -47,6 +52,7 @@ def _entry_with_devices(hass, devices: list[BluettiDevice], modbus_coordinators=
 
 
 async def test_sensor_setup_entry_creates_expected_entities(hass):
+    """Sensor setup entry creates expected entities."""
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
         state_list=[
@@ -83,6 +89,7 @@ async def test_sensor_setup_entry_creates_expected_entities(hass):
 
 
 async def test_binary_sensor_setup_entry_creates_expected_entities(hass):
+    """Binary sensor setup entry creates expected entities."""
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
         state_list=[
@@ -109,6 +116,7 @@ async def test_binary_sensor_setup_entry_creates_expected_entities(hass):
 
 
 async def test_binary_sensor_setup_entry_with_no_matching_states_adds_nothing(hass):
+    """Binary sensor setup entry with no matching states adds nothing."""
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
         state_list=[{"fnCode": "SetCtrlAc", "fnName": "AC", "fnValue": "0", "fnType": "SWITCH"}],
@@ -123,6 +131,7 @@ async def test_binary_sensor_setup_entry_with_no_matching_states_adds_nothing(ha
 
 
 async def test_sensor_setup_entry_survives_sensor_info_missing_unit_key(hass):
+    """Sensor setup entry survives sensor info missing unit key."""
     # Regression test for #101/#102: real API responses can omit the "unit"
     # key entirely from sensorInfo (not just set it to None) for types like
     # ENUM. A plain state.sensor_info["unit"] KeyError there used to abort
@@ -152,6 +161,7 @@ async def test_sensor_setup_entry_survives_sensor_info_missing_unit_key(hass):
 
 
 async def test_sensor_setup_entry_creates_energy_sensor_for_power_sensors(hass):
+    """Sensor setup entry creates energy sensor for power sensors."""
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="Balco260",
         state_list=[
@@ -179,6 +189,7 @@ async def test_sensor_setup_entry_creates_energy_sensor_for_power_sensors(hass):
 
 
 async def test_sensor_setup_entry_creates_estimated_battery_power_sensors(hass):
+    """Sensor setup entry creates estimated battery power sensors."""
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="Balco260",
         state_list=[
@@ -220,6 +231,7 @@ async def test_sensor_setup_entry_creates_estimated_battery_power_sensors(hass):
 
 
 async def test_sensor_setup_entry_skips_estimated_battery_sensors_when_data_missing(hass):
+    """Sensor setup entry skips estimated battery sensors when data missing."""
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
         state_list=[
@@ -238,6 +250,7 @@ async def test_sensor_setup_entry_skips_estimated_battery_sensors_when_data_miss
 
 
 async def test_sensor_setup_entry_with_no_matching_states_adds_nothing(hass):
+    """Sensor setup entry with no matching states adds nothing."""
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
         state_list=[{"fnCode": "SetCtrlAc", "fnName": "AC", "fnValue": "0", "fnType": "SWITCH"}],
@@ -252,6 +265,7 @@ async def test_sensor_setup_entry_with_no_matching_states_adds_nothing(hass):
 
 
 async def test_switch_setup_entry_creates_switch_and_controls_it(hass):
+    """Switch setup entry creates switch and controls it."""
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
         state_list=[{"fnCode": "SetCtrlAc", "fnName": "AC", "fnValue": "0", "fnType": "SWITCH"}],
@@ -279,6 +293,7 @@ async def test_switch_setup_entry_creates_switch_and_controls_it(hass):
 
 
 async def test_select_setup_entry_creates_select_and_controls_it(hass):
+    """Select setup entry creates select and controls it."""
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
         state_list=[{
@@ -305,9 +320,7 @@ async def test_select_setup_entry_creates_select_and_controls_it(hass):
 
 
 async def test_sensor_setup_entry_creates_modbus_sensors_grouped_with_cloud_device(hass):
-    from enum import Enum
-
-    from bluetti_modbus_lib.modbus.client import ClientReturnValue
+    """Sensor setup entry creates modbus sensors grouped with cloud device."""
 
     class _FakeInverterStatus(Enum):
         STANDBY = 0
@@ -362,6 +375,7 @@ async def test_sensor_setup_entry_creates_modbus_sensors_grouped_with_cloud_devi
 
 
 async def test_sensor_setup_entry_skips_modbus_coordinator_for_unknown_device(hass):
+    """Sensor setup entry skips modbus coordinator for unknown device."""
     entry = _entry_with_devices(hass, [], modbus_coordinators={"UNKNOWN_SN": MagicMock(data={})})
     added = []
 
@@ -372,6 +386,7 @@ async def test_sensor_setup_entry_skips_modbus_coordinator_for_unknown_device(ha
 
 
 async def test_select_setup_entry_ignores_states_without_modes(hass):
+    """Select setup entry ignores states without modes."""
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
         state_list=[{"fnCode": "SetCtrlAc", "fnName": "AC", "fnValue": "0", "fnType": "SWITCH"}],

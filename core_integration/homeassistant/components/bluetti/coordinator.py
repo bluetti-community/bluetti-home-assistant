@@ -1,15 +1,15 @@
 """DataUpdateCoordinator for the BLUETTI integration."""
 
-from __future__ import annotations
 
-import logging
 from datetime import timedelta
+import logging
 from typing import TYPE_CHECKING
+
+from pybluetti import ApplicationRuntimeException
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from pybluetti import ApplicationRuntimeException
 
 from .models import BluettiDevice
 

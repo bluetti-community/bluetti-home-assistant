@@ -1,3 +1,5 @@
+"""Binary sensor platform for the BLUETTI integration."""
+
 from typing import Any
 
 from homeassistant.components.binary_sensor import (
@@ -50,6 +52,7 @@ class BluettiBinarySensor(BluettiEntity, BinarySensorEntity):
     """Bluetti binary sensor for online/offline state."""
 
     def __init__(self, device: BluettiDevice, state: BluettiState, meta: dict[str, Any]) -> None:
+        """Initialize the binary sensor from its cloud state and static metadata."""
         super().__init__(device, state)
         self._meta = meta
 
@@ -61,4 +64,5 @@ class BluettiBinarySensor(BluettiEntity, BinarySensorEntity):
 
     @property
     def is_on(self) -> bool:
+        """Return true if the device reports itself online."""
         return self._state_obj.fn_value == "1"

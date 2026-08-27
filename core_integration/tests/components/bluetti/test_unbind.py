@@ -3,21 +3,22 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers import entity_registry as er
-from tests.common import MockConfigEntry
-
 from homeassistant.components.bluetti import BluettiRuntimeData
 from homeassistant.components.bluetti.const import DOMAIN
 from homeassistant.components.bluetti.models import BluettiData, BluettiDevice
+from homeassistant.helpers import device_registry as dr, entity_registry as er
+
+from tests.common import MockConfigEntry
 
 
 async def test_bluetti_data_test_connection_returns_true():
+    """Bluetti data test connection returns true."""
     data = BluettiData.__new__(BluettiData)
     assert await data.test_connection() is True
 
 
 async def test_web_socket_message_handler_schedules_coordinator_refresh(hass):
+    """Web socket message handler schedules coordinator refresh."""
     device = BluettiDevice(device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L")
     device.coordinator = MagicMock()
     # A plain MagicMock (not AsyncMock): run_coroutine_threadsafe is mocked
@@ -35,6 +36,7 @@ async def test_web_socket_message_handler_schedules_coordinator_refresh(hass):
 
 
 async def test_web_socket_message_handler_ignores_unknown_device(hass):
+    """Web socket message handler ignores unknown device."""
     data = BluettiData.__new__(BluettiData)
     data.devices = []
     data.loop = asyncio.get_running_loop()
@@ -46,6 +48,7 @@ async def test_web_socket_message_handler_ignores_unknown_device(hass):
 
 
 async def test_handle_unbind_without_hass_or_entry_returns_early(hass):
+    """Handle unbind without hass or entry returns early."""
     device = BluettiDevice(device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L")
     # _hass and _entry default to None.
 
@@ -55,6 +58,7 @@ async def test_handle_unbind_without_hass_or_entry_returns_early(hass):
 
 
 async def test_handle_unbind_full_cleanup(hass):
+    """Handle unbind full cleanup."""
     entry = MockConfigEntry(
         domain=DOMAIN,
         options={"devices": ["SN1", "SN2"], "modbus": {"SN1": {"host": "10.2.1.60", "port": 502}}},
@@ -118,6 +122,7 @@ async def test_handle_unbind_full_cleanup(hass):
 
 
 async def test_handle_unbind_when_device_registry_entry_missing(hass):
+    """Handle unbind when device registry entry missing."""
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1"]})
     entry.add_to_hass(hass)
 
@@ -141,6 +146,7 @@ async def test_handle_unbind_when_device_registry_entry_missing(hass):
 
 
 async def test_async_refresh_from_api_triggers_unbind():
+    """Async refresh from api triggers unbind."""
     device = BluettiDevice(device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L")
     device._handle_unbind = AsyncMock()
     status_data = MagicMock(sn="SN1", isBindByCurUser="0")
@@ -152,7 +158,7 @@ async def test_async_refresh_from_api_triggers_unbind():
     device._handle_unbind.assert_awaited_once()
 
 
-def _bound_device_with_registry_entries(hass, entry) -> tuple[BluettiDevice, "dr.DeviceEntry"]:
+def _bound_device_with_registry_entries(hass, entry) -> tuple[BluettiDevice, dr.DeviceEntry]:
     device = BluettiDevice(device_id="SN1", on_line="1", name="Test Device", sn="SN1", model="AC200L")
     device_registry = dr.async_get(hass)
     device_entry = device_registry.async_get_or_create(
@@ -178,6 +184,7 @@ def _bound_device_with_registry_entries(hass, entry) -> tuple[BluettiDevice, "dr
 
 
 async def test_handle_unbind_survives_entity_removal_error(hass):
+    """Handle unbind survives entity removal error."""
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1"]})
     entry.add_to_hass(hass)
     device, _device_entry = _bound_device_with_registry_entries(hass, entry)
@@ -192,6 +199,7 @@ async def test_handle_unbind_survives_entity_removal_error(hass):
 
 
 async def test_handle_unbind_survives_device_removal_error(hass):
+    """Handle unbind survives device removal error."""
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1"]})
     entry.add_to_hass(hass)
     device, _device_entry = _bound_device_with_registry_entries(hass, entry)
@@ -205,6 +213,7 @@ async def test_handle_unbind_survives_device_removal_error(hass):
 
 
 async def test_handle_unbind_survives_runtime_data_error(hass):
+    """Handle unbind survives runtime data error."""
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1"]})
     entry.add_to_hass(hass)
     device, _device_entry = _bound_device_with_registry_entries(hass, entry)
@@ -219,6 +228,7 @@ async def test_handle_unbind_survives_runtime_data_error(hass):
 
 
 async def test_handle_unbind_survives_config_entry_update_error(hass):
+    """Handle unbind survives config entry update error."""
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1"]})
     entry.add_to_hass(hass)
     device, _device_entry = _bound_device_with_registry_entries(hass, entry)
@@ -232,6 +242,7 @@ async def test_handle_unbind_survives_config_entry_update_error(hass):
 
 
 async def test_handle_unbind_survives_notification_error(hass):
+    """Handle unbind survives notification error."""
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1"]})
     entry.add_to_hass(hass)
     device, _device_entry = _bound_device_with_registry_entries(hass, entry)
@@ -248,6 +259,7 @@ async def test_handle_unbind_survives_notification_error(hass):
 
 
 async def test_handle_unbind_survives_reload_error(hass):
+    """Handle unbind survives reload error."""
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1"]})
     entry.add_to_hass(hass)
     device, _device_entry = _bound_device_with_registry_entries(hass, entry)
@@ -261,6 +273,7 @@ async def test_handle_unbind_survives_reload_error(hass):
 
 
 async def test_handle_unbind_when_device_not_in_options(hass):
+    """Handle unbind when device not in options."""
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN2"]})
     entry.add_to_hass(hass)
     device, _device_entry = _bound_device_with_registry_entries(hass, entry)
@@ -274,6 +287,7 @@ async def test_handle_unbind_when_device_not_in_options(hass):
 
 
 async def test_handle_unbind_survives_unexpected_outer_error(hass):
+    """Handle unbind survives unexpected outer error."""
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1"]})
     entry.add_to_hass(hass)
     device, _device_entry = _bound_device_with_registry_entries(hass, entry)

@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from modbus_connection.exceptions import ModbusConnectionError
 from pybluetti import UserProduct
 
+from homeassistant.components.bluetti.config_flow import BluettiConfigFlow
 from homeassistant.components.bluetti.const import DOMAIN
 from homeassistant.components.bluetti.options_flow import BluettiOptionsFlowHandler
 from homeassistant.helpers.json import JSONEncoder
@@ -66,6 +67,7 @@ def _entry(hass, *, products=None, devices=None, modbus=None) -> MockConfigEntry
 
 
 async def test_shows_form_with_available_devices(hass):
+    """Shows form with available devices."""
     entry = _entry(hass, devices=["SN1"])
     flow = _flow(hass, entry)
     products = [
@@ -89,6 +91,7 @@ async def test_shows_form_with_available_devices(hass):
 
 
 async def test_no_devices_available_aborts(hass):
+    """No devices available aborts."""
     entry = _entry(hass)
     flow = _flow(hass, entry)
 
@@ -104,6 +107,7 @@ async def test_no_devices_available_aborts(hass):
 
 
 async def test_all_devices_already_enabled_aborts(hass):
+    """All devices already enabled aborts."""
     entry = _entry(hass, devices=["SN1"])
     flow = _flow(hass, entry)
     products = [UserProduct(sn="SN1", name="Already added", stateList=[], online="1")]
@@ -120,6 +124,7 @@ async def test_all_devices_already_enabled_aborts(hass):
 
 
 async def test_fetch_failure_aborts_cannot_connect(hass):
+    """Fetch failure aborts cannot connect."""
     entry = _entry(hass)
     flow = _flow(hass, entry)
 
@@ -133,6 +138,7 @@ async def test_fetch_failure_aborts_cannot_connect(hass):
 
 
 async def test_submit_binds_and_merges_devices_and_products(hass):
+    """Submit binds and merges devices and products."""
     entry = _entry(
         hass,
         products=[{"sn": "SN1", "name": "Existing", "stateList": [], "online": "1"}],
@@ -155,6 +161,7 @@ async def test_submit_binds_and_merges_devices_and_products(hass):
 
 
 async def test_submit_bind_failure_aborts_cannot_connect(hass):
+    """Submit bind failure aborts cannot connect."""
     entry = _entry(hass)
     flow = _flow(hass, entry)
     flow._product_client = AsyncMock()
@@ -167,8 +174,7 @@ async def test_submit_bind_failure_aborts_cannot_connect(hass):
 
 
 async def test_config_flow_exposes_options_flow(hass):
-    from homeassistant.components.bluetti.config_flow import BluettiConfigFlow
-
+    """Config flow exposes options flow."""
     entry = _entry(hass)
     flow = BluettiConfigFlow.async_get_options_flow(entry)
 
@@ -176,6 +182,7 @@ async def test_config_flow_exposes_options_flow(hass):
 
 
 async def test_init_shows_menu_when_a_modbus_capable_device_is_enabled(hass):
+    """Init shows menu when a modbus capable device is enabled."""
     entry = _entry(
         hass,
         products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
@@ -191,6 +198,7 @@ async def test_init_shows_menu_when_a_modbus_capable_device_is_enabled(hass):
 
 
 async def test_init_falls_through_to_add_devices_when_enabled_device_is_not_modbus_capable(hass):
+    """Init falls through to add devices when enabled device is not modbus capable."""
     entry = _entry(
         hass,
         products=[{"sn": "SN1", "name": "AC200L", "stateList": [], "online": "1", "model": "AC200L"}],
@@ -211,6 +219,7 @@ async def test_init_falls_through_to_add_devices_when_enabled_device_is_not_modb
 
 
 async def test_configure_modbus_shows_form_with_only_modbus_capable_enabled_devices(hass):
+    """Configure modbus shows form with only modbus capable enabled devices."""
     entry = _entry(
         hass,
         products=[
@@ -233,6 +242,7 @@ def _schema_default(schema, key):
 
 
 async def test_configure_modbus_prefills_existing_connection_for_the_default_device(hass):
+    """Configure modbus prefills existing connection for the default device."""
     entry = _entry(
         hass,
         products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
@@ -250,6 +260,7 @@ async def test_configure_modbus_prefills_existing_connection_for_the_default_dev
 
 
 async def test_configure_modbus_prefills_blank_when_nothing_saved_yet(hass):
+    """Configure modbus prefills blank when nothing saved yet."""
     entry = _entry(
         hass,
         products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
@@ -265,6 +276,7 @@ async def test_configure_modbus_prefills_blank_when_nothing_saved_yet(hass):
 
 
 async def test_configure_modbus_preserves_just_typed_values_after_a_failed_attempt(hass):
+    """Configure modbus preserves just typed values after a failed attempt."""
     entry = _entry(
         hass,
         products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
@@ -285,6 +297,7 @@ async def test_configure_modbus_preserves_just_typed_values_after_a_failed_attem
 
 
 async def test_configure_modbus_success_stores_connection_in_options(hass):
+    """Configure modbus success stores connection in options."""
     entry = _entry(
         hass,
         products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
@@ -310,6 +323,7 @@ async def test_configure_modbus_success_stores_connection_in_options(hass):
 
 
 async def test_configure_modbus_connection_failure_reshows_form_with_error(hass):
+    """Configure modbus connection failure reshows form with error."""
     entry = _entry(
         hass,
         products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
@@ -334,6 +348,7 @@ async def test_configure_modbus_connection_failure_reshows_form_with_error(hass)
 async def test_configure_modbus_through_real_flow_manager_preserves_devices(
     hass
 ):
+    """Configure modbus through real flow manager preserves devices."""
     # Regression test for a real bug found via real-hardware testing:
     # OptionsFlowManager.async_finish_flow() applies async_create_entry's
     # data by REPLACING entry.options wholesale - calling the step method
@@ -372,6 +387,7 @@ async def test_configure_modbus_through_real_flow_manager_preserves_devices(
 async def test_add_devices_through_real_flow_manager_preserves_modbus(
     hass
 ):
+    """Add devices through real flow manager preserves modbus."""
     # Mirror regression test: adding more devices afterwards must not wipe
     # an already-configured Modbus connection for another device.
     entry = _entry(

@@ -1,19 +1,21 @@
+"""OAuth2 login flow steps and token-expiry handling for the BLUETTI integration."""
+
+from datetime import datetime, timedelta
 import logging
 import time
-from datetime import datetime, timedelta
 from typing import Any, cast
 
-import homeassistant.helpers.config_validation as cv
-import voluptuous as vol
 from aiohttp import ClientSession
+from pybluetti import ProductClient, UserProduct
+import voluptuous as vol
+
 from homeassistant import config_entries
 from homeassistant.components import persistent_notification
 from homeassistant.core import Event, HomeAssistant
-from homeassistant.helpers import config_entry_oauth2_flow
-from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers import config_entry_oauth2_flow, issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import async_track_time_interval
-from pybluetti import ProductClient, UserProduct
 
 from .const import (
     ACCOUNT_UNIQUE_ID,
@@ -57,7 +59,7 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
         if user_input is not None:
             try:
                 await self._product_client.bind_devices({"bindSnList": user_input["devices"]})
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001 - cloud SDK call at a system boundary; any failure aborts the flow
                 __LOGGER__.error("Failed to bind BLUETTI devices: %s", err)
                 return self.async_abort(reason="cannot_connect")
 
@@ -78,19 +80,19 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
                         break
 
             if existing_entry:
-                # 合并到现有集成条目
+                # Merge into the existing integration entry
                 existing_devices = existing_entry.options.get("devices", [])
                 existing_products = existing_entry.data.get("products", [])
 
-                # 合并设备列表（去重）
+                # Merge the device list (deduplicated)
                 merged_devices = list(set(existing_devices + user_input["devices"]))
 
-                # 合并产品数据（去重）
+                # Merge the product data (deduplicated)
                 existing_product_sns = {p.get("sn") if isinstance(p, dict) else p.sn for p in existing_products}
                 new_products = [p for p in self._products if p.sn not in existing_product_sns]
                 merged_products = existing_products + [p.model_dump() if hasattr(p, "model_dump") else p for p in new_products]
 
-                # 更新现有条目
+                # Update the existing entry
                 self.hass.config_entries.async_update_entry(
                     existing_entry,
                     data={
@@ -101,11 +103,11 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
                     options={"devices": merged_devices}
                 )
 
-                # 重新加载集成以包含新设备
+                # Reload the integration to pick up the new devices
                 await self.hass.config_entries.async_reload(existing_entry.entry_id)
 
                 return self.async_abort(reason="success")
-            # 创建新的集成条目
+            # Create a new integration entry
             return self.async_create_entry(
                 title=f"{INTEGRATION_NAME} Power Integration",
                 data={
@@ -116,17 +118,17 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
                 options=user_input,
             )
 
-        httpSession = async_get_clientsession(self.hass)
+        http_session = async_get_clientsession(self.hass)
         access_token = self._oauth_data["token"]["access_token"]
         product_client = ProductClient(
-            httpSession,
+            http_session,
             APPLICATION_PROFILE.config["server"]["gateway"],
             access_token,
             on_auth_expired=lambda: self.hass.bus.fire(EVENT_TOKEN_EXPIRED),
         )
         try:
             products = await product_client.get_user_products()
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001 - cloud SDK call at a system boundary; any failure aborts the flow
             __LOGGER__.error("Failed to fetch BLUETTI products: %s", err)
             return self.async_abort(reason="cannot_connect")
 
@@ -140,12 +142,12 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
         self._product_client = product_client
         self._products = products.data
 
-        # 获取已集成的设备列表
+        # Collect the devices already added to any existing entry
         integrated_devices = set()
         for entry in self.hass.config_entries.async_entries(DOMAIN):
             integrated_devices.update(entry.options.get("devices", []))
 
-        # 过滤掉已经集成过的设备
+        # Filter out devices that have already been added
         available_devices = {
             prod.sn: f"{prod.name} - {prod.sn}"
             for prod in products.data
@@ -167,7 +169,7 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
             await self.hass.config_entries.async_reload(cur_entry.entry_id)
             return self.async_abort(reason="success")
 
-        # 已全部集成
+        # All the account's devices are already added
         if not available_devices:
             return self.async_abort(reason="all_devices_exists")
 
@@ -188,7 +190,7 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Reauth configure"""
+        """Reauth configure."""
         found_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
         if found_entry is None:
             return self.async_abort(reason="reconfigure_failed")
@@ -224,6 +226,7 @@ class AuthTokenRefresh:
         entry: config_entries.ConfigEntry,
         oauth_session: config_entry_oauth2_flow.OAuth2Session,
     ) -> None:
+        """Wire up the expiry listener and periodic check for this entry's token."""
         self.hass = hass
         self.entry = entry
         self.oAuth2Session = oauth_session
@@ -231,10 +234,12 @@ class AuthTokenRefresh:
         entry.async_on_unload(unsub)
 
     async def on_token_expired_event(self, event: Event[Any]) -> None:
+        """Notify the user when the API reports the token has expired."""
         __LOGGER__.info("on_token_expired_event")
         self.send_expired_notification()
 
     def start_token_check(self) -> None:
+        """Check the token now, then schedule a daily check going forward."""
         # first clear old notify
         persistent_notification.async_dismiss(self.hass,notification_id=NOTIFY_ID_TOKEN_EXPIRED)
         ir.async_delete_issue(self.hass, DOMAIN, ISSUE_ID_OAUTH_EXPIRED)
@@ -245,8 +250,8 @@ class AuthTokenRefresh:
             interval = timedelta(days=1)
             unsub = async_track_time_interval(
                 self.hass,
-                self.async_check_token_expiry,  # 要执行的任务函数
-                interval       # 执行间隔
+                self.async_check_token_expiry,  # callback to run
+                interval       # how often to run it
             )
             self.entry.async_on_unload(unsub)
             __LOGGER__.info("token is valid after 24 hours to check again")
@@ -255,7 +260,7 @@ class AuthTokenRefresh:
 
     # check oauth2 token is ok
     def is_token_valid(self) -> bool:
-        """Check token"""
+        """Check token."""
         token = self.oAuth2Session.token
         if not token:
             return False
@@ -274,9 +279,10 @@ class AuthTokenRefresh:
 
     # show token expire notify
     def send_expired_notification(self) -> None:
+        """Show a persistent notification prompting the user to reauthenticate."""
         reauth_url = f"/config/integrations/integration/{DOMAIN}"
         notification_message = (
-            f"Your OAuth Have Expired！\n"
+            f"Your OAuth Have Expired!\n"
             f"Please go to the **[integration settings]({reauth_url})** page and click [Reconfigure] to complete the login."
         )
         persistent_notification.async_create(
@@ -296,8 +302,7 @@ class AuthTokenRefresh:
 
     # check token is in 7 day if in 7day refesh token
     async def async_check_token_expiry(self, now: datetime | None = None) -> None:
-        """
-        Check whether the token needs a refresh, and refresh it if so.
+        """Check whether the token needs a refresh, and refresh it if so.
 
         Registered directly as the callback for async_track_time_interval,
         which always calls it with the current UTC time - `now` must be
@@ -333,5 +338,5 @@ class AuthTokenRefresh:
                 )
                 __LOGGER__.info("refresh token ok,then reload")
                 await self.hass.config_entries.async_reload(self.entry.entry_id)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - OAuth SDK call at a system boundary; logged, not fatal
                 __LOGGER__.error("refresh token failed: %s", e)

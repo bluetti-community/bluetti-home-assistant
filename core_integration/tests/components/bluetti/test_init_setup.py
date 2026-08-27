@@ -3,12 +3,13 @@
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.config_entries import ConfigEntryState
-from homeassistant.helpers import entity_registry as er
 from modbus_connection.exceptions import ModbusConnectionError
-from tests.common import MockConfigEntry
 
 from homeassistant.components.bluetti.const import DOMAIN
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.helpers import entity_registry as er
+
+from tests.common import MockConfigEntry
 
 
 def _entry(hass, *, products=None, devices=None, modbus=None) -> MockConfigEntry:
@@ -29,6 +30,7 @@ def _entry(hass, *, products=None, devices=None, modbus=None) -> MockConfigEntry
 
 
 async def test_async_setup_entry_with_no_devices(hass):
+    """Async setup entry with no devices."""
     entry = _entry(hass)
 
     with patch("homeassistant.components.bluetti.async_get_clientsession", MagicMock()), \
@@ -52,6 +54,7 @@ async def test_async_setup_entry_with_no_devices(hass):
 
 
 async def test_async_setup_entry_with_a_device(hass):
+    """Async setup entry with a device."""
     entry = _entry(
         hass,
         products=[{"sn": "SN1", "name": "Device", "stateList": [], "online": "1"}],
@@ -85,6 +88,7 @@ async def test_async_setup_entry_with_a_device(hass):
 
 
 async def test_async_setup_entry_registers_binary_sensor_under_its_own_domain(hass):
+    """Async setup entry registers binary sensor under its own domain."""
     # Regression test: BluettiBinarySensor entities used to be appended to
     # the `entities` list handed to the sensor platform's async_add_entities,
     # so they were registered under sensor.* instead of binary_sensor.* -
@@ -123,6 +127,7 @@ async def test_async_setup_entry_registers_binary_sensor_under_its_own_domain(ha
 
 
 async def test_async_setup_entry_with_multiple_devices_refreshes_concurrently(hass):
+    """Async setup entry with multiple devices refreshes concurrently."""
     # Each device's first refresh is run via asyncio.gather() instead of
     # sequentially, so setup time doesn't scale linearly with device count.
     entry = _entry(
@@ -163,6 +168,7 @@ async def test_async_setup_entry_with_multiple_devices_refreshes_concurrently(ha
 
 
 async def test_async_setup_entry_reimports_missing_oauth_credential(hass):
+    """Async setup entry reimports missing oauth credential."""
     # If the Application Credential backing the OAuth2 implementation was
     # ever lost (e.g. a partial backup restore), async_get_config_entry_
     # implementation raises ValueError("Implementation not available").
@@ -194,6 +200,7 @@ async def test_async_setup_entry_reimports_missing_oauth_credential(hass):
 
 
 async def test_async_setup_entry_retries_on_failure(hass):
+    """Async setup entry retries on failure."""
     entry = _entry(hass)
 
     with patch("homeassistant.components.bluetti.async_get_clientsession", MagicMock()), \
@@ -208,6 +215,7 @@ async def test_async_setup_entry_retries_on_failure(hass):
 
 
 async def test_async_setup_entry_retries_when_credential_stays_missing(hass):
+    """Async setup entry retries when credential stays missing."""
     # Re-importing the default credential doesn't help if the underlying
     # cause isn't a missing credential (e.g. the application_credentials
     # component itself isn't ready yet) - setup should still fall back to
@@ -233,6 +241,7 @@ async def test_async_setup_entry_retries_when_credential_stays_missing(hass):
 async def test_async_setup_entry_wires_up_modbus_coordinator_for_capable_device(
     hass
 ):
+    """Async setup entry wires up modbus coordinator for capable device."""
     entry = _entry(
         hass,
         products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
@@ -277,6 +286,7 @@ async def test_async_setup_entry_wires_up_modbus_coordinator_for_capable_device(
 async def test_modbus_first_refresh_failure_does_not_prevent_cloud_entities_from_loading(
     hass
 ):
+    """Modbus first refresh failure does not prevent cloud entities from loading."""
     # Local Modbus is opt-in/supplementary - a hiccup here at startup must
     # not fail the whole config entry (and take the cloud entities down
     # with it). A failed first refresh should just leave that device's

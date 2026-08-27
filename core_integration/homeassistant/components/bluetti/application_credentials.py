@@ -21,8 +21,7 @@ async def async_get_authorization_server(hass: HomeAssistant) -> AuthorizationSe
 
 
 async def async_ensure_default_credential(hass: HomeAssistant) -> None:
-    """
-    (Re-)import the integration's built-in OAuth2 client credential.
+    """(Re-)import the integration's built-in OAuth2 client credential.
 
     Home Assistant resolves a config entry's OAuth2 implementation by looking
     up this credential in Application Credentials storage. If it is ever

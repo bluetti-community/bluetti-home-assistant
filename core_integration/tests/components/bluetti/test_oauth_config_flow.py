@@ -4,12 +4,17 @@ import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-from homeassistant.helpers.json import JSONEncoder
 from pybluetti import UserProduct
-from tests.common import MockConfigEntry
 
-from homeassistant.components.bluetti.const import ACCOUNT_UNIQUE_ID, DOMAIN, INTEGRATION_NAME
+from homeassistant.components.bluetti.const import (
+    ACCOUNT_UNIQUE_ID,
+    DOMAIN,
+    INTEGRATION_NAME,
+)
 from homeassistant.components.bluetti.oauth import OAuth2FlowHandler
+from homeassistant.helpers.json import JSONEncoder
+
+from tests.common import MockConfigEntry
 
 
 def _make_flow(hass) -> OAuth2FlowHandler:
@@ -24,6 +29,7 @@ def _make_flow(hass) -> OAuth2FlowHandler:
 
 
 async def test_new_entry_products_are_json_serializable(hass):
+    """New entry products are json serializable."""
     flow = _make_flow(hass)
     flow._products = [UserProduct(sn="SN1", name="Device 1", stateList=[], online="1")]
     flow._product_client = AsyncMock()
@@ -38,6 +44,7 @@ async def test_new_entry_products_are_json_serializable(hass):
 
 
 async def test_new_entry_gets_account_unique_id(hass):
+    """New entry gets account unique id."""
     flow = _make_flow(hass)
     flow._products = [UserProduct(sn="SN1", name="Device 1", stateList=[], online="1")]
     flow._product_client = AsyncMock()
@@ -48,6 +55,7 @@ async def test_new_entry_gets_account_unique_id(hass):
 
 
 async def test_merge_into_existing_entry_by_unique_id(hass):
+    """Merge into existing entry by unique id."""
     existing_entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id=ACCOUNT_UNIQUE_ID,
@@ -103,6 +111,7 @@ async def test_legacy_entry_without_unique_id_is_adopted(hass):
 
 
 async def test_bind_devices_failure_aborts_cannot_connect(hass):
+    """Bind devices failure aborts cannot connect."""
     flow = _make_flow(hass)
     flow._product_client = AsyncMock()
     flow._product_client.bind_devices.side_effect = RuntimeError("boom")
@@ -114,6 +123,7 @@ async def test_bind_devices_failure_aborts_cannot_connect(hass):
 
 
 async def test_get_user_products_failure_aborts_cannot_connect(hass):
+    """Get user products failure aborts cannot connect."""
     flow = _make_flow(hass)
 
     with patch("homeassistant.components.bluetti.oauth.async_get_clientsession"), \
@@ -126,6 +136,7 @@ async def test_get_user_products_failure_aborts_cannot_connect(hass):
 
 
 async def test_no_devices_available_aborts(hass):
+    """No devices available aborts."""
     flow = _make_flow(hass)
 
     with patch("homeassistant.components.bluetti.oauth.async_get_clientsession"), \
@@ -140,6 +151,7 @@ async def test_no_devices_available_aborts(hass):
 
 
 async def test_all_devices_exists_aborts(hass):
+    """All devices exists aborts."""
     existing_entry = MockConfigEntry(
         domain=DOMAIN,
         unique_id=ACCOUNT_UNIQUE_ID,
