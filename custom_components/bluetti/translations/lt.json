@@ -29,25 +29,25 @@
   "options": {
     "step": {
       "init": {
-        "title": "BLUETTI options",
-        "description": "What would you like to do?",
+        "title": "BLUETTI parinktys",
+        "description": "Ką norite daryti?",
         "menu_options": {
-          "add_devices": "Add BLUETTI devices",
-          "configure_modbus": "Configure local Modbus"
+          "add_devices": "Pridėti BLUETTI įrenginius",
+          "configure_modbus": "Konfigūruoti vietinį Modbus"
         }
       },
       "configure_modbus": {
-        "title": "Configure local Modbus",
-        "description": "Enter the local Modbus TCP connection details for this device. This is optional and supplements the cloud connection with additional sensors - it does not replace it.",
+        "title": "Konfigūruoti vietinį Modbus",
+        "description": "Įveskite vietinio Modbus TCP ryšio duomenis šiam įrenginiui. Tai neprivaloma ir papildo debesijos ryšį papildomais jutikliais - jo nepakeičia.",
         "data": {
-          "device_sn": "Device",
-          "host": "Host",
-          "port": "Port"
+          "device_sn": "Įrenginys",
+          "host": "Serveris",
+          "port": "Prievadas"
         }
       },
       "add_devices": {
         "title": "Pridėti BLUETTI įrenginius",
-        "description": "Pasirinkite papildomus prie jūsų BLUETTI paskyros priskirtus įrenginius, kuriuos norite pridėti į Home Assistant.",
+        "description": "Pasirinkite papildomus įrenginius, susietus su jūsų BLUETTI paskyra, kuriuos norite pridėti į Home Assistant.",
         "data": {
           "devices": "Įrenginiai"
         }
@@ -59,7 +59,7 @@
       "cannot_connect": "Nepavyko prisijungti prie BLUETTI serverio. Bandykite dar kartą."
     },
     "error": {
-      "cannot_connect": "Failed to connect"
+      "cannot_connect": "Nepavyko prisijungti"
     }
   },
   "exceptions": {
@@ -73,7 +73,7 @@
       "message": "Netinkama parinktis {option} laukui {fn_code}"
     },
     "modbus_error": {
-      "message": "Error communicating with the device over Modbus: {error}"
+      "message": "Ryšio su įrenginiu per Modbus klaida: {error}"
     }
   },
   "issues": {
@@ -85,136 +85,136 @@
   "entity": {
     "sensor": {
       "ac_o_e_total": {
-        "name": "Total AC Output Energy"
+        "name": "Bendra KS išėjimo energija"
       },
       "ac_o_switch": {
-        "name": "AC Output Switch"
+        "name": "KS išėjimo jungiklis"
       },
       "b_c": {
-        "name": "Battery Current"
+        "name": "Baterijos srovė"
       },
       "b_c_total": {
-        "name": "Total Battery Current"
+        "name": "Bendra baterijos srovė"
       },
       "b_cell_count": {
-        "name": "Cell Count"
+        "name": "Elementų skaičius"
       },
       "b_cycle_count": {
-        "name": "Battery Cycle Count"
+        "name": "Baterijos ciklų skaičius"
       },
       "b_i_e": {
-        "name": "Total Battery Charged Energy"
+        "name": "Bendra įkrauta baterijos energija"
       },
       "b_ntc_count": {
-        "name": "Temperature Sensor Count"
+        "name": "Temperatūros jutiklių skaičius"
       },
       "b_o_e": {
-        "name": "Total Battery Discharged Energy"
+        "name": "Bendra iškrauta baterijos energija"
       },
       "b_soc_high": {
-        "name": "Max Charge Limit (SoC High)"
+        "name": "Viršutinė įkrovimo riba (SoC)"
       },
       "b_soc_low": {
-        "name": "Min Discharge Limit (SoC Low)"
+        "name": "Apatinė iškrovimo riba (SoC)"
       },
       "b_soh": {
-        "name": "Battery SoH"
+        "name": "Baterijos būklė (SoH)"
       },
       "b_soh_total": {
-        "name": "Total Battery SoH"
+        "name": "Bendra baterijos būklė (SoH)"
       },
       "b_t_avg": {
-        "name": "Average Battery Temperature"
+        "name": "Vidutinė baterijos temperatūra"
       },
       "b_type": {
-        "name": "Battery Type"
+        "name": "Baterijos tipas"
       },
       "b_v": {
-        "name": "Battery Voltage"
+        "name": "Baterijos įtampa"
       },
       "b_v_total": {
-        "name": "Total Battery Voltage"
+        "name": "Bendra baterijos įtampa"
       },
       "d_inverter_fault": {
-        "name": "Inverter Fault"
+        "name": "Keitiklio gedimas"
       },
       "d_inverter_status": {
-        "name": "Inverter Status"
+        "name": "Keitiklio būsena"
       },
       "d_inverter_total": {
-        "name": "Total Inverter Power"
+        "name": "Bendra keitiklio galia"
       },
       "d_inverter_type": {
-        "name": "Inverter Type"
+        "name": "Keitiklio tipas"
       },
       "d_inverter_warning": {
-        "name": "Inverter Warning"
+        "name": "Keitiklio įspėjimas"
       },
       "d_num_battery_packs": {
-        "name": "Number of Battery Packs"
+        "name": "Baterijų paketų skaičius"
       },
       "d_num_inverters": {
-        "name": "Inverter Count"
+        "name": "Keitiklių skaičius"
       },
       "g_i_e_total": {
-        "name": "Total Grid Import Energy"
+        "name": "Bendra iš tinklo importuota energija"
       },
       "g_i_f": {
-        "name": "Grid Frequency"
+        "name": "Tinklo dažnis"
       },
       "g_i_switch": {
-        "name": "Grid Charging Switch"
+        "name": "Įkrovimo iš tinklo jungiklis"
       },
       "g_o_e_total": {
-        "name": "Total Grid Export Energy"
+        "name": "Bendra į tinklą eksportuota energija"
       },
       "g_o_switch": {
-        "name": "Grid Feed-in Switch"
+        "name": "Energijos į tinklą tiekimo jungiklis"
       },
       "pv_1_i_c": {
-        "name": "PV 1 Input Current"
+        "name": "PV 1 įėjimo srovė"
       },
       "pv_1_i_p": {
-        "name": "PV 1 Input Power"
+        "name": "PV 1 įėjimo galia"
       },
       "pv_1_i_v": {
-        "name": "PV 1 Input Voltage"
+        "name": "PV 1 įėjimo įtampa"
       },
       "pv_2_i_c": {
-        "name": "PV 2 Input Current"
+        "name": "PV 2 įėjimo srovė"
       },
       "pv_2_i_p": {
-        "name": "PV 2 Input Power"
+        "name": "PV 2 įėjimo galia"
       },
       "pv_2_i_v": {
-        "name": "PV 2 Input Voltage"
+        "name": "PV 2 įėjimo įtampa"
       },
       "pv_3_i_c": {
-        "name": "PV 3 Input Current"
+        "name": "PV 3 įėjimo srovė"
       },
       "pv_3_i_p": {
-        "name": "PV 3 Input Power"
+        "name": "PV 3 įėjimo galia"
       },
       "pv_3_i_v": {
-        "name": "PV 3 Input Voltage"
+        "name": "PV 3 įėjimo įtampa"
       },
       "pv_4_i_c": {
-        "name": "PV 4 Input Current"
+        "name": "PV 4 įėjimo srovė"
       },
       "pv_4_i_p": {
-        "name": "PV 4 Input Power"
+        "name": "PV 4 įėjimo galia"
       },
       "pv_4_i_v": {
-        "name": "PV 4 Input Voltage"
+        "name": "PV 4 įėjimo įtampa"
       },
       "pv_ac_e": {
-        "name": "PV AC Energy"
+        "name": "PV KS energija"
       },
       "pv_ac_p": {
-        "name": "PV AC Power"
+        "name": "PV KS galia"
       },
       "pv_i_e_total": {
-        "name": "Total PV Input Energy"
+        "name": "Bendra PV įėjimo energija"
       }
     }
   }

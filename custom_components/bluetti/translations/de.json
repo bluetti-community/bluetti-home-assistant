@@ -29,25 +29,25 @@
   "options": {
     "step": {
       "init": {
-        "title": "BLUETTI options",
-        "description": "What would you like to do?",
+        "title": "BLUETTI-Optionen",
+        "description": "Was möchten Sie tun?",
         "menu_options": {
-          "add_devices": "Add BLUETTI devices",
-          "configure_modbus": "Configure local Modbus"
+          "add_devices": "BLUETTI-Geräte hinzufügen",
+          "configure_modbus": "Lokales Modbus konfigurieren"
         }
       },
       "configure_modbus": {
-        "title": "Configure local Modbus",
-        "description": "Enter the local Modbus TCP connection details for this device. This is optional and supplements the cloud connection with additional sensors - it does not replace it.",
+        "title": "Lokales Modbus konfigurieren",
+        "description": "Geben Sie die Verbindungsdaten für die lokale Modbus-TCP-Verbindung dieses Geräts ein. Dies ist optional und ergänzt die Cloud-Verbindung um zusätzliche Sensoren - sie ersetzt sie nicht.",
         "data": {
-          "device_sn": "Device",
+          "device_sn": "Gerät",
           "host": "Host",
           "port": "Port"
         }
       },
       "add_devices": {
         "title": "BLUETTI-Geräte hinzufügen",
-        "description": "Wählen Sie weitere Geräte aus, die mit Ihrem BLUETTI-Konto verknüpft sind und die Sie zu Home Assistant hinzufügen möchten.",
+        "description": "Wählen Sie zusätzliche Geräte aus Ihrem BLUETTI-Konto aus, die Sie zu Home Assistant hinzufügen möchten.",
         "data": {
           "devices": "Geräte"
         }
@@ -59,7 +59,7 @@
       "cannot_connect": "Verbindung zum BLUETTI-Server fehlgeschlagen. Bitte versuchen Sie es erneut."
     },
     "error": {
-      "cannot_connect": "Failed to connect"
+      "cannot_connect": "Verbindung fehlgeschlagen"
     }
   },
   "exceptions": {
@@ -73,7 +73,7 @@
       "message": "Ungültige Option {option} für {fn_code}"
     },
     "modbus_error": {
-      "message": "Error communicating with the device over Modbus: {error}"
+      "message": "Fehler bei der Kommunikation mit dem Gerät über Modbus: {error}"
     }
   },
   "issues": {
@@ -85,136 +85,136 @@
   "entity": {
     "sensor": {
       "ac_o_e_total": {
-        "name": "Total AC Output Energy"
+        "name": "Gesamte AC-Ausgangsenergie"
       },
       "ac_o_switch": {
-        "name": "AC Output Switch"
+        "name": "AC-Ausgangsschalter"
       },
       "b_c": {
-        "name": "Battery Current"
+        "name": "Batteriestrom"
       },
       "b_c_total": {
-        "name": "Total Battery Current"
+        "name": "Gesamter Batteriestrom"
       },
       "b_cell_count": {
-        "name": "Cell Count"
+        "name": "Zellenanzahl"
       },
       "b_cycle_count": {
-        "name": "Battery Cycle Count"
+        "name": "Batteriezyklen"
       },
       "b_i_e": {
-        "name": "Total Battery Charged Energy"
+        "name": "Gesamte geladene Batterieenergie"
       },
       "b_ntc_count": {
-        "name": "Temperature Sensor Count"
+        "name": "Anzahl Temperatursensoren"
       },
       "b_o_e": {
-        "name": "Total Battery Discharged Energy"
+        "name": "Gesamte entladene Batterieenergie"
       },
       "b_soc_high": {
-        "name": "Max Charge Limit (SoC High)"
+        "name": "Obere Ladegrenze (SoC)"
       },
       "b_soc_low": {
-        "name": "Min Discharge Limit (SoC Low)"
+        "name": "Untere Entladegrenze (SoC)"
       },
       "b_soh": {
-        "name": "Battery SoH"
+        "name": "Batteriezustand (SoH)"
       },
       "b_soh_total": {
-        "name": "Total Battery SoH"
+        "name": "Gesamter Batteriezustand (SoH)"
       },
       "b_t_avg": {
-        "name": "Average Battery Temperature"
+        "name": "Durchschnittliche Batterietemperatur"
       },
       "b_type": {
-        "name": "Battery Type"
+        "name": "Batterietyp"
       },
       "b_v": {
-        "name": "Battery Voltage"
+        "name": "Batteriespannung"
       },
       "b_v_total": {
-        "name": "Total Battery Voltage"
+        "name": "Gesamte Batteriespannung"
       },
       "d_inverter_fault": {
-        "name": "Inverter Fault"
+        "name": "Wechselrichterfehler"
       },
       "d_inverter_status": {
-        "name": "Inverter Status"
+        "name": "Wechselrichterstatus"
       },
       "d_inverter_total": {
-        "name": "Total Inverter Power"
+        "name": "Gesamte Wechselrichterleistung"
       },
       "d_inverter_type": {
-        "name": "Inverter Type"
+        "name": "Wechselrichtertyp"
       },
       "d_inverter_warning": {
-        "name": "Inverter Warning"
+        "name": "Wechselrichterwarnung"
       },
       "d_num_battery_packs": {
-        "name": "Number of Battery Packs"
+        "name": "Anzahl Batteriepacks"
       },
       "d_num_inverters": {
-        "name": "Inverter Count"
+        "name": "Anzahl Wechselrichter"
       },
       "g_i_e_total": {
-        "name": "Total Grid Import Energy"
+        "name": "Gesamte Netzbezugsenergie"
       },
       "g_i_f": {
-        "name": "Grid Frequency"
+        "name": "Netzfrequenz"
       },
       "g_i_switch": {
-        "name": "Grid Charging Switch"
+        "name": "Netzladeschalter"
       },
       "g_o_e_total": {
-        "name": "Total Grid Export Energy"
+        "name": "Gesamte Netzeinspeiseenergie"
       },
       "g_o_switch": {
-        "name": "Grid Feed-in Switch"
+        "name": "Netzeinspeiseschalter"
       },
       "pv_1_i_c": {
-        "name": "PV 1 Input Current"
+        "name": "PV-1-Eingangsstrom"
       },
       "pv_1_i_p": {
-        "name": "PV 1 Input Power"
+        "name": "PV-1-Eingangsleistung"
       },
       "pv_1_i_v": {
-        "name": "PV 1 Input Voltage"
+        "name": "PV-1-Eingangsspannung"
       },
       "pv_2_i_c": {
-        "name": "PV 2 Input Current"
+        "name": "PV-2-Eingangsstrom"
       },
       "pv_2_i_p": {
-        "name": "PV 2 Input Power"
+        "name": "PV-2-Eingangsleistung"
       },
       "pv_2_i_v": {
-        "name": "PV 2 Input Voltage"
+        "name": "PV-2-Eingangsspannung"
       },
       "pv_3_i_c": {
-        "name": "PV 3 Input Current"
+        "name": "PV-3-Eingangsstrom"
       },
       "pv_3_i_p": {
-        "name": "PV 3 Input Power"
+        "name": "PV-3-Eingangsleistung"
       },
       "pv_3_i_v": {
-        "name": "PV 3 Input Voltage"
+        "name": "PV-3-Eingangsspannung"
       },
       "pv_4_i_c": {
-        "name": "PV 4 Input Current"
+        "name": "PV-4-Eingangsstrom"
       },
       "pv_4_i_p": {
-        "name": "PV 4 Input Power"
+        "name": "PV-4-Eingangsleistung"
       },
       "pv_4_i_v": {
-        "name": "PV 4 Input Voltage"
+        "name": "PV-4-Eingangsspannung"
       },
       "pv_ac_e": {
-        "name": "PV AC Energy"
+        "name": "PV-AC-Energie"
       },
       "pv_ac_p": {
-        "name": "PV AC Power"
+        "name": "PV-AC-Leistung"
       },
       "pv_i_e_total": {
-        "name": "Total PV Input Energy"
+        "name": "Gesamte PV-Eingangsenergie"
       }
     }
   }

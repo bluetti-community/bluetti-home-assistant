@@ -29,25 +29,25 @@
   "options": {
     "step": {
       "init": {
-        "title": "BLUETTI options",
-        "description": "What would you like to do?",
+        "title": "Параметри BLUETTI",
+        "description": "Що ви хочете зробити?",
         "menu_options": {
-          "add_devices": "Add BLUETTI devices",
-          "configure_modbus": "Configure local Modbus"
+          "add_devices": "Додати пристрої BLUETTI",
+          "configure_modbus": "Налаштувати локальний Modbus"
         }
       },
       "configure_modbus": {
-        "title": "Configure local Modbus",
-        "description": "Enter the local Modbus TCP connection details for this device. This is optional and supplements the cloud connection with additional sensors - it does not replace it.",
+        "title": "Налаштувати локальний Modbus",
+        "description": "Введіть дані локального підключення Modbus TCP для цього пристрою. Це необов'язково і доповнює хмарне з'єднання додатковими датчиками - не замінює його.",
         "data": {
-          "device_sn": "Device",
-          "host": "Host",
-          "port": "Port"
+          "device_sn": "Пристрій",
+          "host": "Хост",
+          "port": "Порт"
         }
       },
       "add_devices": {
         "title": "Додати пристрої BLUETTI",
-        "description": "Виберіть додаткові пристрої, прив'язані до вашого облікового запису BLUETTI, які ви хочете додати до Home Assistant.",
+        "description": "Виберіть додаткові пристрої, пов'язані з вашим обліковим записом BLUETTI, які ви хочете додати до Home Assistant.",
         "data": {
           "devices": "Пристрої"
         }
@@ -59,7 +59,7 @@
       "cannot_connect": "Не вдалося підключитися до сервера BLUETTI. Спробуйте ще раз."
     },
     "error": {
-      "cannot_connect": "Failed to connect"
+      "cannot_connect": "Не вдалося підключитися"
     }
   },
   "exceptions": {
@@ -73,7 +73,7 @@
       "message": "Недійсний варіант {option} для {fn_code}"
     },
     "modbus_error": {
-      "message": "Error communicating with the device over Modbus: {error}"
+      "message": "Помилка зв'язку з пристроєм через Modbus: {error}"
     }
   },
   "issues": {
@@ -85,136 +85,136 @@
   "entity": {
     "sensor": {
       "ac_o_e_total": {
-        "name": "Total AC Output Energy"
+        "name": "Загальна енергія виходу змінного струму"
       },
       "ac_o_switch": {
-        "name": "AC Output Switch"
+        "name": "Перемикач виходу змінного струму"
       },
       "b_c": {
-        "name": "Battery Current"
+        "name": "Струм батареї"
       },
       "b_c_total": {
-        "name": "Total Battery Current"
+        "name": "Загальний струм батареї"
       },
       "b_cell_count": {
-        "name": "Cell Count"
+        "name": "Кількість елементів"
       },
       "b_cycle_count": {
-        "name": "Battery Cycle Count"
+        "name": "Кількість циклів батареї"
       },
       "b_i_e": {
-        "name": "Total Battery Charged Energy"
+        "name": "Загальна заряджена енергія батареї"
       },
       "b_ntc_count": {
-        "name": "Temperature Sensor Count"
+        "name": "Кількість датчиків температури"
       },
       "b_o_e": {
-        "name": "Total Battery Discharged Energy"
+        "name": "Загальна розряджена енергія батареї"
       },
       "b_soc_high": {
-        "name": "Max Charge Limit (SoC High)"
+        "name": "Верхня межа заряду (SoC)"
       },
       "b_soc_low": {
-        "name": "Min Discharge Limit (SoC Low)"
+        "name": "Нижня межа розряду (SoC)"
       },
       "b_soh": {
-        "name": "Battery SoH"
+        "name": "Стан батареї (SoH)"
       },
       "b_soh_total": {
-        "name": "Total Battery SoH"
+        "name": "Загальний стан батареї (SoH)"
       },
       "b_t_avg": {
-        "name": "Average Battery Temperature"
+        "name": "Середня температура батареї"
       },
       "b_type": {
-        "name": "Battery Type"
+        "name": "Тип батареї"
       },
       "b_v": {
-        "name": "Battery Voltage"
+        "name": "Напруга батареї"
       },
       "b_v_total": {
-        "name": "Total Battery Voltage"
+        "name": "Загальна напруга батареї"
       },
       "d_inverter_fault": {
-        "name": "Inverter Fault"
+        "name": "Несправність інвертора"
       },
       "d_inverter_status": {
-        "name": "Inverter Status"
+        "name": "Стан інвертора"
       },
       "d_inverter_total": {
-        "name": "Total Inverter Power"
+        "name": "Загальна потужність інвертора"
       },
       "d_inverter_type": {
-        "name": "Inverter Type"
+        "name": "Тип інвертора"
       },
       "d_inverter_warning": {
-        "name": "Inverter Warning"
+        "name": "Попередження інвертора"
       },
       "d_num_battery_packs": {
-        "name": "Number of Battery Packs"
+        "name": "Кількість батарейних блоків"
       },
       "d_num_inverters": {
-        "name": "Inverter Count"
+        "name": "Кількість інверторів"
       },
       "g_i_e_total": {
-        "name": "Total Grid Import Energy"
+        "name": "Загальна імпортована з мережі енергія"
       },
       "g_i_f": {
-        "name": "Grid Frequency"
+        "name": "Частота мережі"
       },
       "g_i_switch": {
-        "name": "Grid Charging Switch"
+        "name": "Перемикач заряджання від мережі"
       },
       "g_o_e_total": {
-        "name": "Total Grid Export Energy"
+        "name": "Загальна експортована в мережу енергія"
       },
       "g_o_switch": {
-        "name": "Grid Feed-in Switch"
+        "name": "Перемикач подачі в мережу"
       },
       "pv_1_i_c": {
-        "name": "PV 1 Input Current"
+        "name": "Струм входу PV 1"
       },
       "pv_1_i_p": {
-        "name": "PV 1 Input Power"
+        "name": "Потужність входу PV 1"
       },
       "pv_1_i_v": {
-        "name": "PV 1 Input Voltage"
+        "name": "Напруга входу PV 1"
       },
       "pv_2_i_c": {
-        "name": "PV 2 Input Current"
+        "name": "Струм входу PV 2"
       },
       "pv_2_i_p": {
-        "name": "PV 2 Input Power"
+        "name": "Потужність входу PV 2"
       },
       "pv_2_i_v": {
-        "name": "PV 2 Input Voltage"
+        "name": "Напруга входу PV 2"
       },
       "pv_3_i_c": {
-        "name": "PV 3 Input Current"
+        "name": "Струм входу PV 3"
       },
       "pv_3_i_p": {
-        "name": "PV 3 Input Power"
+        "name": "Потужність входу PV 3"
       },
       "pv_3_i_v": {
-        "name": "PV 3 Input Voltage"
+        "name": "Напруга входу PV 3"
       },
       "pv_4_i_c": {
-        "name": "PV 4 Input Current"
+        "name": "Струм входу PV 4"
       },
       "pv_4_i_p": {
-        "name": "PV 4 Input Power"
+        "name": "Потужність входу PV 4"
       },
       "pv_4_i_v": {
-        "name": "PV 4 Input Voltage"
+        "name": "Напруга входу PV 4"
       },
       "pv_ac_e": {
-        "name": "PV AC Energy"
+        "name": "Енергія PV змінного струму"
       },
       "pv_ac_p": {
-        "name": "PV AC Power"
+        "name": "Потужність PV змінного струму"
       },
       "pv_i_e_total": {
-        "name": "Total PV Input Energy"
+        "name": "Загальна вхідна енергія PV"
       }
     }
   }

@@ -29,20 +29,20 @@
   "options": {
     "step": {
       "init": {
-        "title": "BLUETTI options",
-        "description": "What would you like to do?",
+        "title": "Opções BLUETTI",
+        "description": "O que você gostaria de fazer?",
         "menu_options": {
-          "add_devices": "Add BLUETTI devices",
-          "configure_modbus": "Configure local Modbus"
+          "add_devices": "Adicionar dispositivos BLUETTI",
+          "configure_modbus": "Configurar Modbus local"
         }
       },
       "configure_modbus": {
-        "title": "Configure local Modbus",
-        "description": "Enter the local Modbus TCP connection details for this device. This is optional and supplements the cloud connection with additional sensors - it does not replace it.",
+        "title": "Configurar Modbus local",
+        "description": "Insira os dados de conexão Modbus TCP local para este dispositivo. Isso é opcional e complementa a conexão em nuvem com sensores adicionais - não a substitui.",
         "data": {
-          "device_sn": "Device",
+          "device_sn": "Dispositivo",
           "host": "Host",
-          "port": "Port"
+          "port": "Porta"
         }
       },
       "add_devices": {
@@ -59,7 +59,7 @@
       "cannot_connect": "Falha ao conectar ao servidor BLUETTI. Tente novamente."
     },
     "error": {
-      "cannot_connect": "Failed to connect"
+      "cannot_connect": "Falha ao conectar"
     }
   },
   "exceptions": {
@@ -73,7 +73,7 @@
       "message": "Opção {option} inválida para {fn_code}"
     },
     "modbus_error": {
-      "message": "Error communicating with the device over Modbus: {error}"
+      "message": "Erro de comunicação com o dispositivo via Modbus: {error}"
     }
   },
   "issues": {
@@ -85,136 +85,136 @@
   "entity": {
     "sensor": {
       "ac_o_e_total": {
-        "name": "Total AC Output Energy"
+        "name": "Energia total de saída CA"
       },
       "ac_o_switch": {
-        "name": "AC Output Switch"
+        "name": "Interruptor de saída CA"
       },
       "b_c": {
-        "name": "Battery Current"
+        "name": "Corrente da bateria"
       },
       "b_c_total": {
-        "name": "Total Battery Current"
+        "name": "Corrente total da bateria"
       },
       "b_cell_count": {
-        "name": "Cell Count"
+        "name": "Número de células"
       },
       "b_cycle_count": {
-        "name": "Battery Cycle Count"
+        "name": "Ciclos da bateria"
       },
       "b_i_e": {
-        "name": "Total Battery Charged Energy"
+        "name": "Energia total carregada na bateria"
       },
       "b_ntc_count": {
-        "name": "Temperature Sensor Count"
+        "name": "Número de sensores de temperatura"
       },
       "b_o_e": {
-        "name": "Total Battery Discharged Energy"
+        "name": "Energia total descarregada da bateria"
       },
       "b_soc_high": {
-        "name": "Max Charge Limit (SoC High)"
+        "name": "Limite superior de carga (SoC)"
       },
       "b_soc_low": {
-        "name": "Min Discharge Limit (SoC Low)"
+        "name": "Limite inferior de descarga (SoC)"
       },
       "b_soh": {
-        "name": "Battery SoH"
+        "name": "Saúde da bateria (SoH)"
       },
       "b_soh_total": {
-        "name": "Total Battery SoH"
+        "name": "Saúde total da bateria (SoH)"
       },
       "b_t_avg": {
-        "name": "Average Battery Temperature"
+        "name": "Temperatura média da bateria"
       },
       "b_type": {
-        "name": "Battery Type"
+        "name": "Tipo de bateria"
       },
       "b_v": {
-        "name": "Battery Voltage"
+        "name": "Tensão da bateria"
       },
       "b_v_total": {
-        "name": "Total Battery Voltage"
+        "name": "Tensão total da bateria"
       },
       "d_inverter_fault": {
-        "name": "Inverter Fault"
+        "name": "Falha do inversor"
       },
       "d_inverter_status": {
-        "name": "Inverter Status"
+        "name": "Status do inversor"
       },
       "d_inverter_total": {
-        "name": "Total Inverter Power"
+        "name": "Potência total do inversor"
       },
       "d_inverter_type": {
-        "name": "Inverter Type"
+        "name": "Tipo de inversor"
       },
       "d_inverter_warning": {
-        "name": "Inverter Warning"
+        "name": "Aviso do inversor"
       },
       "d_num_battery_packs": {
-        "name": "Number of Battery Packs"
+        "name": "Número de packs de bateria"
       },
       "d_num_inverters": {
-        "name": "Inverter Count"
+        "name": "Número de inversores"
       },
       "g_i_e_total": {
-        "name": "Total Grid Import Energy"
+        "name": "Energia total importada da rede"
       },
       "g_i_f": {
-        "name": "Grid Frequency"
+        "name": "Frequência da rede"
       },
       "g_i_switch": {
-        "name": "Grid Charging Switch"
+        "name": "Interruptor de carregamento pela rede"
       },
       "g_o_e_total": {
-        "name": "Total Grid Export Energy"
+        "name": "Energia total exportada para a rede"
       },
       "g_o_switch": {
-        "name": "Grid Feed-in Switch"
+        "name": "Interruptor de injeção na rede"
       },
       "pv_1_i_c": {
-        "name": "PV 1 Input Current"
+        "name": "Corrente de entrada PV 1"
       },
       "pv_1_i_p": {
-        "name": "PV 1 Input Power"
+        "name": "Potência de entrada PV 1"
       },
       "pv_1_i_v": {
-        "name": "PV 1 Input Voltage"
+        "name": "Tensão de entrada PV 1"
       },
       "pv_2_i_c": {
-        "name": "PV 2 Input Current"
+        "name": "Corrente de entrada PV 2"
       },
       "pv_2_i_p": {
-        "name": "PV 2 Input Power"
+        "name": "Potência de entrada PV 2"
       },
       "pv_2_i_v": {
-        "name": "PV 2 Input Voltage"
+        "name": "Tensão de entrada PV 2"
       },
       "pv_3_i_c": {
-        "name": "PV 3 Input Current"
+        "name": "Corrente de entrada PV 3"
       },
       "pv_3_i_p": {
-        "name": "PV 3 Input Power"
+        "name": "Potência de entrada PV 3"
       },
       "pv_3_i_v": {
-        "name": "PV 3 Input Voltage"
+        "name": "Tensão de entrada PV 3"
       },
       "pv_4_i_c": {
-        "name": "PV 4 Input Current"
+        "name": "Corrente de entrada PV 4"
       },
       "pv_4_i_p": {
-        "name": "PV 4 Input Power"
+        "name": "Potência de entrada PV 4"
       },
       "pv_4_i_v": {
-        "name": "PV 4 Input Voltage"
+        "name": "Tensão de entrada PV 4"
       },
       "pv_ac_e": {
-        "name": "PV AC Energy"
+        "name": "Energia CA do PV"
       },
       "pv_ac_p": {
-        "name": "PV AC Power"
+        "name": "Potência CA do PV"
       },
       "pv_i_e_total": {
-        "name": "Total PV Input Energy"
+        "name": "Energia total de entrada PV"
       }
     }
   }
