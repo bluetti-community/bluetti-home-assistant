@@ -5,9 +5,10 @@ from .const import DOMAIN
 from .oauth import OAuth2FlowHandler
 from .api.bluetti import APPLICATION_PROFILE
 
+
 class BluettiConfigFlow(OAuth2FlowHandler, domain=DOMAIN):
     """BLUETTI Custom Integration config flow."""
-    
+
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         # 在配置流开始时导入默认的客户端凭据
@@ -15,6 +16,7 @@ class BluettiConfigFlow(OAuth2FlowHandler, domain=DOMAIN):
         await async_import_client_credential(
             self.hass,
             DOMAIN,
-            ClientCredential("HomeAssistant", "SG9tZUFzc2lzdGFudA=="),
+            ClientCredential(APPLICATION_PROFILE.config["oauth"]["client-id"],
+                             APPLICATION_PROFILE.config["oauth"]["client-secret"]),
         )
         return await super().async_step_user(user_input)

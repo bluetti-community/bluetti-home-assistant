@@ -17,11 +17,14 @@ __LOGGER__ = logging.getLogger(__name__)
 
 
 class StompClient(object):
-    def __init__(self, url: str, access_token: str, handler: Callable[[str], None] = None, hass: HomeAssistant = None):
+    def __init__(self, url: str, access_token: str, app_key: str, handler: Callable[[str], None] = None,
+                 hass: HomeAssistant = None):
         self.__url = url
         self.__headers = {
             "Host": self.__get_host(url),
-            "Authorization": access_token
+            "Authorization": access_token,
+            "x-os": "open",
+            "x-app-key": app_key
         }
         self.listener = StompListener(self, handler)
         self.hass = hass
@@ -92,6 +95,8 @@ class StompClient(object):
                    "Host:" + self.__headers["Host"] + "\n"
                    "Authorization:" + self.__headers["Authorization"] + "\n"
                    "heart-beat:" + str(interval) + "," + str(interval) + "\n"
+                   "x-os:" + self.__headers["x-os"] + "\n"
+                   "x-app-key:" + self.__headers["x-app-key"] + "\n"
                    "\n\x00")
 
         ws.send(connect)
@@ -166,12 +171,15 @@ class StompListener:
         if frame.cmd == "ERROR":
             error = frame.headers['message'].replace("\\c", ":")
             error = json.loads(error)
-            if error['msgCode'] == 805:
-                self.client.disconnect()
-                self.client.hass.bus.fire(EVENT_TOKEN_EXPIRED)
-                __LOGGER__.info("token have expired stop ws connect")
-            else:
-                raise ApplicationRuntimeException(msgCode=error['msgCode'], errMessage=error['message'])
+
+            match error['msgCode']:
+                case 400 | 403 | 805:
+                    self.client.disconnect()
+                    self.client.hass.bus.fire(EVENT_TOKEN_EXPIRED)
+                    __LOGGER__.error("Websocket connection terminated: " + error['message'])
+                case _:
+                    raise ApplicationRuntimeException(msgCode=error['msgCode'], errMessage=error['message'])
+
         elif frame.cmd == "CONNECTED":
             heartbeat = frame.headers.get('heart-beat', '0,0')
             server_send, server_receive = map(int, heartbeat.split(','))
@@ -182,7 +190,7 @@ class StompListener:
             # proposal and the server's configuration is adopted (in accordance with the STOMP specification)
             client_propose_ms = self.client.heartbeat_interval * 1000
             negotiated_ms = max(client_propose_ms, server_send, server_receive)
-            self.client.heartbeat_interval = negotiated_ms / 1000
+            self.client.heartbeat_interval = negotiated_ms // 1000
             __LOGGER__.debug(f"Heartbeat negotiated: {self.client.heartbeat_interval}s")
 
             # These codes were contributed by @chpego
@@ -197,6 +205,7 @@ class StompListener:
             # subscribe
             destination = f"/ws-subscribe/user/{username}/notify"
             self.__on_subscribe(ws, destination)
+
         elif frame.cmd == "MESSAGE":
             self.__callback(self.__handler, frame.body)
             # print(frame.body)

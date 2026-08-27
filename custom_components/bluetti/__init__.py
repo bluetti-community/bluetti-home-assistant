@@ -130,7 +130,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         ws_url = ws_protocol + ws_url + "/api/edgeiotgw/ws-coordination/websocket"
         # print(ws_url)
         # Register WebSocket
-        stomp_client = StompClient(ws_url, access_token, bluetti_devices.web_socket_message_handler, hass)
+        stomp_client = StompClient(ws_url, access_token, APPLICATION_PROFILE.config["server"]["app-key"],
+                                   bluetti_devices.web_socket_message_handler, hass)
         stomp_client.connect()
 
     # initialize data storage structure

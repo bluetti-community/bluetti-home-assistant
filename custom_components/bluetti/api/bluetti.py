@@ -11,7 +11,7 @@ from pydantic import TypeAdapter
 from homeassistant.core import HomeAssistant
 
 from .unify_response import UnifyResponse
-from ..const import Method,EVENT_TOKEN_EXPIRED
+from ..const import Method, EVENT_TOKEN_EXPIRED
 from ..application_exception import ApplicationRuntimeException
 from ..profile.application_profile import ApplicationProfile
 
@@ -62,16 +62,16 @@ class Bluetti(Generic[T]):
                                                    path,
                                                    params,
                                                    body)
-        if isinstance(response,UnifyResponse) and response.msgCode == 805:
+        if isinstance(response, UnifyResponse) and response.msgCode == 805:
             if path.endswith('/ha/v2/devices') or path.endswith('/ha/v1/devices'):
                 await asyncio.sleep(5)
             response_pry = await self._request_with_server(responseType,
-                                                                method,
-                                                                APPLICATION_PROFILE.config["server"]["gatewaypry"],
-                                                                path,
-                                                                params,
-                                                                body)
-            if isinstance(response_pry,UnifyResponse) and response_pry.msgCode == 805:
+                                                           method,
+                                                           APPLICATION_PROFILE.config["server"]["gatewaypry"],
+                                                           path,
+                                                           params,
+                                                           body)
+            if isinstance(response_pry, UnifyResponse) and response_pry.msgCode == 805:
                 self._hass.bus.fire(EVENT_TOKEN_EXPIRED)
                 self.logger.info("token have expired")
             return response_pry;
@@ -99,6 +99,8 @@ class Bluetti(Generic[T]):
 
         headers = {
             "Authorization": f"{self._accessToken}",
+            "x-os": "open",
+            "x-app-key": f"{APPLICATION_PROFILE.config["server"]["app-key"]}"
         }
 
         # Remove None values from params and json
@@ -123,7 +125,7 @@ class Bluetti(Generic[T]):
             if not response.ok:
                 # await raise_for_status(resp)
                 errText = await response.text()
-                self.logger.error("response.status:%s text:%s",response.status,errText)
+                self.logger.error("response.status:%s text:%s", response.status, errText)
                 raise ApplicationRuntimeException(msgCode=response.status, data=errText)
 
             # if not response.content_type.lower().startswith("application/json"):
