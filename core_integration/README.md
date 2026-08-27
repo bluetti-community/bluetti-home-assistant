@@ -134,10 +134,28 @@ Not yet submitted - `home-assistant.io` PRs are normally opened alongside or
 after the `home-assistant/core` PR itself, once a reviewer has actually seen
 the code.
 
+## `home-assistant/brands` (2026-08-27)
+
+Checked `home-assistant/brands` directly: this repo already has a real,
+approved entry at `custom_integrations/bluetti/` (`icon.png`, `icon@2x.png`,
+`logo.png`, `logo@2x.png`) - required for the HACS listing this integration
+already has. No new artwork is needed for Core; the only remaining step is
+moving those same files to `core_integrations/bluetti/`, which is normally
+done as part of/alongside the actual `home-assistant/core` PR, not before it
+exists.
+
+Staged a copy of the real, existing assets (downloaded from
+`home-assistant/brands` directly, not recreated) at
+`brands/core_integrations/bluetti/` here, so the eventual move is a copy of
+already-prepared files rather than a from-scratch brands PR.
+
 ## What's still blocking an actual submission
 
-- A `home-assistant/brands` entry for `core_integrations/bluetti` (brands
-  entries are normally added during actual PR review, not preemptively).
-- Actually opening the `home-assistant/core` and `home-assistant.io` PRs -
-  both are real, publicly visible actions this draft branch deliberately
-  stops short of.
+Everything above is prepared and verified. What's left is entirely the act
+of submitting, each a real, publicly visible action on an external repo that
+this draft branch deliberately stops short of without explicit go-ahead:
+
+- Opening the `home-assistant/core` PR itself.
+- Moving the `brands/core_integrations/bluetti/` files staged here into a
+  PR against `home-assistant/brands`.
+- Opening the `home-assistant.io` documentation PR.
