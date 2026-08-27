@@ -63,6 +63,32 @@ missing test docstrings (`D103`), a few blind `except Exception` clauses
 (`BLE001`), and non-lowercase local variables (`N806`) - real cleanup work
 before an actual submission, not something introduced by the Modbus rework.
 
+## `quality_scale.yaml` audit (2026-08-27)
+
+Went through every rule against the `async_get_unit` architecture. Most of
+the wording (discovery, entity-translations, dependency-transparency) was
+already accurate regardless of which Modbus client owns the connection, so
+no rule status changed. The audit did catch two real issues in the code
+itself, both now fixed:
+
+- `options_flow.py`'s one-off connectivity check (used when the user
+  configures a device's local Modbus connection) was still instantiating
+  `BluettiModbusClient` directly - the exact "competing connection" problem
+  the coordinator rewrite was meant to eliminate, just in a different spot.
+  Fixed to use `async_get_temporary_unit`, the API `connection.py` documents
+  as built specifically for config/options flows with no config entry yet to
+  hold a persistent unit.
+- Two comments in `__init__.py` (`async_unload_entry` and
+  `async_remove_config_entry_device`) still described the old
+  `BluettiModbusCoordinator.async_shutdown()`-closes-the-connection behavior,
+  which no longer exists. Updated to describe what was verified by reading
+  `homeassistant/components/modbus/connection.py` directly: `async_get_unit`
+  registers its own release callback via `entry.async_on_unload`, scoped to
+  the whole config entry - so removing a single device (as opposed to
+  unloading the entry) does not release that device's Modbus connection
+  early. This is a characteristic of the platform API every integration
+  using `async_get_unit` shares, not a bug specific to this integration.
+
 ## What's still blocking an actual submission
 
 - The pre-existing ruff debt noted above, across the files not touched by
@@ -71,6 +97,3 @@ before an actual submission, not something introduced by the Modbus rework.
   entries are normally added during actual PR review, not preemptively).
 - `home-assistant.io` documentation, using the RC/beta doc pages for
   `fronius`, `sofar`, and `flexit` as templates.
-- A final `quality_scale.yaml` audit now that Modbus uses `async_get_unit`
-  instead of a private connection (discovery/entity-translations exemption
-  wording especially).

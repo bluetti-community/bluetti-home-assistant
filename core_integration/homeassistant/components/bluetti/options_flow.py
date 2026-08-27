@@ -1,5 +1,4 @@
-"""
-Options flow for the BLUETTI integration.
+"""Options flow for the BLUETTI integration.
 
 Lets the user add devices bound to their BLUETTI account after the initial
 setup, without going through the OAuth2 login flow again (the stored token
@@ -7,14 +6,18 @@ is reused), and lets the user configure an optional local Modbus connection
 for any enabled device that supports it (Balco260, EP2000).
 """
 
-from __future__ import annotations
-
 import logging
 from typing import Any
 
+from bluetti_modbus_lib import get_device
+from modbus_connection import ModbusTcpParams
+from modbus_connection.exceptions import ModbusError
+from pybluetti import ProductClient, UserProduct
 import voluptuous as vol
-from bluetti_modbus_lib.modbus.client import BluettiModbusClient
+
+from homeassistant.components.modbus import async_get_temporary_unit
 from homeassistant.config_entries import ConfigEntry, ConfigFlowResult, OptionsFlow
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
@@ -23,8 +26,6 @@ from homeassistant.helpers.selector import (
     NumberSelectorMode,
     TextSelector,
 )
-from modbus_connection.exceptions import ModbusError
-from pybluetti import ProductClient, UserProduct
 
 from .const import EVENT_TOKEN_EXPIRED
 from .modbus_support import modbus_dev_type_for_model
@@ -161,18 +162,28 @@ class BluettiOptionsFlowHandler(OptionsFlow):
             host = user_input["host"]
             port = user_input["port"]
             dev_type = modbus_dev_type_for_model(modbus_capable[sn].model)
-            assert dev_type is not None, (  # noqa: S101 - a real invariant, not test-only theater
+            assert dev_type is not None, (
                 "device_sn is only offered from modbus_capable, which is already filtered by dev_type"
             )
 
-            client = BluettiModbusClient(host, port, dev_type)
             try:
-                await client.read()
-            except (ModbusError, TimeoutError) as err:
+                # A one-off connectivity check, not a persistent connection -
+                # async_get_temporary_unit shares a connection already held by
+                # a config entry (e.g. re-testing a device that's already
+                # configured) and closes what it opens itself, same as the
+                # coordinator's async_get_unit does for entry-lifetime holds.
+                async with async_get_temporary_unit(
+                    self.hass, ModbusTcpParams(host=host, port=port), 1
+                ) as unit:
+                    device = get_device(dev_type, unit)
+                    assert device is not None, (
+                        "dev_type comes from modbus_dev_type_for_model, which"
+                        " only returns types get_device recognizes"
+                    )
+                    await device.async_update()
+            except (ModbusError, TimeoutError, HomeAssistantError) as err:
                 errors["base"] = "cannot_connect"
                 description_placeholders["error"] = str(err)
-            finally:
-                await client.aclose()
 
             if not errors:
                 modbus_options = {

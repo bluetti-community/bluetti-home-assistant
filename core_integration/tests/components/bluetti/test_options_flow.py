@@ -1,16 +1,18 @@
 """Tests for the BLUETTI options flow (add devices without re-authenticating)."""
 
+from contextlib import asynccontextmanager, contextmanager
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from homeassistant.helpers.json import JSONEncoder
 from modbus_connection.exceptions import ModbusConnectionError
 from pybluetti import UserProduct
-from tests.common import MockConfigEntry
 
 from homeassistant.components.bluetti.const import DOMAIN
 from homeassistant.components.bluetti.options_flow import BluettiOptionsFlowHandler
+from homeassistant.helpers.json import JSONEncoder
+
+from tests.common import MockConfigEntry
 
 
 def _flow(hass, entry) -> BluettiOptionsFlowHandler:
@@ -18,6 +20,32 @@ def _flow(hass, entry) -> BluettiOptionsFlowHandler:
     flow.hass = hass
     flow.handler = entry.entry_id
     return flow
+
+
+def _temporary_unit_cm(unit=None):
+    """Build a stand-in for async_get_temporary_unit's async context manager."""
+
+    @asynccontextmanager
+    async def _cm(*_args, **_kwargs):
+        yield unit
+
+    return _cm
+
+
+@contextmanager
+def _patched_modbus(device):
+    """Patch the options flow's connectivity check to use this fake device."""
+    with (
+        patch(
+            "homeassistant.components.bluetti.options_flow.async_get_temporary_unit",
+            _temporary_unit_cm(),
+        ),
+        patch(
+            "homeassistant.components.bluetti.options_flow.get_device",
+            return_value=device,
+        ) as mock_get_device,
+    ):
+        yield mock_get_device
 
 
 def _entry(hass, *, products=None, devices=None, modbus=None) -> MockConfigEntry:
@@ -243,11 +271,10 @@ async def test_configure_modbus_preserves_just_typed_values_after_a_failed_attem
         devices=["SN1"],
     )
     flow = _flow(hass, entry)
-    client = MagicMock()
-    client.read = AsyncMock(side_effect=ModbusConnectionError("no route to host"))
-    client.aclose = AsyncMock()
+    device = MagicMock()
+    device.async_update = AsyncMock(side_effect=ModbusConnectionError("no route to host"))
 
-    with patch("homeassistant.components.bluetti.options_flow.BluettiModbusClient", return_value=client):
+    with _patched_modbus(device):
         result = await flow.async_step_configure_modbus(
             user_input={"device_sn": "SN1", "host": "10.2.1.99", "port": 1503}
         )
@@ -264,19 +291,15 @@ async def test_configure_modbus_success_stores_connection_in_options(hass):
         devices=["SN1"],
     )
     flow = _flow(hass, entry)
-    client = MagicMock()
-    client.read = AsyncMock(return_value=[])
-    client.aclose = AsyncMock()
+    device = MagicMock()
+    device.async_update = AsyncMock()
 
-    with patch(
-        "homeassistant.components.bluetti.options_flow.BluettiModbusClient", return_value=client
-    ) as client_cls:
+    with _patched_modbus(device) as mock_get_device:
         result = await flow.async_step_configure_modbus(
             user_input={"device_sn": "SN1", "host": "10.2.1.60", "port": 502}
         )
 
-    client_cls.assert_called_once_with("10.2.1.60", 502, "balco260")
-    client.aclose.assert_awaited_once()
+    mock_get_device.assert_called_once_with("balco260", None)
     assert result["type"] == "create_entry"
     # async_create_entry's data REPLACES entry.options wholesale once the
     # real OptionsFlowManager applies it (not exercised by calling the step
@@ -293,18 +316,16 @@ async def test_configure_modbus_connection_failure_reshows_form_with_error(hass)
         devices=["SN1"],
     )
     flow = _flow(hass, entry)
-    client = MagicMock()
-    client.read = AsyncMock(side_effect=ModbusConnectionError("no route to host"))
-    client.aclose = AsyncMock()
+    device = MagicMock()
+    device.async_update = AsyncMock(side_effect=ModbusConnectionError("no route to host"))
 
-    with patch("homeassistant.components.bluetti.options_flow.BluettiModbusClient", return_value=client):
+    with _patched_modbus(device):
         result = await flow.async_step_configure_modbus(
             user_input={"device_sn": "SN1", "host": "10.2.1.60", "port": 502}
         )
 
     assert result["type"] == "form"
     assert result["errors"]["base"] == "cannot_connect"
-    client.aclose.assert_awaited_once()
 
     updated = hass.config_entries.async_get_entry(entry.entry_id)
     assert "modbus" not in updated.options
@@ -324,11 +345,10 @@ async def test_configure_modbus_through_real_flow_manager_preserves_devices(
         products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
         devices=["SN1"],
     )
-    client = MagicMock()
-    client.read = AsyncMock(return_value=[])
-    client.aclose = AsyncMock()
+    device = MagicMock()
+    device.async_update = AsyncMock()
 
-    with patch("homeassistant.components.bluetti.options_flow.BluettiModbusClient", return_value=client):
+    with _patched_modbus(device):
         result = await hass.config_entries.options.async_init(entry.entry_id)
         assert result["type"] == "menu"
 

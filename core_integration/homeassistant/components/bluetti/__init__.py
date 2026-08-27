@@ -221,9 +221,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> 
             __LOGGER__.warning("Error while disconnecting websocket: %s", e)
         # No explicit modbus_coordinators shutdown here: DataUpdateCoordinator
         # (constructed with config_entry=entry) already registers its own
-        # async_shutdown via config_entry.async_on_unload - calling it again
-        # here would run BluettiModbusCoordinator.async_shutdown()'s
-        # connection-closing side effect twice.
+        # async_shutdown via config_entry.async_on_unload, and the shared
+        # Modbus connection itself is released the same way - async_get_unit
+        # (see modbus_coordinator.py) registers its own release callback via
+        # entry.async_on_unload when the unit is first acquired.
     return unloaded
 
 async def async_remove_config_entry_device(
@@ -256,6 +257,15 @@ async def async_remove_config_entry_device(
                 await coordinator.async_shutdown()
             modbus_coordinator = runtime_data.modbus_coordinators.pop(device_id, None)
             if modbus_coordinator:
+                # This stops the coordinator's own polling, but - unlike the
+                # HACS build's BluettiModbusClient-owned connection - it does
+                # NOT release the underlying shared Modbus connection: that
+                # release callback was registered on the whole config entry
+                # by async_get_unit, not per device, so it only runs when the
+                # entry itself unloads. A device removed here leaves its
+                # connection open (unused) until then - a characteristic of
+                # async_get_unit's entry-scoped release, not a leak specific
+                # to this integration.
                 await modbus_coordinator.async_shutdown()
 
     current_devices = entry.options.get("devices", [])
