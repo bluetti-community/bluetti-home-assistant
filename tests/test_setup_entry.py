@@ -307,11 +307,6 @@ async def test_select_setup_entry_creates_select_and_controls_it(hass):
 async def test_sensor_setup_entry_creates_modbus_sensors_grouped_with_cloud_device(hass):
     from enum import Enum
 
-    from custom_components.bluetti.vendor.bluetti_modbus_lib.fields.field_extras import (
-        DeviceClass,
-        FieldCategory,
-        FieldStateClass,
-    )
     from custom_components.bluetti.vendor.bluetti_modbus_lib.modbus.client import (
         ClientReturnValue,
     )
@@ -328,29 +323,21 @@ async def test_sensor_setup_entry_creates_modbus_sensors_grouped_with_cloud_devi
             },
         ],
     )
+    # device_class/state_class/entity_category are no longer carried on
+    # ClientReturnValue (bluetti_modbus_lib doesn't know about HA entity
+    # concepts) - BluettiModbusSensor looks them up in
+    # modbus_field_metadata.MODBUS_FIELD_METADATA by field name instead, so
+    # these real field names exercise that lookup, not a mocked value.
     fields = {
         # Excluded - duplicates the cloud SOC sensor already added above.
-        "b_soc": ClientReturnValue(
-            name="b_soc", unit="%", value=42, category=None,
-            state_class=FieldStateClass.MEASUREMENT, device_class=DeviceClass.BATTERY,
-        ),
-        "b_cycle_count": ClientReturnValue(
-            name="b_cycle_count", unit=None, value=12,
-            category=FieldCategory.DIAGNOSTIC, state_class=None, device_class=None,
-        ),
+        "b_soc": ClientReturnValue(name="b_soc", unit="%", value=42),
+        "b_cycle_count": ClientReturnValue(name="b_cycle_count", unit=None, value=12),
         # CONFIG must be remapped to DIAGNOSTIC - SensorEntity forbids CONFIG.
-        "b_soc_high": ClientReturnValue(
-            name="b_soc_high", unit="%", value=100,
-            category=FieldCategory.CONFIG, state_class=None, device_class=None,
-        ),
+        "b_soc_high": ClientReturnValue(name="b_soc_high", unit="%", value=100),
         "d_inverter_status": ClientReturnValue(
-            name="d_inverter_status", unit=None, value=_FakeInverterStatus.STANDBY,
-            category=None, state_class=None, device_class=None,
+            name="d_inverter_status", unit=None, value=_FakeInverterStatus.STANDBY
         ),
-        "g_i_f": ClientReturnValue(
-            name="g_i_f", unit="Hz", value=50.0, category=None,
-            state_class=FieldStateClass.MEASUREMENT, device_class=DeviceClass.FREQUENCY,
-        ),
+        "g_i_f": ClientReturnValue(name="g_i_f", unit="Hz", value=50.0),
     }
     modbus_coordinator = MagicMock(data=fields)
 
