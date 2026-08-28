@@ -259,30 +259,94 @@ its own review comments (grammar, `ha_release`, `ha_quality_scale` synced to
 `silver`, dropped `binary_sensor`/`select`/`switch` content to match the
 sensor-only PR, a My-link for Settings navigation).
 
-## Follow-up platform PRs prepared, not opened (2026-08-27/28)
+## Deferred follow-up work - do not open any of this as a PR before #180440 merges
+
+Everything in this section shares the same constraint: it depends on
+`#180440`'s own base code (`__init__.py`, `entity.py`, `models.py`,
+`coordinator.py`) already being in `home-assistant/core`'s `dev` branch, so
+none of it can become its own real PR until `#180440` itself merges. This
+section exists so a future session (or person) doesn't have to
+reconstruct this list from git archaeology.
+
+### switch / select / binary_sensor platforms (planned since 2026-08-27/28)
 
 Per the real PR review guide (`pr_review_guide.md`: "Adding three new entity
 platforms at once is too much - split them"), `switch`, `select`, and
-`binary_sensor` (pulled from the first PR for the single-platform rule) are
-each being reintroduced as their own small Core PR + doc PR pair, once
-`#180440` merges - not before, since they depend on its base code
-(`__init__.py`, `entity.py`, `models.py`) already being in `dev`.
+`binary_sensor` were pulled from the first PR for the single-platform rule,
+each meant to come back as its own small Core PR + doc PR pair once
+`#180440` merges.
 
-Staged, verified, pushed to this repo's fork (not opened on GitHub):
-`core-integration-switch`, `core-integration-select`,
-`core-integration-binary-sensor`. Each is branched independently off the
-sensor-only base, not stacked on each other.
+**Status: the adapted-for-Core branches that existed for these
+(`core-integration-switch`, `core-integration-select`,
+`core-integration-binary-sensor`) were lost in the 2026-08-28 `/tmp`
+scratchpad wipe (see "Second real CI review round" below) - they were
+never pushed anywhere durable, so they're gone, not just hard to find.**
+What survives:
+- The original HACS source (`switch.py`, `select.py`, `binary_sensor.py`)
+  is still at `custom_components/bluetti/` in this repo's `main` branch - a
+  starting point, not a straight port (see the `binary_sensor` note below).
+- This design note, which the actual lost code doesn't need to be
+  re-derived to recover:
 
-`binary_sensor` was **not** a straight port of the removed code: the
-original `binary_sensor.py` looked for a `BluettiState` with fn_code
-`"onLine"` inside `device.states`, but on-line status is a top-level
-product field (`BluettiDevice.on_line`/`.online`), never an entry in
-`stateList` - confirmed against the real diagnostics dumps. That code would
-never have created an entity for any real device, and its one test masked
-the bug by constructing the entity directly with an unrelated state instead
-of going through `async_setup_entry`. Rewritten as its own
-`CoordinatorEntity` (not `BluettiEntity`, whose `available` logic would
-defeat the entity's whole purpose of showing `is_on=False` while offline).
+`binary_sensor` must **not** be a straight port of the HACS original: that
+`binary_sensor.py` looked for a `BluettiState` with fn_code `"onLine"`
+inside `device.states`, but on-line status is a top-level product field
+(`BluettiDevice.on_line`/`.online`), never an entry in `stateList` -
+confirmed against the real diagnostics dumps. That code would never have
+created an entity for any real device, and its one test masked the bug by
+constructing the entity directly with an unrelated state instead of going
+through `async_setup_entry`. It needs its own `CoordinatorEntity` (not
+`BluettiEntity`, whose `available` logic would defeat the entity's whole
+purpose of showing `is_on=False` while offline).
+
+Whenever this is picked back up, it must branch off `add-bluetti-integration`
+**as it stands after the 2026-08-28 balloob review round** (Modbus-free,
+`profile/` folder gone, diagnostics gone) - not off the older, pre-review
+state the original three branches were built against.
+
+### Local Modbus support (removed from #180440 on 2026-08-28, reviewer feedback)
+
+`#180440` briefly included an optional local Modbus TCP connection for
+Balco260/EP2000 (surfacing battery charge/discharge energy, cycle count,
+per-string PV data the cloud API doesn't report) - removed wholesale after
+a real Home Assistant core maintainer review: *"Do not include modbus in
+your first integration. keep the PR as small as possible... Modbus will
+come in later PR."*
+
+Unlike the switch/select/binary_sensor branches, this code isn't lost -
+it's sitting in real git history, recoverable exactly, not from memory:
+last full commit before removal is
+[`9d8797c`](../commit/9d8797c) on `core-integration`
+(`4b2d59aa9c6` on the `add-bluetti-integration`/`#180440` branch) -
+`git show 9d8797c:homeassistant/components/bluetti/modbus_support.py`
+(and `modbus_field_metadata.py`, the `BluettiModbusCoordinator` class in
+`coordinator.py`, `BluettiModbusEntity` in `entity.py`,
+`BluettiModbusSensor` in `sensor.py`, the `configure_modbus` options-flow
+step, and their tests) gets back the exact, already-tested code. The
+removal commit itself
+([`5d589d2`](../commit/5d589d2)) is the precise diff to reverse.
+
+Before reopening as its own PR: needs re-adapting to whatever
+`__init__.py`/`entity.py`/`coordinator.py` look like by then (both were
+touched again by the OAuth/comment-cleanup commits right after Modbus's
+removal), and the manifest/`requirements_all.txt`/`quality_scale.yaml`
+entries this removal reverted (`bluetti-modbus` dependency, the `"modbus"`
+HA-core dependency, `diagnostics`/`entity-disabled-by-default` status)
+need re-applying, not just the Modbus code itself.
+
+### Diagnostics (removed from #180440 on 2026-08-28, reviewer feedback)
+
+Removed after the same review round: *"Leave diagnostics out of first
+PR."* Also recoverable exactly from git history, not lost: last commit
+with `diagnostics.py` intact is
+[`595db7d`](../commit/595db7d) on `core-integration`
+(`0ec25bebc85` on `add-bluetti-integration`) -
+`git show 595db7d:homeassistant/components/bluetti/diagnostics.py` (and
+`tests/components/bluetti/test_diagnostics.py`) gets back the exact code,
+including its redaction logic (token/products/Modbus host redaction -
+the Modbus-specific redaction won't be needed if Modbus itself is still a
+separate follow-up PR by the time this comes back). `quality_scale.yaml`'s
+`diagnostics` entry needs to flip back from `todo` to `done` alongside it.
 
 ## Second real CI review round on #180440 (2026-08-28)
 
