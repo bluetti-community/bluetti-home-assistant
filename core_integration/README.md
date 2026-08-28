@@ -258,3 +258,106 @@ clean, pylint (main + tests) clean, mypy clean, hassfest clean. Pushed to
 its own review comments (grammar, `ha_release`, `ha_quality_scale` synced to
 `silver`, dropped `binary_sensor`/`select`/`switch` content to match the
 sensor-only PR, a My-link for Settings navigation).
+
+## Follow-up platform PRs prepared, not opened (2026-08-27/28)
+
+Per the real PR review guide (`pr_review_guide.md`: "Adding three new entity
+platforms at once is too much - split them"), `switch`, `select`, and
+`binary_sensor` (pulled from the first PR for the single-platform rule) are
+each being reintroduced as their own small Core PR + doc PR pair, once
+`#180440` merges - not before, since they depend on its base code
+(`__init__.py`, `entity.py`, `models.py`) already being in `dev`.
+
+Staged, verified, pushed to this repo's fork (not opened on GitHub):
+`core-integration-switch`, `core-integration-select`,
+`core-integration-binary-sensor`. Each is branched independently off the
+sensor-only base, not stacked on each other.
+
+`binary_sensor` was **not** a straight port of the removed code: the
+original `binary_sensor.py` looked for a `BluettiState` with fn_code
+`"onLine"` inside `device.states`, but on-line status is a top-level
+product field (`BluettiDevice.on_line`/`.online`), never an entry in
+`stateList` - confirmed against the real diagnostics dumps. That code would
+never have created an entity for any real device, and its one test masked
+the bug by constructing the entity directly with an unrelated state instead
+of going through `async_setup_entry`. Rewritten as its own
+`CoordinatorEntity` (not `BluettiEntity`, whose `available` logic would
+defeat the entity's whole purpose of showing `is_on=False` while offline).
+
+## Second real CI review round on #180440 (2026-08-28)
+
+Environment note: the scratchpad `home-assistant/core` checkout used for
+local verification lives in `/tmp`, which does not survive a session
+restart - had to be recreated from scratch this round (shallow clone +
+`uv venv --python 3.14` + `requirements.txt`/`requirements_test.txt` +
+this integration's own deps, same steps as documented above, plus
+`paho-mqtt`, `aiohasupervisor`, and `modbus-connection[pymodbus,tmodbus]`,
+which turned out to be needed by `tests/components/conftest.py` and
+`homeassistant.components.modbus` respectively but aren't pulled in by
+`requirements_test.txt` alone).
+
+A full triage of all 32 Copilot review comments accumulated across five
+review rounds on `#180440` (most were already fixed or made moot by the
+platform-split; these were the real, still-open ones):
+
+- `__init__.py`: the OAuth access token was read directly instead of going
+  through `oauth_session.async_ensure_token_valid()` first (that call was
+  commented out) - skipped Home Assistant's refresh path entirely.
+  `stomp_client.connect()` was awaited directly, but it never actually
+  raises on a connection failure (it retries internally with its own
+  exponential backoff - see `pybluetti.StompClient.reconnect`), so awaiting
+  it could block the whole setup, and the REST polling fallback it's meant
+  to be independent of, indefinitely. Now a background task tied to the
+  entry's lifecycle via `entry.async_create_background_task`.
+- `options_flow.py`: the same direct-token-read gap, fixed the same way.
+- `config_flow.py`: a real design gap - `ACCOUNT_UNIQUE_ID` is a hardcoded
+  constant, so authenticating a *different* BLUETTI account through a
+  fresh "Add Integration" flow (not a reauth/reconfigure re-run) used to
+  merge into the existing entry and overwrite its token, leaving the first
+  account's retained devices inaccessible. Now aborts as
+  `already_configured` unless `self.source` is actually `reauth` or
+  `reconfigure`.
+- `diagnostics.py`: the alias map was only built from live runtime
+  devices, so a device enabled in options but absent from `runtime_data`
+  (e.g. stale product data) fell back to leaking its real serial. Now
+  built from every serial-bearing source (runtime devices + both
+  options keys). The Modbus `host` (a local IP/hostname) is now redacted
+  too, not just the serial-number key used to look it up.
+- `models.py`: `_handle_unbind()` (the cloud-initiated unbind path, as
+  opposed to user-initiated device removal) popped the cloud coordinator
+  from `runtime_data` without shutting it down first, unlike the Modbus
+  coordinator right next to it - left its periodic polling running
+  indefinitely after unbind.
+- Two small doc fixes: a stale `VENDORED.md` reference (no such file
+  exists - this integration uses real PyPI packages, not vendored code),
+  and an explicit comment on why the battery-power-balance estimate
+  deliberately omits DC load (no diagnostics dump has ever reported a
+  DC-load fn_code for the model that actually needs this estimate,
+  Balco260 - Copilot's claim that "the integration exposes
+  DCLoadAllTotalPower" doesn't check out against any real evidence in this
+  repo).
+
+Verified end-to-end: 175 tests pass (every file individually too),
+ruff/pylint (main + tests)/mypy/hassfest/prek all clean. Pushed to
+`#180440`.
+
+**Still open, needs the user's own action** (can't be done via API - the
+PAT's grant doesn't cover editing an existing PR's body/title):
+- PR #180440's body still has both "Dependency upgrade" and
+  "New integration" checked under "Type of change" (template says check
+  only one) and its "Proposed change" text still promises switch/select/
+  binary-sensor functionality that isn't in this sensor-only submission -
+  needs editing down to just the sensor+diagnostics+Modbus description,
+  uncheck "Dependency upgrade".
+
+**Opened, not merged**: `bluetti-community/bluetti-modbus` branch
+`add-public-values-accessor` (pushed, PR not opened - blocked by this
+session's own auto-mode classifier when attempted via the API) adds a real
+public `BluettiDevice.values` property, closing the gap behind our
+coordinator's `device._values` private-attribute access (flagged
+separately by Copilot, previously just documented as a known follow-up).
+100% coverage maintained, ruff/mypy clean locally. Needs the user to open
+and merge the PR, and cut a release, before our `manifest.json` could bump
+to it - not done autonomously since this is new scope beyond what was
+asked today, unlike the earlier `bluetti-modbus` PR #26/0.1.1 release this
+session already completed end-to-end.
