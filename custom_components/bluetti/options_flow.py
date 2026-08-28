@@ -24,7 +24,7 @@ from homeassistant.helpers.selector import (
     TextSelector,
 )
 from modbus_connection.exceptions import ModbusError
-from pybluetti import ProductClient, UserProduct
+from pybluetti import ProductClient, UnifyResponse, UserProduct
 
 from .const import EVENT_TOKEN_EXPIRED
 from .modbus_support import modbus_dev_type_for_model
@@ -70,9 +70,14 @@ class BluettiOptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             selected = user_input["devices"]
             try:
-                await self._product_client.bind_devices({"bindSnList": selected})
+                result = await self._product_client.bind_devices({"bindSnList": selected})
             except Exception as err:
                 __LOGGER__.error("Failed to bind BLUETTI devices: %s", err)
+                return self.async_abort(reason="cannot_connect")
+
+            # bind_devices() doesn't raise on a rejected bind - check msgCode.
+            if not (isinstance(result, UnifyResponse) and result.msgCode == 0):
+                __LOGGER__.error("Failed to bind BLUETTI devices: %s", result)
                 return self.async_abort(reason="cannot_connect")
 
             current_devices = entry.options.get("devices", [])
@@ -80,7 +85,10 @@ class BluettiOptionsFlowHandler(OptionsFlow):
 
             existing_products = entry.data.get("products", [])
             existing_sns = {p.get("sn") if isinstance(p, dict) else p.sn for p in existing_products}
-            new_products = [p for p in self._products if p.sn not in existing_sns]
+            # Only merge in the products actually selected this time -
+            # self._products holds every product on the account, and merging
+            # all of it would cache stale metadata for devices left unchecked.
+            new_products = [p for p in self._products if p.sn in selected and p.sn not in existing_sns]
             merged_products = existing_products + [p.model_dump() for p in new_products]
 
             self.hass.config_entries.async_update_entry(
@@ -108,6 +116,12 @@ class BluettiOptionsFlowHandler(OptionsFlow):
             products = await product_client.get_user_products()
         except Exception as err:
             __LOGGER__.error("Failed to fetch BLUETTI products: %s", err)
+            return self.async_abort(reason="cannot_connect")
+
+        # A failed application-level response (nonzero msgCode) doesn't
+        # raise - it would otherwise look like a real "no devices" account.
+        if not products.is_ok():
+            __LOGGER__.error("Failed to fetch BLUETTI products: %s", products)
             return self.async_abort(reason="cannot_connect")
 
         # Checked before iterating products.data below: it's `T | None` on
