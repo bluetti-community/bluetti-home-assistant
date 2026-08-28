@@ -239,7 +239,7 @@ class AuthTokenRefresh:
         )
 
     # check token is in 7 day if in 7day refesh token
-    async def async_check_token_expiry(self):
+    async def async_check_token_expiry(self, now=None):
         __LOGGER__.info("check token is expired")
         expire_timestamp = cast(float, self.oAuth2Session.token["expires_at"])
         current_timestamp = time.time()
