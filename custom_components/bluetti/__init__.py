@@ -97,7 +97,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         authTokenRefresh = AuthTokenRefresh(hass,entry,oAuth2Session)
         authTokenRefresh.start_token_check()
 
-        # await oAuth2Session.async_ensure_token_valid()
+        # start_token_check()'s own expiry check runs as a fire-and-forget
+        # background task - it doesn't guarantee the token is fresh by the
+        # time access_token is read below, so this must still run inline.
+        await oAuth2Session.async_ensure_token_valid()
         access_token = oAuth2Session.token["access_token"]
         product_client = ProductClient(
             httpSession,
@@ -131,12 +134,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         device._entry_id = entry.entry_id
         coordinators[device.device_id] = BluettiDeviceCoordinator(hass, entry, device)
 
+    # Assigned before the first refresh below, not after: a device already
+    # unbound in the cloud triggers _handle_unbind() during that refresh,
+    # which needs runtime_data to exist to remove the device - otherwise
+    # it's set up anyway once this entry's runtime_data is assigned.
+    entry.runtime_data = BluettiRuntimeData(
+        auth=auth,
+        bluetti_devices=bluetti_devices,
+        stomp_client=stomp_client,
+        coordinators=coordinators,
+    )
+
     # Each device's first refresh is an independent network round-trip, so
     # run them concurrently instead of one-by-one - otherwise setup time
     # scales linearly with the number of devices on the account.
-    await asyncio.gather(
-        *(coordinator.async_config_entry_first_refresh() for coordinator in coordinators.values())
+    #
+    # return_exceptions=True so one device failing doesn't leave the other
+    # devices' refreshes running as orphaned, uncancelled tasks in the
+    # background - plain gather() propagates the first exception without
+    # waiting for (or cancelling) the rest.
+    results = await asyncio.gather(
+        *(coordinator.async_config_entry_first_refresh() for coordinator in coordinators.values()),
+        return_exceptions=True,
     )
+    for result in results:
+        if isinstance(result, BaseException):
+            raise result
 
     modbus_coordinators: dict[str, BluettiModbusCoordinator] = {}
     for device in bluetti_devices.devices:
@@ -164,13 +187,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         *(coordinator.async_refresh() for coordinator in modbus_coordinators.values())
     )
 
-    entry.runtime_data = BluettiRuntimeData(
-        auth=auth,
-        bluetti_devices=bluetti_devices,
-        stomp_client=stomp_client,
-        coordinators=coordinators,
-        modbus_coordinators=modbus_coordinators,
-    )
+    # runtime_data was already assigned before the cloud first-refresh above
+    # (see the comment there) - just add the Modbus coordinators to it now
+    # that they exist.
+    entry.runtime_data.modbus_coordinators = modbus_coordinators
 
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
 
