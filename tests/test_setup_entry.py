@@ -80,6 +80,7 @@ async def test_sensor_setup_entry_creates_expected_entities(hass):
 
     enum_sensor = next(s for s in sensors if s._state_obj.fn_code == "InvWorkState")
     assert enum_sensor.native_value == "Grid"  # exercises the support_mode_values branch
+    assert enum_sensor.options == ["Grid"]
 
 
 async def test_binary_sensor_setup_entry_creates_expected_entities(hass):
@@ -217,6 +218,36 @@ async def test_sensor_setup_entry_creates_estimated_battery_power_sensors(hass):
         e for e in added if isinstance(e, BluettiEnergySensor) and e.unique_id in energy_companion_ids
     ]
     assert len(energy_companions) == 2
+
+
+async def test_sensor_setup_entry_skips_estimated_battery_sensors_for_unvalidated_model(hass):
+    # Regression test: the estimate used to activate for any model exposing
+    # PV/grid/AC-load totals, even though it deliberately omits DC load and
+    # is only validated for Balco260 - a model with real DC output could
+    # otherwise get a materially wrong charge/discharge reading.
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
+        state_list=[
+            {
+                "fnCode": "PVAllTotalPower", "fnName": "PV Input Power", "fnValue": "500", "fnType": "SENSOR",
+                "sensorInfo": {"sensorType": "SensorDeviceClass.POWER", "unit": None},
+            },
+            {
+                "fnCode": "GridAllTotalPower", "fnName": "Grid Input Power", "fnValue": "0", "fnType": "SENSOR",
+                "sensorInfo": {"sensorType": "SensorDeviceClass.POWER", "unit": None},
+            },
+            {
+                "fnCode": "ACLoadAllTotalPower", "fnName": "AC Load Power", "fnValue": "200", "fnType": "SENSOR",
+                "sensorInfo": {"sensorType": "SensorDeviceClass.POWER", "unit": None},
+            },
+        ],
+    )
+    entry = _entry_with_devices(hass, [device])
+    added = []
+
+    await sensor_setup_entry(hass, entry, added.extend)
+
+    assert not any(isinstance(e, BluettiEstimatedBatteryPowerSensor) for e in added)
 
 
 async def test_sensor_setup_entry_skips_estimated_battery_sensors_when_data_missing(hass):
