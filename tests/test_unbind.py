@@ -7,7 +7,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.bluetti import BluettiRuntimeData
+from custom_components.bluetti import BluettiRuntimeData, _async_update_listener
 from custom_components.bluetti.const import DOMAIN
 from custom_components.bluetti.models import BluettiData, BluettiDevice
 
@@ -51,7 +51,7 @@ async def test_handle_unbind_without_hass_or_entry_returns_early(hass):
 
     await device._handle_unbind()
 
-    assert device._unbind_processed is True
+    assert device._unbind_processed is False
 
 
 async def test_handle_unbind_full_cleanup(hass):
@@ -89,6 +89,11 @@ async def test_handle_unbind_full_cleanup(hass):
     device._hass = hass
     device._entry = entry
     device._entry_id = entry.entry_id
+
+    # Mirrors what async_setup_entry() registers on a real, fully-loaded
+    # entry - _handle_unbind() itself doesn't reload explicitly, it relies
+    # entirely on this listener firing from its own options update.
+    entry.add_update_listener(_async_update_listener)
 
     with patch.object(hass.config_entries, "async_reload", AsyncMock()) as mock_reload, \
          patch("custom_components.bluetti.models.persistent_notification.async_create") as mock_notify:
@@ -169,7 +174,7 @@ def _bound_device_with_registry_entries(hass, entry) -> tuple[BluettiDevice, "dr
         auth=MagicMock(),
         bluetti_devices=MagicMock(devices=[device]),
         stomp_client=MagicMock(),
-        coordinators={"SN1": MagicMock()},
+        coordinators={"SN1": AsyncMock()},
     )
     device._hass = hass
     device._entry = entry
@@ -219,16 +224,26 @@ async def test_handle_unbind_survives_runtime_data_error(hass):
 
 
 async def test_handle_unbind_survives_config_entry_update_error(hass):
+    # Regression test: _unbind_processed used to be set unconditionally
+    # before persisting the removal, and the coordinator was torn down
+    # before that persistence was even attempted - if persistence failed,
+    # the device stayed "enabled" forever with no coordinator and no retry
+    # path. The flag must stay False and the coordinator must stay alive
+    # here so the next refresh actually retries.
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1"]})
     entry.add_to_hass(hass)
     device, _device_entry = _bound_device_with_registry_entries(hass, entry)
+    coordinator = entry.runtime_data.coordinators["SN1"]
 
     with patch.object(hass.config_entries, "async_reload", AsyncMock()), \
          patch.object(hass.config_entries, "async_update_entry", side_effect=RuntimeError("boom")):
         await device._handle_unbind()
         await hass.async_block_till_done()
 
-    assert device._unbind_processed is True
+    assert device._unbind_processed is False
+    assert entry.runtime_data.coordinators["SN1"] is coordinator
+    coordinator.async_shutdown.assert_not_awaited()
+    assert device in entry.runtime_data.bluetti_devices.devices
 
 
 async def test_handle_unbind_survives_notification_error(hass):
@@ -242,19 +257,6 @@ async def test_handle_unbind_survives_notification_error(hass):
              side_effect=RuntimeError("boom"),
          ):
         await device._handle_unbind()
-        await hass.async_block_till_done()
-
-    assert device._unbind_processed is True
-
-
-async def test_handle_unbind_survives_reload_error(hass):
-    entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1"]})
-    entry.add_to_hass(hass)
-    device, _device_entry = _bound_device_with_registry_entries(hass, entry)
-
-    with patch.object(hass.config_entries, "async_reload", AsyncMock(side_effect=RuntimeError("boom"))):
-        await device._handle_unbind()
-        # The reload runs in a background task; let it fail and log.
         await hass.async_block_till_done()
 
     assert device._unbind_processed is True
@@ -274,6 +276,9 @@ async def test_handle_unbind_when_device_not_in_options(hass):
 
 
 async def test_handle_unbind_survives_unexpected_outer_error(hass):
+    # The removal was never confirmed persisted here (the error happens
+    # before persistence even runs), so this must retry on the next
+    # refresh too.
     entry = MockConfigEntry(domain=DOMAIN, options={"devices": ["SN1"]})
     entry.add_to_hass(hass)
     device, _device_entry = _bound_device_with_registry_entries(hass, entry)
@@ -283,4 +288,4 @@ async def test_handle_unbind_survives_unexpected_outer_error(hass):
         # unexpected so a single bad device doesn't break setup.
         await device._handle_unbind()
 
-    assert device._unbind_processed is True
+    assert device._unbind_processed is False
