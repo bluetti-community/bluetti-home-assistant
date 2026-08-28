@@ -4,10 +4,12 @@ import time
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.helpers import issue_registry as ir
 from pybluetti import UserProduct
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.bluetti import _async_update_listener
 from custom_components.bluetti.const import DOMAIN
 from custom_components.bluetti.oauth import (
     ISSUE_ID_OAUTH_EXPIRED,
@@ -231,9 +233,36 @@ async def test_async_check_token_expiry_recent_refresh_is_skipped(hass):
     session.implementation.async_refresh_token.assert_not_called()
 
 
+async def test_async_check_token_expiry_notifies_when_rate_limited_and_expired(hass):
+    """A recently-refreshed but already-expired token still notifies."""
+    entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": time.time() - 60})
+    entry.add_to_hass(hass)
+    session = MagicMock()
+    session.token = {"expires_at": time.time() - 100}
+    refresher = AuthTokenRefresh(hass, entry, session)
+    refresher.send_expired_notification = MagicMock()
+
+    await refresher.async_check_token_expiry()
+
+    session.implementation.async_refresh_token.assert_not_called()
+    refresher.send_expired_notification.assert_called_once()
+
+
 async def test_async_check_token_expiry_refreshes_and_reloads(hass):
+    """
+    Refreshing the token must reload the entry exactly once.
+
+    Regression test: async_check_token_expiry() used to call
+    hass.config_entries.async_reload() explicitly right after
+    async_update_entry() - on a loaded entry (mock_reload here, matching a
+    real one via the update listener registered below), that update
+    already fires the entry's registered update listener, which reloads
+    it - the explicit call fired a second, redundant reload.
+    """
     entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": 0.0})
     entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.LOADED)
+    entry.add_update_listener(_async_update_listener)
     session = MagicMock()
     session.token = {"expires_at": time.time() + 100}
     session.implementation.async_refresh_token = AsyncMock(return_value={"access_token": "new"})
@@ -241,6 +270,7 @@ async def test_async_check_token_expiry_refreshes_and_reloads(hass):
 
     with patch.object(hass.config_entries, "async_reload", AsyncMock()) as mock_reload:
         await refresher.async_check_token_expiry()
+        await hass.async_block_till_done()
 
     session.implementation.async_refresh_token.assert_awaited_once()
     updated = hass.config_entries.async_get_entry(entry.entry_id)
