@@ -173,7 +173,7 @@ class StompListener:
             error = json.loads(error)
 
             match error['msgCode']:
-                case 400 | 403 | 805:
+                case 400 | 403 | 600 | 805:
                     self.client.disconnect()
                     self.client.hass.bus.fire(EVENT_TOKEN_EXPIRED)
                     __LOGGER__.error("Websocket connection terminated: " + error['message'])
