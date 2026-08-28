@@ -42,10 +42,6 @@ type BluettiConfigEntry = ConfigEntry[BluettiData]
 async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> bool:
     await APPLICATION_PROFILE.load_config(hass)
 
-    # Read the version of integration
-    integration = await async_get_integration(hass, DOMAIN)
-    APPLICATION_PROFILE.config["app"]["app-ver"] = str(integration.version)
-
     # global LOCALIZATION_MANAGER
     # LOCALIZATION_MANAGER = LocalizationManager(hass, DOMAIN)
     
@@ -71,7 +67,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         )
     )
 
-    # __LOGGER__.setLevel(logging.DEBUG)
+    __LOGGER__.setLevel(logging.DEBUG)
     # __LOGGER__.debug("OAuth implementation is: %s", implementation.__class__)
 
     httpSession = async_get_clientsession(hass)
