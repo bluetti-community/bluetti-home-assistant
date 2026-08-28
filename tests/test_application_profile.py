@@ -15,3 +15,18 @@ async def test_load_config_missing_file_raises_and_logs(hass):
 
     with pytest.raises(OSError):
         await profile.load_config(hass)
+
+
+async def test_default_profile_wss_url_has_no_trailing_slash(hass):
+    """
+    The default (prod) profile's wss URL must have no trailing slash.
+
+    Regression test: pybluetti's StompClient appends "/websocket" to this
+    URL via plain string concatenation, so a trailing slash here produced
+    a double slash (".../ws-coordination//websocket"), which could prevent
+    the push-update websocket from connecting.
+    """
+    profile = ApplicationProfile()
+    await profile.load_config(hass)
+
+    assert not profile.config["server"]["wss"].endswith("/")
