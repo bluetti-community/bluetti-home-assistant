@@ -67,7 +67,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         )
     )
 
-    __LOGGER__.setLevel(logging.DEBUG)
+    # __LOGGER__.setLevel(logging.DEBUG)
     # __LOGGER__.debug("OAuth implementation is: %s", implementation.__class__)
 
     httpSession = async_get_clientsession(hass)
@@ -190,6 +190,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> 
     bluetti_devices: BluettiData = hass.data[DOMAIN][entry.entry_id]["bluettiDevices"]
     await bluetti_devices.disconnect_all_ble(hass)
     await bluetti_devices.remove_download_file(hass)
+
+    #reload config file
+    await APPLICATION_PROFILE.unload();
 
     return await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)
 

@@ -24,15 +24,24 @@ class ApplicationProfile:
 
         self.__configFile = "application" + self.__active + ".yaml"
         self.__configPath = os.path.dirname(os.path.abspath(__file__)) + "/" + self.__configFile
+        self.__configIsOk = False
+
+    async def unload(self):
+        ''' unload '''
+        self.__configIsOk = False
 
     """加载运行环境的配置文件"""
     async def load_config(self, hass):
+        if self.__configIsOk:
+            return
+        
         self.hass = hass
         # Read the version of integration
         integration = await async_get_integration(self.hass, DOMAIN)
         self.integrationVer = str(integration.version)
 
-        hass.async_add_executor_job(self.__load_config)
+        await hass.async_add_executor_job(self.__load_config)
+        self.__configIsOk = True
         
 
     def __load_config(self):
