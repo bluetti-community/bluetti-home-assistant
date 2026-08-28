@@ -1,5 +1,6 @@
 """Tests for async_setup_entry() in __init__.py."""
 
+import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -39,6 +40,7 @@ async def test_async_setup_entry_with_no_devices(hass, enable_custom_integration
          patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
          patch("custom_components.bluetti.StompClient") as mock_stomp_cls:
         mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
         mock_stomp_cls.return_value.connect = AsyncMock()
 
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -68,6 +70,7 @@ async def test_async_setup_entry_with_a_device(hass, enable_custom_integrations)
          patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
          patch("custom_components.bluetti.ProductClient") as mock_product_cls:
         mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
         mock_stomp_cls.return_value.connect = AsyncMock()
         mock_product_cls.return_value.get_device_status = AsyncMock(
             return_value=MagicMock(data=[status_data])
@@ -107,6 +110,7 @@ async def test_async_setup_entry_registers_binary_sensor_under_its_own_domain(ha
          patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
          patch("custom_components.bluetti.ProductClient") as mock_product_cls:
         mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
         mock_stomp_cls.return_value.connect = AsyncMock()
         mock_product_cls.return_value.get_device_status = AsyncMock(
             return_value=MagicMock(data=[status_data])
@@ -150,6 +154,7 @@ async def test_async_setup_entry_with_multiple_devices_refreshes_concurrently(ha
          patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
          patch("custom_components.bluetti.ProductClient") as mock_product_cls:
         mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
         mock_stomp_cls.return_value.connect = AsyncMock()
         mock_product_cls.return_value.get_device_status = AsyncMock(side_effect=fake_get_device_status)
 
@@ -160,6 +165,52 @@ async def test_async_setup_entry_with_multiple_devices_refreshes_concurrently(ha
     coordinators = entry.runtime_data.coordinators
     assert set(coordinators.keys()) == {"SN1", "SN2"}
     assert all(c.last_update_success for c in coordinators.values())
+
+
+async def test_one_device_failing_first_refresh_does_not_orphan_the_others(hass, enable_custom_integrations):
+    # Regression test: asyncio.gather() without return_exceptions=True
+    # propagates the first exception as soon as it happens, without waiting
+    # for (or cancelling) the other coordinators' still-in-flight first
+    # refreshes - they kept running as untracked background tasks that could
+    # still mutate state after setup had already moved on to SETUP_RETRY.
+    # SN2 fails immediately; SN1 is deliberately slower, so if it were left
+    # running unawaited, hass.config_entries.async_setup() would return
+    # before SN1's own refresh actually completed.
+    entry = _entry(
+        hass,
+        products=[
+            {"sn": "SN1", "name": "Device 1", "stateList": [], "online": "1"},
+            {"sn": "SN2", "name": "Device 2", "stateList": [], "online": "1"},
+        ],
+        devices=["SN1", "SN2"],
+    )
+    sn1_refresh_completed = asyncio.Event()
+
+    async def fake_get_device_status(sn):
+        if sn == "SN2":
+            raise RuntimeError("boom")
+        await asyncio.sleep(0.05)
+        sn1_refresh_completed.set()
+        return MagicMock(data=[MagicMock(sn="SN1", isBindByCurUser="1", online="1", stateList=[])])
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(return_value=MagicMock()),
+         ), \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
+         patch("custom_components.bluetti.ProductClient") as mock_product_cls:
+        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
+        mock_stomp_cls.return_value.connect = AsyncMock()
+        mock_product_cls.return_value.get_device_status = AsyncMock(side_effect=fake_get_device_status)
+
+        assert not await hass.config_entries.async_setup(entry.entry_id)
+
+    # By the time async_setup() has returned, SN1's slower refresh must
+    # have already completed too - not left running unawaited.
+    assert sn1_refresh_completed.is_set()
 
 
 async def test_async_setup_entry_reimports_missing_oauth_credential(hass, enable_custom_integrations):
@@ -182,6 +233,7 @@ async def test_async_setup_entry_reimports_missing_oauth_credential(hass, enable
          patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
          patch("custom_components.bluetti.StompClient") as mock_stomp_cls:
         mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
         mock_stomp_cls.return_value.connect = AsyncMock()
 
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -251,6 +303,7 @@ async def test_async_setup_entry_wires_up_modbus_coordinator_for_capable_device(
          patch("custom_components.bluetti.ProductClient") as mock_product_cls, \
          patch("custom_components.bluetti.modbus_coordinator.BluettiModbusClient") as client_cls:
         mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
         mock_stomp_cls.return_value.connect = AsyncMock()
         mock_product_cls.return_value.get_device_status = AsyncMock(
             return_value=MagicMock(data=[status_data])
@@ -293,6 +346,7 @@ async def test_modbus_first_refresh_failure_does_not_prevent_cloud_entities_from
          patch("custom_components.bluetti.ProductClient") as mock_product_cls, \
          patch("custom_components.bluetti.modbus_coordinator.BluettiModbusClient") as client_cls:
         mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
         mock_stomp_cls.return_value.connect = AsyncMock()
         mock_product_cls.return_value.get_device_status = AsyncMock(
             return_value=MagicMock(data=[status_data])

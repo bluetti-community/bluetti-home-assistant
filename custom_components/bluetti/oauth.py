@@ -8,12 +8,13 @@ import voluptuous as vol
 from aiohttp import ClientSession
 from homeassistant import config_entries
 from homeassistant.components import persistent_notification
+from homeassistant.config_entries import SOURCE_REAUTH, SOURCE_RECONFIGURE
 from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers import config_entry_oauth2_flow
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
-from pybluetti import ProductClient, UserProduct
+from pybluetti import ProductClient, UnifyResponse, UserProduct
 
 from .const import (
     ACCOUNT_UNIQUE_ID,
@@ -55,12 +56,6 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
     ) -> config_entries.ConfigFlowResult:
         """Let user select devices after OAuth2 login."""
         if user_input is not None:
-            try:
-                await self._product_client.bind_devices({"bindSnList": user_input["devices"]})
-            except Exception as err:
-                __LOGGER__.error("Failed to bind BLUETTI devices: %s", err)
-                return self.async_abort(reason="cannot_connect")
-
             # Prevent configuring the same BLUETTI account twice: look up any
             # existing entry by its unique_id instead of matching on title.
             await self.async_set_unique_id(ACCOUNT_UNIQUE_ID)
@@ -77,20 +72,47 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
                         existing_entry = entry
                         break
 
+            if existing_entry and self.source not in (SOURCE_REAUTH, SOURCE_RECONFIGURE):
+                # A plain "Add Integration" flow finding an existing entry
+                # means a second account - reject before binding anything
+                # server-side, don't merge and overwrite the first
+                # account's token.
+                return self.async_abort(reason="already_configured")
+
+            try:
+                result = await self._product_client.bind_devices({"bindSnList": user_input["devices"]})
+            except Exception as err:
+                __LOGGER__.error("Failed to bind BLUETTI devices: %s", err)
+                return self.async_abort(reason="cannot_connect")
+
+            # bind_devices() doesn't raise on a rejected bind - check msgCode.
+            if not (isinstance(result, UnifyResponse) and result.msgCode == 0):
+                __LOGGER__.error("Failed to bind BLUETTI devices: %s", result)
+                return self.async_abort(reason="cannot_connect")
+
+            # Only cache the products the user actually selected - self._products
+            # holds every product on the account, and caching all of it means a
+            # device added later (already present in this snapshot) would reuse
+            # this stale data instead of the fresh get_user_products() fetch
+            # that runs when it's actually added.
+            selected_products = [p for p in self._products if p.sn in user_input["devices"]]
+
             if existing_entry:
-                # 合并到现有集成条目
+                # Merge into the existing integration entry.
                 existing_devices = existing_entry.options.get("devices", [])
                 existing_products = existing_entry.data.get("products", [])
 
-                # 合并设备列表（去重）
                 merged_devices = list(set(existing_devices + user_input["devices"]))
 
-                # 合并产品数据（去重）
                 existing_product_sns = {p.get("sn") if isinstance(p, dict) else p.sn for p in existing_products}
-                new_products = [p for p in self._products if p.sn not in existing_product_sns]
+                new_products = [p for p in selected_products if p.sn not in existing_product_sns]
                 merged_products = existing_products + [p.model_dump() if hasattr(p, "model_dump") else p for p in new_products]
 
-                # 更新现有条目
+                # auth_implementation too, not just token - the user could
+                # have picked a different Application Credential during this
+                # login. async_update_entry() already fires the entry's
+                # registered update listener, which reloads it - no separate
+                # reload needed.
                 self.hass.config_entries.async_update_entry(
                     existing_entry,
                     data={
@@ -101,17 +123,14 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
                     options={"devices": merged_devices}
                 )
 
-                # 重新加载集成以包含新设备
-                await self.hass.config_entries.async_reload(existing_entry.entry_id)
-
                 return self.async_abort(reason="success")
-            # 创建新的集成条目
+            # Create a new integration entry.
             return self.async_create_entry(
                 title=f"{INTEGRATION_NAME} Power Integration",
                 data={
                     "auth_implementation": self._oauth_data["auth_implementation"],
                     "token": self._oauth_data["token"],
-                    "products": [p.model_dump() for p in self._products]
+                    "products": [p.model_dump() for p in selected_products]
                 },
                 options=user_input,
             )
@@ -128,6 +147,12 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
             products = await product_client.get_user_products()
         except Exception as err:
             __LOGGER__.error("Failed to fetch BLUETTI products: %s", err)
+            return self.async_abort(reason="cannot_connect")
+
+        # A failed application-level response (nonzero msgCode) doesn't
+        # raise - it would otherwise look like a real "no devices" account.
+        if not products.is_ok():
+            __LOGGER__.error("Failed to fetch BLUETTI products: %s", products)
             return self.async_abort(reason="cannot_connect")
 
         # Checked before iterating products.data below: it's `T | None` on
@@ -159,12 +184,16 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
             if cur_entry is None:
                 return self.async_abort(reason="reconfigure_failed")
             __LOGGER__.info("reconfigure token")
-            new_data = {**cur_entry.data,"token":self._oauth_data["token"]}
-            self.hass.config_entries.async_update_entry(
-                    cur_entry,
-                    data=new_data
-                )
-            await self.hass.config_entries.async_reload(cur_entry.entry_id)
+            # auth_implementation too, not just token - the user could have
+            # picked a different Application Credential during this login.
+            new_data = {
+                **cur_entry.data,
+                "auth_implementation": self._oauth_data["auth_implementation"],
+                "token": self._oauth_data["token"],
+            }
+            # async_update_entry() already fires the entry's registered
+            # update listener, which reloads it - no separate reload needed.
+            self.hass.config_entries.async_update_entry(cur_entry, data=new_data)
             return self.async_abort(reason="success")
 
         # 已全部集成
@@ -250,7 +279,13 @@ class AuthTokenRefresh:
             )
             self.entry.async_on_unload(unsub)
             __LOGGER__.info("token is valid after 24 hours to check again")
-        self.hass.async_create_task(self.async_check_token_expiry())
+        # Entry-scoped so it's canceled on unload, rather than a bare
+        # hass-level task outliving the entry.
+        self.entry.async_create_background_task(
+            self.hass,
+            self.async_check_token_expiry(),
+            name="bluetti_initial_token_expiry_check",
+        )
 
 
     # check oauth2 token is ok
@@ -276,7 +311,7 @@ class AuthTokenRefresh:
     def send_expired_notification(self) -> None:
         reauth_url = f"/config/integrations/integration/{DOMAIN}"
         notification_message = (
-            f"Your OAuth Have Expired！\n"
+            "Your OAuth token has expired.\n"
             f"Please go to the **[integration settings]({reauth_url})** page and click [Reconfigure] to complete the login."
         )
         persistent_notification.async_create(
@@ -313,10 +348,9 @@ class AuthTokenRefresh:
             return
         current_timestamp = time.time()
         remain_timestamp = expire_timestamp - current_timestamp
-        if remain_timestamp < 0:
-            self.send_expired_notification()
-            return
 
+        # Also tries an already-expired token, not just an expiring one - a
+        # refresh token normally covers this fine.
         if remain_timestamp < 3600*24*7 :
             try:
                 __LOGGER__.info("start refresh token")
@@ -324,14 +358,19 @@ class AuthTokenRefresh:
                 # 1 hour only one time ,when server is 500 do not always refesh token
                 if current_timestamp - last_refesh < 3600 :
                     __LOGGER__.info("last refesh token in 1 hour,this do not refesh return")
+                    if remain_timestamp < 0:
+                        self.send_expired_notification()
                     return
                 last_refesh = current_timestamp
 
                 new_token = await self.oAuth2Session.implementation.async_refresh_token(self.oAuth2Session.token)
+                # async_update_entry() already fires the registered update
+                # listener, which reloads - no separate reload needed here.
                 self.hass.config_entries.async_update_entry(
                     self.entry, data={**self.entry.data, "token": new_token,"last_token_refresh":last_refesh}
                 )
-                __LOGGER__.info("refresh token ok,then reload")
-                await self.hass.config_entries.async_reload(self.entry.entry_id)
+                __LOGGER__.info("refresh token ok")
             except Exception as e:
                 __LOGGER__.error("refresh token failed: %s", e)
+                if remain_timestamp < 0:
+                    self.send_expired_notification()
