@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from homeassistant.exceptions import HomeAssistantError
-from pybluetti import UnifyResponse
+from pybluetti import ApplicationRuntimeException, UnifyResponse
 
 from custom_components.bluetti.models import BluettiData, BluettiDevice, BluettiState
 
@@ -123,7 +123,7 @@ async def test_async_refresh_from_api_updates_states():
         stateList=[{"fnCode": "SOC", "fnValue": "77"}],
     )
     device._api_client = AsyncMock()
-    device._api_client.get_device_status.return_value = SimpleNamespace(data=[status_data])
+    device._api_client.get_device_status.return_value = SimpleNamespace(data=[status_data], is_ok=lambda: True)
 
     await device.async_refresh_from_api()
 
@@ -131,10 +131,28 @@ async def test_async_refresh_from_api_updates_states():
     assert device.get_state("SOC").fn_value == "77"
 
 
+async def test_async_refresh_from_api_raises_on_failed_envelope():
+    # Regression test: get_device_status() doesn't raise for a nonzero
+    # msgCode (e.g. an expired token, code 805) - it returns a response
+    # with data=None. Previously this fell through to the generic "empty
+    # status response" RuntimeError instead of the classifiable
+    # ApplicationRuntimeException the coordinator relies on for reauth.
+    device = BluettiDevice(device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L")
+    device._api_client = AsyncMock()
+    device._api_client.get_device_status.return_value = UnifyResponse(
+        msgId="1", msgCode=805, data=None
+    )
+
+    with pytest.raises(ApplicationRuntimeException) as exc_info:
+        await device.async_refresh_from_api()
+
+    assert exc_info.value.msgCode == 805
+
+
 async def test_async_refresh_from_api_raises_on_empty_data():
     device = BluettiDevice(device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L")
     device._api_client = AsyncMock()
-    device._api_client.get_device_status.return_value = SimpleNamespace(data=[])
+    device._api_client.get_device_status.return_value = SimpleNamespace(data=[], is_ok=lambda: True)
 
     with pytest.raises(RuntimeError):
         await device.async_refresh_from_api()
@@ -147,7 +165,7 @@ async def test_async_refresh_from_api_ignores_mismatched_sn():
     )
     status_data = SimpleNamespace(sn="OTHER-SN", online="1", isBindByCurUser="1", stateList=[])
     device._api_client = AsyncMock()
-    device._api_client.get_device_status.return_value = SimpleNamespace(data=[status_data])
+    device._api_client.get_device_status.return_value = SimpleNamespace(data=[status_data], is_ok=lambda: True)
 
     await device.async_refresh_from_api()
 
