@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.helpers.json import JSONEncoder
 from modbus_connection.exceptions import ModbusConnectionError
-from pybluetti import UserProduct
+from pybluetti import UnifyResponse, UserProduct
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti.const import DOMAIN
@@ -48,7 +48,7 @@ async def test_shows_form_with_available_devices(hass):
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
         mock_client_cls.return_value.get_user_products = AsyncMock(
-            return_value=SimpleNamespace(data=products)
+            return_value=SimpleNamespace(data=products, is_ok=lambda: True)
         )
         result = await flow.async_step_init(user_input=None)
 
@@ -67,7 +67,7 @@ async def test_no_devices_available_aborts(hass):
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
         mock_client_cls.return_value.get_user_products = AsyncMock(
-            return_value=SimpleNamespace(data=[])
+            return_value=SimpleNamespace(data=[], is_ok=lambda: True)
         )
         result = await flow.async_step_init(user_input=None)
 
@@ -83,7 +83,7 @@ async def test_all_devices_already_enabled_aborts(hass):
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
         mock_client_cls.return_value.get_user_products = AsyncMock(
-            return_value=SimpleNamespace(data=products)
+            return_value=SimpleNamespace(data=products, is_ok=lambda: True)
         )
         result = await flow.async_step_init(user_input=None)
 
@@ -112,6 +112,7 @@ async def test_submit_binds_and_merges_devices_and_products(hass):
     )
     flow = _flow(hass, entry)
     flow._product_client = AsyncMock()
+    flow._product_client.bind_devices.return_value = UnifyResponse(msgId="1", msgCode=0)
     flow._products = [UserProduct(sn="SN2", name="New Device", stateList=[], online="1")]
 
     result = await flow.async_step_init(user_input={"devices": ["SN2"]})
@@ -133,6 +134,34 @@ async def test_submit_bind_failure_aborts_cannot_connect(hass):
     flow._product_client.bind_devices.side_effect = RuntimeError("boom")
 
     result = await flow.async_step_init(user_input={"devices": ["SN1"]})
+
+    assert result["type"] == "abort"
+    assert result["reason"] == "cannot_connect"
+
+
+async def test_submit_bind_rejected_response_aborts_cannot_connect(hass):
+    """A rejected bind (nonzero msgCode) must not be treated as success."""
+    entry = _entry(hass)
+    flow = _flow(hass, entry)
+    flow._product_client = AsyncMock()
+    flow._product_client.bind_devices.return_value = UnifyResponse(msgId="1", msgCode=1)
+
+    result = await flow.async_step_init(user_input={"devices": ["SN1"]})
+
+    assert result["type"] == "abort"
+    assert result["reason"] == "cannot_connect"
+
+
+async def test_get_user_products_failed_envelope_aborts_cannot_connect(hass):
+    entry = _entry(hass)
+    flow = _flow(hass, entry)
+
+    with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
+         patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products = AsyncMock(
+            return_value=SimpleNamespace(data=None, is_ok=lambda: False)
+        )
+        result = await flow.async_step_init(user_input=None)
 
     assert result["type"] == "abort"
     assert result["reason"] == "cannot_connect"
@@ -172,7 +201,7 @@ async def test_init_falls_through_to_add_devices_when_enabled_device_is_not_modb
 
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(return_value=SimpleNamespace(data=[]))
+        mock_client_cls.return_value.get_user_products = AsyncMock(return_value=SimpleNamespace(data=[], is_ok=lambda: True))
         result = await flow.async_step_init(user_input=None)
 
     # AC200L doesn't support Modbus, so no menu is shown and this falls
@@ -365,9 +394,11 @@ async def test_add_devices_through_real_flow_manager_preserves_modbus(
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
         mock_client_cls.return_value.get_user_products = AsyncMock(
-            return_value=SimpleNamespace(data=products)
+            return_value=SimpleNamespace(data=products, is_ok=lambda: True)
         )
-        mock_client_cls.return_value.bind_devices = AsyncMock()
+        mock_client_cls.return_value.bind_devices = AsyncMock(
+            return_value=UnifyResponse(msgId="1", msgCode=0)
+        )
 
         result = await hass.config_entries.options.async_init(entry.entry_id)
         assert result["type"] == "menu"
