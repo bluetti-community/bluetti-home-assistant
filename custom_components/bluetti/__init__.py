@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_entry_oauth2_flow, device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import storage
-from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
+from homeassistant.loader import async_get_integration
 
 from .models import BluettiData
 from .oauth import AsyncConfigEntryAuth,AuthTokenRefresh
@@ -41,6 +41,10 @@ type BluettiConfigEntry = ConfigEntry[BluettiData]
 
 async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> bool:
     await APPLICATION_PROFILE.load_config(hass)
+
+    # Read the version of integration
+    integration = await async_get_integration(hass, DOMAIN)
+    APPLICATION_PROFILE.config["app"]["app-ver"] = str(integration.version)
 
     # global LOCALIZATION_MANAGER
     # LOCALIZATION_MANAGER = LocalizationManager(hass, DOMAIN)
@@ -130,7 +134,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         ws_url = ws_protocol + ws_url + "/api/edgeiotgw/ws-coordination/websocket"
         # print(ws_url)
         # Register WebSocket
-        stomp_client = StompClient(ws_url, access_token, APPLICATION_PROFILE.config["server"]["app-key"],
+        stomp_client = StompClient(ws_url, access_token, APPLICATION_PROFILE.config,
                                    bluetti_devices.web_socket_message_handler, hass)
         stomp_client.connect()
 

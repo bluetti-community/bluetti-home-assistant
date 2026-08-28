@@ -8,11 +8,7 @@ from .api.bluetti import APPLICATION_PROFILE
 
 async def async_get_authorization_server(hass: HomeAssistant) -> AuthorizationServer:
     """Return BLUETTI authorization server(authorize_url / token_url)."""
-    await APPLICATION_PROFILE.load_config(hass)
     return AuthorizationServer(
         authorize_url=APPLICATION_PROFILE.config["server"]["sso"] + "/oauth2/grant",
         token_url=APPLICATION_PROFILE.config["server"]["sso"] + "/oauth2/token",
     )
-
-
-

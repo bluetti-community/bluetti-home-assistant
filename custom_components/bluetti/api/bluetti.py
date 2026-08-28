@@ -4,7 +4,7 @@ import logging
 import asyncio
 
 from abc import abstractmethod
-from json import dumps, loads
+from json import dumps
 from typing import Any, TypeVar, Generic
 
 from pydantic import TypeAdapter
@@ -100,7 +100,8 @@ class Bluetti(Generic[T]):
         headers = {
             "Authorization": f"{self._accessToken}",
             "x-os": "open",
-            "x-app-key": f"{APPLICATION_PROFILE.config["server"]["app-key"]}"
+            "x-app-key": f"{APPLICATION_PROFILE.config["app"]["app-key"]}",
+            "x-app-ver": f"{APPLICATION_PROFILE.config["app"]["app-ver"]}"
         }
 
         # Remove None values from params and json

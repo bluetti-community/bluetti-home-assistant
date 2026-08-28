@@ -17,14 +17,15 @@ __LOGGER__ = logging.getLogger(__name__)
 
 
 class StompClient(object):
-    def __init__(self, url: str, access_token: str, app_key: str, handler: Callable[[str], None] = None,
+    def __init__(self, url: str, access_token: str, config: dict, handler: Callable[[str], None] = None,
                  hass: HomeAssistant = None):
         self.__url = url
         self.__headers = {
             "Host": self.__get_host(url),
             "Authorization": access_token,
             "x-os": "open",
-            "x-app-key": app_key
+            "x-app-key": f"{config["app"]["app-key"]}",
+            "x-app-ver": f"{config["app"]["app-ver"]}"
         }
         self.listener = StompListener(self, handler)
         self.hass = hass
@@ -90,15 +91,26 @@ class StompClient(object):
     def __on_open(self, ws):
         # Initial CONNECT required to initialize the server's client registries.
         interval = self.heartbeat_interval * 1000
-        connect = ("CONNECT\n"
-                   "accept-version:1.0,1.1,2.0\n"
-                   "Host:" + self.__headers["Host"] + "\n"
-                   "Authorization:" + self.__headers["Authorization"] + "\n"
-                   "heart-beat:" + str(interval) + "," + str(interval) + "\n"
-                   "x-os:" + self.__headers["x-os"] + "\n"
-                   "x-app-key:" + self.__headers["x-app-key"] + "\n"
-                   "\n\x00")
+        headers = {
+            "accept-version": "1.0,1.1,2.0",
+            "heart-beat": f"{str(interval)},{str(interval)}",
+            **self.__headers
+        }
 
+        lines = ["CONNECT"]
+        for name, value in headers.items():
+            lines.append(f"{name}:{value}")
+
+        # connect = ("CONNECT\n"
+        #            "accept-version:1.0,1.1,2.0\n"
+        #            "Host:" + self.__headers["Host"] + "\n"
+        #            "Authorization:" + self.__headers["Authorization"] + "\n"
+        #            "heart-beat:" + str(interval) + "," + str(interval) + "\n"
+        #            "x-os:" + self.__headers["x-os"] + "\n"
+        #            "x-app-key:" + self.__headers["x-app-key"] + "\n"
+        #            "\n\x00")
+
+        connect = "\n".join(lines) + "\n\n\x00"
         ws.send(connect)
 
         # start heartbeat thread
