@@ -56,12 +56,21 @@ class BluettiModbusCoordinator(DataUpdateCoordinator[dict[str, ClientReturnValue
         """Fetch the latest field values over Modbus."""
         try:
             fields = await self._client.read()
-        except ModbusError as err:
-            raise UpdateFailed(
-                translation_domain=DOMAIN,
-                translation_key="modbus_error",
-                translation_placeholders={"error": str(err)},
-            ) from err
+        except ModbusError:
+            # This device's Modbus TCP stack occasionally returns a
+            # malformed/truncated response for a single register block -
+            # real hardware behavior, seen in practice, not a bug in the
+            # request. Retry once immediately rather than surfacing the
+            # whole entity as unavailable for a full 30s poll interval
+            # over what is usually a one-off glitch.
+            try:
+                fields = await self._client.read()
+            except ModbusError as err:
+                raise UpdateFailed(
+                    translation_domain=DOMAIN,
+                    translation_key="modbus_error",
+                    translation_placeholders={"error": str(err)},
+                ) from err
         return {field.name: field for field in fields}
 
     async def async_shutdown(self) -> None:
