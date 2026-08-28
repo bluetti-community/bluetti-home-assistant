@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
-from modbus_connection.exceptions import ModbusConnectionError
+from modbus_connection.exceptions import ModbusConnectionError, ModbusTimeoutError
 
 from custom_components.bluetti.modbus_coordinator import BluettiModbusCoordinator
 
@@ -51,6 +51,33 @@ async def test_modbus_error_becomes_update_failed(client_cls, hass):
 
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
+
+    assert client_cls.return_value.read.await_count == 2
+
+
+@patch("custom_components.bluetti.modbus_coordinator.BluettiModbusClient")
+async def test_modbus_error_retries_once_before_giving_up(client_cls, hass):
+    """
+    A transient read failure (e.g. a malformed frame) must not surface as
+    unavailable if the very next attempt, moments later, succeeds.
+
+    Regression test: this device's Modbus TCP stack has been observed
+    returning a truncated response for a single register block, seen in
+    production activity logs recurring many times a day. Without a retry,
+    every one of those glitches made the entities flap unavailable for a
+    full 30s poll interval.
+    """
+    field = MagicMock(name="b_soc")
+    field.name = "b_soc"
+    client_cls.return_value.read = AsyncMock(
+        side_effect=[ModbusTimeoutError("no response"), [field]]
+    )
+    coordinator = BluettiModbusCoordinator(hass, MagicMock(), "SN1", "10.2.1.60", 502, "balco260")
+
+    result = await coordinator._async_update_data()
+
+    assert result == {"b_soc": field}
+    assert client_cls.return_value.read.await_count == 2
 
 
 @patch("custom_components.bluetti.modbus_coordinator.BluettiModbusClient")
