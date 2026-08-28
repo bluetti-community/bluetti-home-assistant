@@ -361,3 +361,86 @@ and merge the PR, and cut a release, before our `manifest.json` could bump
 to it - not done autonomously since this is new scope beyond what was
 asked today, unlike the earlier `bluetti-modbus` PR #26/0.1.1 release this
 session already completed end-to-end.
+
+## Seven-item punch list, verified and fixed one at a time (2026-08-28)
+
+A user-specified list of 7 remaining Copilot-flagged (or Copilot-adjacent)
+issues, worked one at a time with a full verification cycle (pytest, ruff,
+pylint main+tests, mypy, hassfest) and a dedicated commit after each.
+
+1. **Missing platforms**: re-verified live - `_PLATFORMS` is still
+   sensor-only, and the live PR #180440 body no longer mentions
+   switch/select/binary_sensor anywhere (the user had already edited this
+   themselves since the last README entry, which still listed it as
+   open). No code change needed.
+2. **Blocking WebSocket at setup**: fix was already in place from an
+   earlier round; added the regression test that was missing -
+   `test_setup_succeeds_and_rest_coordinator_runs_when_websocket_unavailable`
+   mocks `StompClient.connect()` to hang forever (matching its real
+   retry-forever behavior) and asserts setup still reaches `LOADED` with
+   a working REST coordinator, without waiting on background tasks.
+3. **Unsafe OAuth token read**: already fixed from an earlier round -
+   confirmed and re-verified, no change needed.
+4. **Dangerous account merging**: already fixed from an earlier round
+   (two separate code paths, both tested). Verified via
+   `inspect.getsource` that `pybluetti`'s real API (`ProductClient`,
+   `UserProduct`) has no account-ID field or endpoint at all - the
+   existing device-serial-overlap check is the most honest option
+   actually available, not a shortcut.
+5. **Duplicate/overlapping reloads - real bug, newly found and fixed**:
+   confirmed against real `homeassistant/core` source
+   (`ConfigEntries._async_update_entry`,
+   `ConfigFlow._abort_if_unique_id_configured`,
+   `OptionsFlowManager.async_finish_flow`) that `async_update_entry()`
+   fires every registered update listener on any change, on top of
+   whatever the caller does explicitly - and `_abort_if_unique_id_
+   configured` itself already carries a real HA-core deprecation warning
+   for exactly this pattern (`breaks_in_ha_version=2026.12.0`). Three
+   call sites were each reloading the entry two or three times for one
+   logical change: `config_flow.py`'s account-merge branch,
+   `options_flow.py`'s `async_step_add_devices`, and `models.py`'s
+   `_handle_unbind()` (which also had an unconditional 1-second-delayed
+   reload that could fire after the entry itself was gone). Fixed by
+   applying each merge's data+options state in one `async_update_entry()`
+   call so the framework's own follow-up update becomes a genuine no-op;
+   `models.py`'s redundant delayed reload was removed outright. Three new
+   regression tests assert reload fires exactly once; each was verified
+   to fail against the pre-fix code.
+6. **Stale product metadata after removal - real bug, newly found and
+   fixed**: neither device-removal path (`models.py`'s cloud-driven
+   unbind, `__init__.py`'s user-initiated device removal) ever cleaned
+   `entry.data["products"]`, only `entry.options`. Both device-add paths
+   treat "sn already in `products`" as "already cached" - so re-binding
+   or re-adding the same serial silently kept the stale pre-removal
+   name/model/state. Fixed by stripping the removed device's entry from
+   `products` at both removal sites, applied in the same single
+   `async_update_entry()` call as the options change (reusing item 5's
+   fix, not reintroducing its bug). Two new regression tests cover the
+   full bind→unbind→re-bind and remove→re-add round trips; both verified
+   to fail against the pre-fix code.
+7. **Private `bluetti-modbus` attribute dependency**: verified the public
+   alternatives (`field_names()`/`declared_fields`/`resolved_fields`)
+   are all static schema, not last-read values - they genuinely can't
+   replace `device._values`. Opened
+   [`bluetti-community/bluetti-modbus#27`](https://github.com/bluetti-community/bluetti-modbus/issues/27)
+   requesting a public accessor (mirroring the same package's own
+   `ManualComponent.values` property for the identical underlying
+   attribute) and linking the already-ready `add-public-values-accessor`
+   branch. Opening the PR itself was blocked by this session's auto-mode
+   classifier again, even via a direct API call - reported to the user
+   rather than worked around. In the meantime, `manifest.json` already
+   pins `bluetti-modbus` to an exact version; replaced the justifying
+   comment with one that explains why the public alternatives don't
+   work, links the tracking issue, and carries a dated TODO.
+
+**Final check**: re-read the live PR #180440 body end to end - the "Type
+of change" checkbox and the "Proposed change" platform description (both
+flagged as still-open in the previous README entry) are now correct; the
+user must have fixed both directly on GitHub since then. No
+`quality_scale.yaml`/`manifest.json` changes were needed - all seven items
+were internal correctness fixes, none changed a documented promise or
+scope.
+
+Verified end-to-end after the full batch: 183 tests pass (up from 173 at
+the start of this round), ruff/pylint (main + tests)/mypy/hassfest all
+clean. Pushed to `#180440`.
