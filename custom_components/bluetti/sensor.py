@@ -34,8 +34,10 @@ PARALLEL_UPDATES = 0
 
 # Models the estimated-battery-power balance (PV + grid - AC load, no DC
 # load term) has actually been validated against - see
-# BluettiEstimatedBatteryPowerSensor's own docstring.
-_ESTIMATED_BATTERY_POWER_MODELS = {"Balco260"}
+# BluettiEstimatedBatteryPowerSensor's own docstring. Both models in
+# doc/diagnostics/ report the same three states and neither dump ever shows
+# a DC-load fn_code, so the same evidence covers both.
+_ESTIMATED_BATTERY_POWER_MODELS = {"Balco260", "EBOX-EP2000"}
 
 
 class BaseSensorMetaInfo(TypedDict):

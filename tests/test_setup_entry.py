@@ -220,6 +220,35 @@ async def test_sensor_setup_entry_creates_estimated_battery_power_sensors(hass):
     assert len(energy_companions) == 2
 
 
+async def test_sensor_setup_entry_creates_estimated_battery_power_sensors_for_ep2000(hass):
+    # EBOX-EP2000 reports the same three power states as Balco260, and no
+    # diagnostics dump for either model has ever shown a DC-load fn_code -
+    # the same evidence that validates Balco260 covers EP2000 too.
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="EBOX-EP2000",
+        state_list=[
+            {
+                "fnCode": "PVAllTotalPower", "fnName": "PV Input Power", "fnValue": "500", "fnType": "SENSOR",
+                "sensorInfo": {"sensorType": "SensorDeviceClass.POWER", "unit": None},
+            },
+            {
+                "fnCode": "GridAllTotalPower", "fnName": "Grid Input Power", "fnValue": "0", "fnType": "SENSOR",
+                "sensorInfo": {"sensorType": "SensorDeviceClass.POWER", "unit": None},
+            },
+            {
+                "fnCode": "ACLoadAllTotalPower", "fnName": "AC Load Power", "fnValue": "200", "fnType": "SENSOR",
+                "sensorInfo": {"sensorType": "SensorDeviceClass.POWER", "unit": None},
+            },
+        ],
+    )
+    entry = _entry_with_devices(hass, [device])
+    added = []
+
+    await sensor_setup_entry(hass, entry, added.extend)
+
+    assert any(isinstance(e, BluettiEstimatedBatteryPowerSensor) for e in added)
+
+
 async def test_sensor_setup_entry_skips_estimated_battery_sensors_for_unvalidated_model(hass):
     # Regression test: the estimate used to activate for any model exposing
     # PV/grid/AC-load totals, even though it deliberately omits DC load and
