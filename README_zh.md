@@ -1,11 +1,20 @@
 # BLUETTI储能HA集成
 
-[🇨🇳 简体中文](./README_zh.md) | [🇩🇪 German](./README_de.md) | [🇬🇧 English](./README.md) | 
-[🇳🇱 Dutch](./README_nl.md) | [🇺🇦 Ukrainian](./README_uk.md)
+[🇨🇳 简体中文](./README_zh.md) | [🇩🇪 German](./README_de.md) | [🇫🇷 Français](./README_fr.md) | [🇬🇧 English](./README.md) | [🇳🇱 Dutch](./README_nl.md) | [🇺🇦 Ukrainian](./README_uk.md)
 
-BLUETTI储能集成是一个由BLUETTI官方提供的Home Assistant集成插件，支持在Home Assistant系统中使用您的BLUETTI智能储能设备。
+BLUETTI储能集成是一个由BLUETTI官方提供的Home Assistant集成插件，支持在Home Assistant系统中使用您的BLUETTI智能储能设备。2026年8月，项目正式确立"官方版 + 社区版"双轨并行的项目维护模式。社区版派生自官方版代码库，保持关联但定位不同，用户可按需选择。两个版本的核心差异对比如下：
 
-BLUETTI储能集成github仓库地址：[https://github.com/bluetti-official/bluetti-home-assistant](https://github.com/bluetti-official/bluetti-home-assistant)
+|             | 官方版 \(Official\) | 社区版 \(Community\) |
+| ----------- | ------------------ | -------------------- |
+| **仓库地址** |[https://github.com/bluetti-official/bluetti-home-assistant](https://github.com/bluetti-official/bluetti-home-assistant)|[https://github.com/bluetti-community/bluetti-home-assistant](https://github.com/bluetti-community/bluetti-home-assistant)|
+| **维护主体** | BLUETTI官方团队 | 社区开发者主导 |
+| **发布节奏** | 保守，受产品规划及内部合规审计约束 | 快速迭代，接纳更多功能增强与社区PR |
+| **功能范围** | 以稳定、合规为优先，新功能需经内部审核后发布 | 更灵活，可先行实验新功能与新设备适配 |
+| **设备支持** | 视BLUETTI产品规划 | 同步官方设备支持，并接纳社区贡献的设备适配 |
+| **Bug修复**  | 官方修复并随版本统一发布 | 社区活跃修复 |
+| **长期定位** | BLUETTI官方唯一认可仓库，面向追求稳定的用户 | 活跃开发主阵地，面向追求更高自由度的用户 |
+
+> ℹ️ 官方版和社区版的配置方式及账号授权流程一致，切换版本不会丢失设备、配置信息等数据。
 
 ## ✨ 功能特性
 
@@ -24,6 +33,9 @@ BLUETTI储能集成github仓库地址：[https://github.com/bluetti-official/blu
 - ✅ DC输出功率
 
 ## 🎮 机型支持清单
+> [!NOTE]
+>
+> 后续将支持更多型号的储能电站。
 
 |     型号        |      产品名称      |      云端控制      |      蓝牙控制      |      逆变器状态      |    电量SOC     |    AC开关    |     DC开关     |   整机电源开关   |  AC ECO  |  DC ECO  |   工作模式切换   |   休眠模式   |  光伏输入功率   |  电网输入功率   |  AC输出功率   | DC输出功率  |
 |:-------------:|:--------------:|:---------------:|:---------------:|:---------------:|:------------:|:----------:|:------------:|:----------:|:--------:|:--------:| :----------: |:--------:|:---------:|:---------:|:---------:|:-------:|
@@ -106,7 +118,7 @@ BLUETTI储能集成github仓库地址：[https://github.com/bluetti-official/blu
 
 4. 安装后，重启Home Assistant。
 
-## ⚙️ 配置集成
+## ⚙️ 安装集成
 
 ### 通过界面添加集成
 
@@ -135,7 +147,15 @@ BLUETTI储能集成github仓库地址：[https://github.com/bluetti-official/blu
    <img src="./doc/images/6-choose_bluetti_devices.png" width="880">
    <img src="./doc/images/7-bluetti_device_in_ha.png" width="880">
 
-## ❓ 常见问题
+## 🗑️ 移除集成
+1. 进入 **设置 → 设备与服务**，打开`BLUETTI`集成卡片，点击集成条目上的三点菜单并选择 **删除**。这将从Home Assistant中移除该配置条目及其关联的设备和实体。
+2. 删除集成文件：
+   - **通过HACS安装**：进入 **HACS → 集成**，打开`BLUETTI`，选择 **移除**。
+   - **手动安装**：从你的Home Assistant配置目录中删除`custom_components/bluetti`文件夹。
+3. 重启Home Assistant以完成移除。
+4. (可选)如果你不再希望Home Assistant访问你的BLUETTI账号，请在BLUETTI账号的 **已连接应用** 设置中撤销授权。
+
+## ❓ 常见问题(FAQ)
 
 ### 没有显示BLUETTI集成？
 

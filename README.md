@@ -7,8 +7,23 @@ BLUETTI Power Station Integration is an integrated component of Home Assistant
 supported by BLUETTI official. It allows you to use BLUETTI smart Power Station
 devices in Home Assistant.
 
-The Integration's github repository is:
-[https://github.com/bluetti-official/bluetti-home-assistant](https://github.com/bluetti-official/bluetti-home-assistant).
+In August 2026, the project formally established a dual-track maintenance model 
+with an **Official Edition** and a **Community Edition**. The Community Edition 
+is **forked from** the Official Edition's codebase and remains connected to it, 
+with a different positioning. Users may choose the appropriate version 
+based on their needs. The core differences between the two editions are compared below:
+
+|                     | Official Edition | Community Edition |
+| ------------------- | ---------------- | ----------------- |
+| **Repository**      | [https://github.com/bluetti-official/bluetti-home-assistant](https://github.com/bluetti-official/bluetti-home-assistant) | [https://github.com/bluetti-community/bluetti-home-assistant](https://github.com/bluetti-community/bluetti-home-assistant) |
+| **Maintainer**      | BLUETTI official team | Community-led |
+| **Release Cadence** | Conservative, governed by product planning and internal compliance audits | Rapid iteration, open to more feature enhancements and community PRs |
+| **Feature Scope**   | Stability and compliance first; new features released after internal review | More flexible; can experiment with new features and new device adapters earlier |
+| **Device Support**  | Subject to BLUETTI product planning | Mirrors official device support and adopts community-contributed device adapters |
+| **Bug Fixes**       | Fixed and shipped collectively with official releases | Actively fixed by the community |
+| **Long-term Positioning** | The only BLUETTI-officially-recognized repository, for users seeking stability | The primary active development hub, for users seeking greater freedom |
+
+> ℹ️ The Official Edition and Community Edition share the same configuration method and account authorization flow. Switching between editions will not result in the loss of device or configuration data.
 
 ## ✨ Features
 
@@ -149,6 +164,26 @@ can be installed.
 
    <img src="./doc/images/6-choose_bluetti_devices.png" width="880">
    <img src="./doc/images/7-bluetti_device_in_ha.png" width="880">
+
+## 🗑️ Integration removal
+
+1. Go to **Settings -> Devices & services**, open the `BLUETTI` integration
+   card, click the three-dot menu on the integration entry and select
+   **Delete**. This removes the config entry, its devices and entities from
+   `Home Assistant`.
+
+2. Remove the integration files:
+
+   - **Installed via HACS**: go to **HACS -> Integrations**, open `BLUETTI`,
+     and select **Remove**.
+   - **Installed manually**: delete the `custom_components/bluetti` folder
+     from your `Home Assistant` configuration directory.
+
+3. Restart `Home Assistant` to complete the removal.
+
+4. (Optional) If you no longer want `Home Assistant` to have access to your
+   BLUETTI account, revoke it from your BLUETTI account's connected-apps
+   settings.
 
 ## ❓ Frequently Asked Questions (FAQ)
 
