@@ -1,4 +1,5 @@
 """The BLUETTI integration."""
+import json
 # from __future__ import annotations
 
 import logging
@@ -14,14 +15,15 @@ from homeassistant.helpers import storage
 from homeassistant.loader import async_get_integration
 
 from .models import BluettiData
-from .oauth import AsyncConfigEntryAuth,AuthTokenRefresh
+from .oauth import AsyncConfigEntryAuth, AuthTokenRefresh
 from .api.bluetti import APPLICATION_PROFILE
 from .api.product_client import ProductClient
 from .api.websocket import StompClient
 from .profile.application_profile import ApplicationProfile
-from .const import DOMAIN,DOWNDIR,DOWNDIR_DATA_KEY,EVENT_BLUETTI_SETUP_OK,ControlMode
+from .const import DOMAIN, DOWNDIR, DOWNDIR_DATA_KEY, EVENT_BLUETTI_SETUP_OK, ControlMode
 from .model.product import UserProduct
 from .ble.ble_decoder import start_ble_lib
+
 # from .localization import LocalizationManager
 
 
@@ -34,6 +36,7 @@ _PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.SELECT]
 # Create ConfigEntry type alias with ConfigEntryAuth or AsyncConfigEntryAuth object
 type BluettiConfigEntry = ConfigEntry[BluettiData]
 
+
 # LOCALIZATION_MANAGER: LocalizationManager = None
 
 # type Oauth2ConfigEntry = ConfigEntry[api.AsyncConfigEntryAuth]
@@ -44,7 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
 
     # global LOCALIZATION_MANAGER
     # LOCALIZATION_MANAGER = LocalizationManager(hass, DOMAIN)
-    
+
     start_ble_lib()
     DOWNLOAD_DIR = os.path.join(hass.config.config_dir, f"custom_components/{DOMAIN}/{DOWNDIR}")
     if os.path.exists(DOWNLOAD_DIR) == False:
@@ -59,7 +62,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         UserProduct.model_validate(p) if isinstance(p, dict) else p
         for p in all_products_data
     ]
-    
+
     """OAUTH2: get the access token."""
     implementation = (
         await config_entry_oauth2_flow.async_get_config_entry_implementation(
@@ -81,12 +84,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         httpSession, oAuth2Session
     )
 
-    authTokenRefresh = AuthTokenRefresh(hass,entry,oAuth2Session)
+    authTokenRefresh = AuthTokenRefresh(hass, entry, oAuth2Session)
     authTokenRefresh.start_token_check()
 
     # await oAuth2Session.async_ensure_token_valid()
     access_token = oAuth2Session.token["access_token"]
-    product_client = ProductClient(httpSession, access_token,hass)
+    product_client = ProductClient(httpSession, access_token, hass)
     # products = await product_client.get_user_products()
     # print(products.data[0].__class__)
     # print(products.data)
@@ -105,7 +108,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         # update existing entry
         hass.config_entries.async_update_entry(
             entry,
-            data=dict(entry.data) | {"products":all_products}
+            data=dict(entry.data) | {"products": all_products}
         )
 
     bluetti_devices = BluettiData(hass=hass, devices=selected_products)
@@ -114,20 +117,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     stomp_client = None
     hasCloudControl = any(device.control_mode == ControlMode.CLOUD for device in bluetti_devices.devices)
     if hasCloudControl:
+        # In most cases, according to the principle of nearest access,
+        # the IP address of the server in the nearest data center to the customer will be returned.
+        # However, the intelligent DNS service may also encounter misjudgment situations,
+        # or if the customer uses a network proxy, this would violate the principle of nearest access,
+        # resulting in the customer accessing the wrong data center.
+        # Therefore, a reliable approach is to select an appropriate data center
+        # based on the country where the customer account is registered,
+        # and to follow the principle of nearest access as much as possible.
+        # print(json.dumps(oAuth2Session.token, indent=2, ensure_ascii=False, default=str))
+        config_token = dict(entry.data.get("token", {}))
+        cloud_host = config_token.get("host", None)
+
+        if "host" in oAuth2Session.token and cloud_host != oAuth2Session.token["host"]:
+            cloud_host = oAuth2Session.token["host"]
+            config_token.setdefault("host", cloud_host)
+            hass.config_entries.async_update_entry(entry, data={**entry.data, "token": config_token})
+
         # Determine the WebSocket protocol
-        endpoint = APPLICATION_PROFILE.config["server"]["gateway"].split("//")
+        endpoint = (cloud_host or APPLICATION_PROFILE.config["server"]["gateway"]).split("//")
         if endpoint[0] == "https":
             ws_protocol = "wss://"
         else:
             ws_protocol = "ws://"
 
-        # It may return the optimal WebSocket host info from BLUETTI server.
-        if "host" in oAuth2Session.token:
-            ws_url = oAuth2Session.token["host"]
-        else:
-            ws_url = endpoint[1]
-
-        ws_url = ws_protocol + ws_url + "/api/edgeiotgw/ws-coordination/websocket"
+        ws_url = ws_protocol + endpoint[1] + "/api/edgeiotgw/ws-coordination/websocket"
         # print(ws_url)
         # Register WebSocket
         stomp_client = StompClient(ws_url, access_token, APPLICATION_PROFILE.config,
@@ -137,7 +151,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     # initialize data storage structure
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN].setdefault(entry.entry_id, {})
-
 
     for device in bluetti_devices.devices:
         device._api_client = product_client
@@ -159,10 +172,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         for device in bluetti_devices.devices:
             if device.control_mode == ControlMode.CLOUD:
                 asyncio.run_coroutine_threadsafe(device.async_update(), hass.loop)
-        
+
         # start ble proto file down
         await bluetti_devices.asyc_start_down_proto(hass=hass)
-
 
     unsub = hass.bus.async_listen(EVENT_BLUETTI_SETUP_OK, _after_bluetti_setup_ok)
     entry.async_on_unload(unsub)
@@ -174,8 +186,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
 
 
 def web_socket_message_handler(message: str):
-    
     __LOGGER__.debug(message)
+
 
 # TODO Update entry annotation
 async def async_unload_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> bool:
@@ -184,21 +196,22 @@ async def async_unload_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> 
     # global LOCALIZATION_MANAGER
     # if LOCALIZATION_MANAGER:
     #     await LOCALIZATION_MANAGER.async_cleanup()
-    await disconnect_ws(hass,entry)
-    
+    await disconnect_ws(hass, entry)
+
     # remove download file
     bluetti_devices: BluettiData = hass.data[DOMAIN][entry.entry_id]["bluettiDevices"]
     await bluetti_devices.disconnect_all_ble(hass)
     await bluetti_devices.remove_download_file(hass)
 
-    #reload config file
+    # reload config file
     await APPLICATION_PROFILE.unload();
 
     return await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)
 
+
 async def async_remove_entry(hass, entry):
     """Handle removal of an entry."""
-    await disconnect_ws(hass,entry)
+    await disconnect_ws(hass, entry)
 
     # remove download file
     bluetti_devices: BluettiData = hass.data[DOMAIN][entry.entry_id]["bluettiDevices"]
@@ -220,7 +233,8 @@ async def async_remove_entry(hass, entry):
     store = storage.Store(hass, 1, f"{DOMAIN}_data_{entry.entry_id}.json")
     await store.async_remove()
 
-async def disconnect_ws(hass,entry):
+
+async def disconnect_ws(hass, entry):
     data = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     if data and "stompClient" in data:
         stomp_client = data["stompClient"]
