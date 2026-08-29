@@ -3,7 +3,8 @@ import os
 
 import yaml
 
-from ..const import INTEGRATION_NAME
+from ..const import INTEGRATION_NAME,DOMAIN
+from homeassistant.loader import async_get_integration
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -23,15 +24,32 @@ class ApplicationProfile:
 
         self.__configFile = "application" + self.__active + ".yaml"
         self.__configPath = os.path.dirname(os.path.abspath(__file__)) + "/" + self.__configFile
+        self.__configIsOk = False
+
+    async def unload(self):
+        ''' unload '''
+        self.__configIsOk = False
 
     """加载运行环境的配置文件"""
-    def load_config(self, hass):
-        return hass.async_add_executor_job(self.__load_config)
+    async def load_config(self, hass):
+        if self.__configIsOk:
+            return
+        
+        self.hass = hass
+        # Read the version of integration
+        integration = await async_get_integration(self.hass, DOMAIN)
+        self.integrationVer = str(integration.version)
+
+        await hass.async_add_executor_job(self.__load_config)
+        self.__configIsOk = True
+        
 
     def __load_config(self):
         with open(self.__configPath, "r") as file:
             __yaml__ = yaml.safe_load(file)
             __LOGGER__.info("Load profile " f"{self.__configFile} of `{INTEGRATION_NAME}` integration successfully.")
 
-        self.config = __yaml__['bluetti']
-        # print(self.config)
+        self.config =  __yaml__['bluetti']
+        self.config["app"]["app-ver"] = self.integrationVer
+
+        __LOGGER__.info(f'config:{self.config}')

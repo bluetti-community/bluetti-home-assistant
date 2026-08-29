@@ -3,6 +3,10 @@ from enum import Enum
 
 DOMAIN: str = "bluetti"
 INTEGRATION_NAME: str = 'BLUETTI'
+DOWNDIR: str = "downloads"
+DOWNDIR_DATA_KEY: str = "download_dir"
+
+EVENT_BLUETTI_SETUP_OK: str ="onBluettiSetup"
 
 EVENT_TOKEN_EXPIRED: str ="onTokenExpired"
 NOTIFY_ID_TOKEN_EXPIRED: str ="notifyTokenExpire"
@@ -23,3 +27,16 @@ class Method(StringEnum):
     GET = "GET"
     POST = "POST"
     DELETE = "DELETE"
+
+
+class AppPath(StringEnum):
+    """App Path define."""
+
+    SMART_HOME_API = "/api/bluiotdata"
+    DECODE_CENTER_API = "/api/bluiotcodec"
+
+class ControlMode(StringEnum):
+    """Control Mode define."""
+
+    CLOUD = "cloud"
+    BLE = "bluetooth"

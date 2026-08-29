@@ -12,7 +12,8 @@
             "oauth_unauthorized": "OAuth: Autorisierungsfehler beim Abrufen des Zugriffstokens.",
             "user_rejected_authorize": "Kontoverknüpfung fehlgeschlagen: {error}",
 			"all_devices_exists": "Alle unterstützten Geräte dieses Kontos wurden bereits konfiguriert.",
-            "no_devices_available": "Das aktuelle Konto verfügt über keine verfügbaren/kompatiblen Geräte."
+            "no_devices_available": "Das aktuelle Konto verfügt über keine verfügbaren/kompatiblen Geräte.",
+            "no_bluetooth_devices_matched": "Keine Bluetooth-Geräte gefunden."
         },
         "create_entry": {
             "default": "Erfolgreiche Authentifizierung"
@@ -20,7 +21,22 @@
         "step": {
             "pick_implementation": {
                 "title": "Wählen Sie die Authentifizierungsmethode"
+            },
+            "select_devices": {
+                "data": {
+                    "devices": "Geräte auswählen",
+                    "control_mode": "Steuerungsmodus"
+                },
+                "data_options": {
+                    "control_mode": {
+                        "cloud": "Cloud-Steuerung",
+                        "bluetooth": "Bluetooth-Steuerung"
+                    }
+                }
             }
         }
+    },
+    "res":{
+        "SetCtrlAc":"AC-de"
     }
 }

@@ -7,8 +7,23 @@ BLUETTI Power Station Integration is an integrated component of Home Assistant
 supported by BLUETTI official. It allows you to use BLUETTI smart Power Station
 devices in Home Assistant.
 
-The Integration's github repository is:
-[https://github.com/bluetti-official/bluetti-home-assistant](https://github.com/bluetti-official/bluetti-home-assistant).
+In August 2026, the project formally established a dual-track maintenance model 
+with an **Official Edition** and a **Community Edition**. The Community Edition 
+is **forked from** the Official Edition's codebase and remains connected to it, 
+with a different positioning. Users may choose the appropriate version 
+based on their needs. The core differences between the two editions are compared below:
+
+|                     | Official Edition | Community Edition |
+| ------------------- | ---------------- | ----------------- |
+| **Repository**      | [https://github.com/bluetti-official/bluetti-home-assistant](https://github.com/bluetti-official/bluetti-home-assistant) | [https://github.com/bluetti-community/bluetti-home-assistant](https://github.com/bluetti-community/bluetti-home-assistant) |
+| **Maintainer**      | BLUETTI official team | Community-led |
+| **Release Cadence** | Conservative, governed by product planning and internal compliance audits | Rapid iteration, open to more feature enhancements and community PRs |
+| **Feature Scope**   | Stability and compliance first; new features released after internal review | More flexible; can experiment with new features and new device adapters earlier |
+| **Device Support**  | Subject to BLUETTI product planning | Mirrors official device support and adopts community-contributed device adapters |
+| **Bug Fixes**       | Fixed and shipped collectively with official releases | Actively fixed by the community |
+| **Long-term Positioning** | The only BLUETTI-officially-recognized repository, for users seeking stability | The primary active development hub, for users seeking greater freedom |
+
+> ℹ️ The Official Edition and Community Edition share the same configuration method and account authorization flow. Switching between editions will not result in the loss of device or configuration data.
 
 ## ✨ Features
 
@@ -33,25 +48,41 @@ The Integration's github repository is:
 >
 > More power station models will be added in the future.
 
-|     Power Station Model      |             Buesiness Name              | Inverter Status | Battery SOC | AC Switch | DC Switch | power switch | AC ECO | DC ECO | Work mode switch | Sleep Mode | PV Input Power | Grid Input Power | AC Output Power | DC Output Power | 
-|:----------------------------:|:---------------------------------------:|:---------------:|:-----------:|:---------:|:---------:|:------------:|:------:|:------:|:----------------:|:----------:|:--------------:|:----------------:|:---------------:|:---------------:|
-|            AP300             |                Apex 300                 |                 |      ✅      |     ✅     |           |             |   ✅    |        |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
-|            EL300             |           Elite 300,AORA 300            |                 |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
-|        EL320,AORA320         |           Elite 320,AORA 320            |                 |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
-|            EL400             |                Elite 400                |                 |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
-|            EP13K             |                  EP13k                  |        ✅        |      ✅      |           |           |      ✅      |        |        |        ✅         |            |                |                  |                 |                 |
-|            EP2000            |                  EP200                  |        ✅        |      ✅      |           |           |      ✅      |        |        |        ✅         |            |                |                  |                 |                 |
-|             EP6K             |                  EP6k                   |        ✅        |      ✅      |           |           |      ✅      |        |        |        ✅         |            |                |                  |                 |                 |
-|            EP760             |                  EP760                  |        ✅        |      ✅      |           |           |      ✅      |        |        |                  |            |                |                  |                 |                 |
-|           EP500Pro           |                EP500Pro                 |                 |      ✅      |     ✅     |      ✅     |             |        |        |        ✅         |            |       ✅        |        ✅         |        ✅        |        ✅        |
-|              FP              |             Fridge Product              |        ✅        |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |                |                  |                 |                 |
-|  PR100V2,EL100V2,AORA100V2   | Premium 100 V2,Elite 100 V2,AORA 100 V2 |                 |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
-| PR200V2,Elite 200 V2,AORA200 | Premium 200 V2,Elite 200 V2,AORA 200 V2 |                 |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
-|        PR30V2,EL30V2         |  Premium 30 V2,Elite 30 V2,AORA 30 V2   |                 |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
-|             RV5              |                   RV5                   |        ✅        |      ✅      |     ✅     |     ✅     |             |        |        |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
-|      Balco260,Balco500       |            Balco260,Balco500            |        ✅        |      ✅      |     ✅     |           |             |        |        |        ✅         |            |       ✅        |        ✅         |        ✅        |                 |
-|         AC300,AC500          |               AC300,AC500               |                 |      ✅      |     ✅     |      ✅     |             |        |        |        ✅         |            |       ✅        |        ✅         |        ✅        |        ✅        |
-|        AC200PL,AC200L        |             AC200PL,AC200L              |                 |      ✅      |     ✅     |      ✅     |             |   ✅    |   ✅    |        ✅         |            |       ✅        |        ✅         |        ✅        |        ✅        |
+| Power Station Model | Buesiness Name | Cloud Control | BLE Control | Inverter Status |  Battery SOC   | AC Switch | DC Switch | power switch | AC ECO | DC ECO | Work mode switch | Sleep Mode | PV Input Power | Grid Input Power | AC Output Power | DC Output Power | 
+|:-------------------:|:--------------:|:-------------:|:-----------:|:---------------:|:--------------:|:---------:|:---------:|:------------:|:------:|:------:|:----------------:|:----------:|:--------------:|:----------------:|:---------------:|:---------------:|
+|       AC200L        |     AC200L     |       ✅       |      ✅      |                 |       ✅        |     ✅     |      ✅     |             |   ✅    |   ✅    |        ✅         |            |       ✅        |        ✅         |        ✅        |        ✅        |
+|       AC200PL       |    AC200PL     |       ✅       |      ✅      |                 |       ✅        |     ✅     |      ✅     |             |   ✅    |   ✅    |        ✅         |            |       ✅        |        ✅         |        ✅        |        ✅        |
+|        AC300        |     AC300      |       ✅       |             |                 |       ✅        |     ✅     |      ✅     |             |        |        |        ✅         |            |       ✅        |        ✅         |        ✅        |        ✅        |
+|        AC500        |     AC500      |       ✅       |             |                 |       ✅        |     ✅     |      ✅     |             |        |        |        ✅         |            |       ✅        |        ✅         |        ✅        |        ✅        |
+|        AP200        |    Apex 200    |       ✅       |      ✅      |                 |      ✅         |     ✅     |           |             |   ✅    |        |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|        AP300        |    Apex 300    |       ✅       |      ✅      |                 |       ✅        |     ✅     |           |             |   ✅    |        |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|       AP300V2       |  Apex 300 V2   |       ✅       |      ✅      |                 |       ✅        |     ✅     |           |             |   ✅    |        |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|      AORA30V2       |   AORA 30 V2   |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|      AORA100V2      |  AORA 100 V2   |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|       AORA200       |    AORA 200    |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|      AORA200V2      |  AORA 200 v2   |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|       AORA300       |    AORA 300    |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|       AORA320       |    AORA 320    |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|      Balco260       |    Balco260    |       ✅       |      ✅      |        ✅        |       ✅        |     ✅     |           |             |        |        |        ✅         |            |       ✅        |        ✅         |        ✅        |                 |
+|      Balco500       |    Balco500    |       ✅       |      ✅      |        ✅        |       ✅        |     ✅     |           |             |        |        |        ✅         |            |       ✅        |        ✅         |        ✅        |                 |
+|        EB3A         |      EB3A      |               |      ✅      |                 |       ✅        |     ✅     |      ✅     |             |   ✅    |   ✅    |                  |            |       ✅        |        ✅         |        ✅        |        ✅        |
+|        EL300        |   Elite 300    |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|        EL320        |   Elite 320    |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|        EL400        |   Elite 400    |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|       EL30V2        |  Elite 30 V2   |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|       EL100V2       |  Elite 100 V2  |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|    Elite 200 V2     |  Elite 200 V2  |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|        EP13K        |     EP13k      |       ✅       |             |        ✅        |       ✅        |           |           |      ✅      |        |        |        ✅         |            |                |                  |                 |                 |
+|       EP2000        |     EP200      |       ✅       |             |        ✅        |       ✅        |           |           |      ✅      |        |        |        ✅         |            |                |                  |                 |                 |
+|        EP6K         |      EP6k      |       ✅       |             |        ✅        |       ✅        |           |           |      ✅      |        |        |        ✅         |            |                |                  |                 |                 |
+|        EP760        |     EP760      |       ✅       |             |        ✅        |       ✅        |           |           |      ✅      |        |        |                  |            |                |                  |                 |                 |
+|      EP500Pro       |    EP500Pro    |       ✅       |             |                 |       ✅        |     ✅     |      ✅     |             |        |        |        ✅         |            |       ✅        |        ✅         |        ✅        |        ✅        |
+|         FP          | Fridge Product |       ✅       |      ✅      |        ✅        |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |                |                  |                 |                 |
+|       PR100V2       | Premium 100 V2 |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|       PR200V2       | Premium 200 V2 |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|       PR30V2        | Premium 30 V2  |       ✅       |      ✅      |                 |       ✅        |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|         RV5         |      RV5       |       ✅       |      ✅      |        ✅        |       ✅        |     ✅     |     ✅     |             |        |        |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+
 
 
 ## 📦 Integration installation
@@ -133,6 +164,26 @@ can be installed.
 
    <img src="./doc/images/6-choose_bluetti_devices.png" width="880">
    <img src="./doc/images/7-bluetti_device_in_ha.png" width="880">
+
+## 🗑️ Integration removal
+
+1. Go to **Settings -> Devices & services**, open the `BLUETTI` integration
+   card, click the three-dot menu on the integration entry and select
+   **Delete**. This removes the config entry, its devices and entities from
+   `Home Assistant`.
+
+2. Remove the integration files:
+
+   - **Installed via HACS**: go to **HACS -> Integrations**, open `BLUETTI`,
+     and select **Remove**.
+   - **Installed manually**: delete the `custom_components/bluetti` folder
+     from your `Home Assistant` configuration directory.
+
+3. Restart `Home Assistant` to complete the removal.
+
+4. (Optional) If you no longer want `Home Assistant` to have access to your
+   BLUETTI account, revoke it from your BLUETTI account's connected-apps
+   settings.
 
 ## ❓ Frequently Asked Questions (FAQ)
 

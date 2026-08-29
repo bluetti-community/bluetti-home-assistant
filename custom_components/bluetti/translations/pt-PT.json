@@ -12,7 +12,8 @@
             "oauth_unauthorized": "Erro de autorização OAuth durante a obtenção do token de acesso.",
             "user_rejected_authorize": "Vinculação de conta rejeitada: {error}",
 			"all_devices_exists": "Todos os dispositivos e itens físicos desta conta já foram incluídos no pacote de integração BLUETTI.",
-            "no_devices_available": "A conta actual não tem dispositivos disponíveis/compatíveis."
+            "no_devices_available": "A conta actual não tem dispositivos disponíveis/compatíveis.",
+            "no_bluetooth_devices_matched": "Nenhum dispositivo Bluetooth encontrado."
         },
         "create_entry": {
             "default": "Autenticação bem sucedida"
@@ -20,6 +21,18 @@
         "step": {
             "pick_implementation": {
                 "title": "Escolha o metodo de autenticação"
+            },
+            "select_devices": {
+                "data": {
+                    "devices": "Selecionar Dispositivos",
+                    "control_mode": "Modo de Controlo"
+                },
+                "data_options": {
+                    "control_mode": {
+                        "cloud": "Controlo na Nuvem",
+                        "bluetooth": "Controlo Bluetooth"
+                    }
+                }
             }
         }
     }

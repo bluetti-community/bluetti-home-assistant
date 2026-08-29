@@ -1,16 +1,17 @@
 """BLUETTI Cloud API for Python."""
 import aiohttp
 import logging
+import asyncio
 
 from abc import abstractmethod
-from json import dumps, loads
+from json import dumps
 from typing import Any, TypeVar, Generic
 
 from pydantic import TypeAdapter
 from homeassistant.core import HomeAssistant
 
 from .unify_response import UnifyResponse
-from ..const import Method,EVENT_TOKEN_EXPIRED
+from ..const import Method, EVENT_TOKEN_EXPIRED
 from ..application_exception import ApplicationRuntimeException
 from ..profile.application_profile import ApplicationProfile
 
@@ -55,6 +56,42 @@ class Bluetti(Generic[T]):
         - **responseType**: The type of response data type, do not include wrapper class `UnifyResponse`.
         - **method**: The HTTP method.
         """
+        response = await self._request_with_server(responseType,
+                                                   method,
+                                                   APPLICATION_PROFILE.config["server"]["gateway"],
+                                                   path,
+                                                   params,
+                                                   body)
+        if isinstance(response, UnifyResponse) and response.msgCode == 805:
+            if path.endswith('/ha/v2/devices') or path.endswith('/ha/v1/devices'):
+                await asyncio.sleep(5)
+            response_pry = await self._request_with_server(responseType,
+                                                           method,
+                                                           APPLICATION_PROFILE.config["server"]["gatewaypry"],
+                                                           path,
+                                                           params,
+                                                           body)
+            if isinstance(response_pry, UnifyResponse) and response_pry.msgCode == 805:
+                self._hass.bus.fire(EVENT_TOKEN_EXPIRED)
+                self.logger.info("token have expired")
+            return response_pry;
+        else:
+            return response
+
+    async def _request_with_server(
+            self,
+            responseType: Any,
+            method: Method,
+            server: str,
+            path: str,
+            params: dict[str, Any] | None = None,
+            body: dict[str, Any] | None = {}
+    ) -> UnifyResponse[T] | str:
+        """
+        Send a request to the server.\n
+        - **responseType**: The type of response data type, do not include wrapper class `UnifyResponse`.
+        - **method**: The HTTP method.
+        """
 
         # when the method is 'GET', the request body must be null.
         if method == Method.GET:
@@ -62,6 +99,9 @@ class Bluetti(Generic[T]):
 
         headers = {
             "Authorization": f"{self._accessToken}",
+            "x-os": "open",
+            "x-app-key": f"{APPLICATION_PROFILE.config["app"]["app-key"]}",
+            "x-app-ver": f"{APPLICATION_PROFILE.config["app"]["app-ver"]}"
         }
 
         # Remove None values from params and json
@@ -75,7 +115,7 @@ class Bluetti(Generic[T]):
 
         async with self._httpSession.request(
                 method,
-                f"{APPLICATION_PROFILE.config["server"]["gateway"]}{path}",
+                f"{server}{path}",
                 headers=headers,
                 json=body,
                 params=params,
@@ -85,7 +125,9 @@ class Bluetti(Generic[T]):
 
             if not response.ok:
                 # await raise_for_status(resp)
-                raise ApplicationRuntimeException(msgCode=response.status, data=await response.text())
+                errText = await response.text()
+                self.logger.error("response.status:%s text:%s", response.status, errText)
+                raise ApplicationRuntimeException(msgCode=response.status, data=errText)
 
             # if not response.content_type.lower().startswith("application/json"):
             #     raise ApplicationRuntimeException(msgCode=response.status, data=await response.text())
@@ -95,9 +137,9 @@ class Bluetti(Generic[T]):
                 unify_response = TypeAdapter(UnifyResponse[responseType]).validate_python(data)
                 # self.logger.debug("<====== Server response body: %s", dumps(data, indent=4, ensure_ascii=False))
                 # print(repr(unify_response))
-                if data['code'] == 805:
-                    self._hass.bus.fire(EVENT_TOKEN_EXPIRED)
-                    self.logger.info("token have expired")
+                # if unify_response.msgCode == 805:
+                #     self._hass.bus.fire(EVENT_TOKEN_EXPIRED)
+                #     self.logger.info("token have expired")
                 return unify_response
             else:
                 data = await response.text()
