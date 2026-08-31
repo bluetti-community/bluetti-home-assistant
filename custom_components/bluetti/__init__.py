@@ -89,6 +89,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
 
     # await oAuth2Session.async_ensure_token_valid()
     access_token = oAuth2Session.token["access_token"]
+    # TODO APIs should be invoked only after AccessToken processing succeeds,
+    #  prioritizing the host address prefix returned by the cloud.
     product_client = ProductClient(httpSession, access_token, hass)
     # products = await product_client.get_user_products()
     # print(products.data[0].__class__)
