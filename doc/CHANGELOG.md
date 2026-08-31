@@ -1,3 +1,7 @@
+# 1.2.4rc1 2026-08-31 (pre-release, for testing)
+Fixes:
+- Requires `pybluetti>=0.2.1rc1`: 1.2.3 shipped with a heartbeat-task-cancellation fix that turned out to be a partial one - real production logs on 1.2.3 itself (bluetti-official/bluetti-home-assistant#145) showed `Failed to send heartbeat: Cannot write to closing transport` still repeating on every reconnect cycle. Root cause: `_run()` never closed the abandoned connection itself on this path (only a token-expiry did), so a concurrently-running heartbeat send could still slip past its own closed-check. `pybluetti` 0.2.1rc1 closes it directly. A plain floor rather than a hard pin, matching this repo's own convention - no stable `pybluetti` release satisfies it yet, so pip resolves to the pre-release regardless.
+
 # 1.2.3 2026-08-31
 Fixes:
 - Fix the websocket real-time update connection getting stuck in a silent crash-reconnect loop once the cloud rejects it with a persistent (non-token-expiry) error - reported as a repeating `Upgrade required, and then reconfigure the BLUETTI integration` / `BLUETTI WebSocket task crashed` cycle every ~30 seconds (bluetti-official/bluetti-home-assistant#145). Device data kept updating via the 30-second polling fallback throughout, but real-time push stayed broken with no visible signal beyond log spam. The integration now surfaces this as a Repair issue in Settings -> Devices & services -> Repairs instead, and `pybluetti` (>= 0.2.0) no longer leaks the previous connection's heartbeat task into every retry or re-logs the same full traceback on each one.
