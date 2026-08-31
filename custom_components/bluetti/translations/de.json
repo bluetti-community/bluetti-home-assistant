@@ -80,6 +80,10 @@
     "oauth_expired": {
       "title": "BLUETTI-Authentifizierung abgelaufen",
       "description": "Die Autorisierung Ihres BLUETTI-Kontos ist abgelaufen. Gehen Sie zu den Einstellungen der Integration und wählen Sie **Neu konfigurieren**, um sich erneut anzumelden."
+    },
+    "websocket_error": {
+      "title": "BLUETTI-Echtzeit-Updates nicht verfügbar",
+      "description": "Der BLUETTI-Cloud-Dienst hat die Verbindung für Echtzeit-Updates abgelehnt: {error}\n\nGerätedaten werden weiterhin alle 30 Sekunden per Abfrage aktualisiert; dies betrifft nur, wie schnell Änderungen angezeigt werden. Falls das Problem bestehen bleibt, versuchen Sie, die Integration zu entfernen und erneut hinzuzufügen."
     }
   },
   "entity": {

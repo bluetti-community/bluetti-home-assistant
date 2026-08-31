@@ -6,9 +6,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from modbus_connection.exceptions import ModbusConnectionError
+from pybluetti import ApplicationRuntimeException
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.bluetti import ISSUE_ID_WEBSOCKET_ERROR
 from custom_components.bluetti.const import DOMAIN
 
 
@@ -51,6 +54,34 @@ async def test_async_setup_entry_with_no_devices(hass, enable_custom_integration
     assert entry.runtime_data.coordinators == {}
     assert entry.runtime_data.modbus_coordinators == {}
     mock_stomp_cls.return_value.connect.assert_awaited_once()
+
+
+async def test_websocket_on_error_creates_a_repair_issue(hass, enable_custom_integrations):
+    entry = _entry(hass)
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(return_value=MagicMock()),
+         ), \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls:
+        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
+        mock_stomp_cls.return_value.connect = AsyncMock()
+
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        on_error = mock_stomp_cls.call_args.kwargs["on_error"]
+        on_error(ApplicationRuntimeException(msgCode=1042, errMessage="Upgrade required"))
+
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_ID_WEBSOCKET_ERROR)
+    assert issue is not None
+    assert issue.translation_key == "websocket_error"
+    assert issue.translation_placeholders == {"error": "Upgrade required"}
+    assert issue.is_fixable is False
+    assert issue.severity == ir.IssueSeverity.WARNING
 
 
 async def test_async_setup_entry_with_a_device(hass, enable_custom_integrations):

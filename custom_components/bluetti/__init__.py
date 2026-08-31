@@ -13,8 +13,14 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_entry_oauth2_flow, storage
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from pybluetti import ProductClient, StompClient, UserProduct
+from pybluetti import (
+    ApplicationRuntimeException,
+    ProductClient,
+    StompClient,
+    UserProduct,
+)
 
 from .application_credentials import async_ensure_default_credential
 from .const import DOMAIN, EVENT_TOKEN_EXPIRED
@@ -24,6 +30,12 @@ from .modbus_support import modbus_dev_type_for_model
 from .models import BluettiData
 from .oauth import AsyncConfigEntryAuth, AuthTokenRefresh
 from .profile.application_profile import APPLICATION_PROFILE
+
+# Not fixable automatically: the cloud rejected the websocket subscription
+# itself (a real STOMP ERROR frame, not a dropped connection), and nothing
+# here knows what specifically the cloud wants fixed - see the linked
+# reports at github.com/bluetti-official/bluetti-home-assistant/issues/145.
+ISSUE_ID_WEBSOCKET_ERROR = "websocket_error"
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -115,13 +127,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
 
     bluetti_devices = BluettiData(hass, selected_products)
 
+    def _on_websocket_error(err: ApplicationRuntimeException) -> None:
+        # Real-time push is degraded, not the whole integration - polling
+        # still runs independently, so this is a WARNING, not the ERROR
+        # severity the fully-broken oauth_expired issue uses.
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            ISSUE_ID_WEBSOCKET_ERROR,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="websocket_error",
+            translation_placeholders={"error": str(err)},
+        )
+
+    # Clear any issue a previous run of this entry left behind before
+    # deciding whether this run has the same problem - same "first clear
+    # old notify" pattern AuthTokenRefresh.start_token_check() uses for
+    # oauth_expired, so an issue from an old, since-resolved failure doesn't
+    # linger in Repairs forever.
+    ir.async_delete_issue(hass, DOMAIN, ISSUE_ID_WEBSOCKET_ERROR)
+
     # Register WebSocket
     stomp_client = StompClient(
         httpSession,
         APPLICATION_PROFILE.config["server"]["wss"],
         access_token,
-        bluetti_devices.web_socket_message_handler,
+        handler=bluetti_devices.web_socket_message_handler,
         on_auth_expired=lambda: hass.bus.fire(EVENT_TOKEN_EXPIRED),
+        on_error=_on_websocket_error,
     )
     await stomp_client.connect()
 

@@ -1,3 +1,7 @@
+# 1.2.3 2026-08-31
+Fixes:
+- Fix the websocket real-time update connection getting stuck in a silent crash-reconnect loop once the cloud rejects it with a persistent (non-token-expiry) error - reported as a repeating `Upgrade required, and then reconfigure the BLUETTI integration` / `BLUETTI WebSocket task crashed` cycle every ~30 seconds (bluetti-official/bluetti-home-assistant#145). Device data kept updating via the 30-second polling fallback throughout, but real-time push stayed broken with no visible signal beyond log spam. The integration now surfaces this as a Repair issue in Settings -> Devices & services -> Repairs instead, and `pybluetti` (>= 0.2.0) no longer leaks the previous connection's heartbeat task into every retry or re-logs the same full traceback on each one.
+
 # 1.2.0 2026-08-25
 New:
 - The device's serial number now shows up in its Device Info panel (Settings -> Devices & services -> BLUETTI -> device page), matching how other Home Assistant integrations surface it.

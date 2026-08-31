@@ -80,6 +80,10 @@
     "oauth_expired": {
       "title": "Autenticação BLUETTI expirada",
       "description": "A autorização da sua conta BLUETTI expirou. Aceda às definições da integração e selecione **Reconfigurar** para iniciar sessão novamente."
+    },
+    "websocket_error": {
+      "title": "Atualizações em tempo real do BLUETTI indisponíveis",
+      "description": "A nuvem BLUETTI rejeitou a ligação de atualização em tempo real: {error}\n\nOs dados do dispositivo continuam a ser atualizados por sondagem a cada 30 segundos; isto afeta apenas a rapidez com que as alterações são apresentadas. Se isto persistir, tente remover e voltar a adicionar a integração."
     }
   },
   "entity": {

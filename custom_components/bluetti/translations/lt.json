@@ -80,6 +80,10 @@
     "oauth_expired": {
       "title": "BLUETTI autentifikacija baigėsi",
       "description": "Jūsų BLUETTI paskyros autorizacija baigėsi. Eikite į integracijos nustatymus ir pasirinkite **Perkonfigūruoti**, kad prisijungtumėte iš naujo."
+    },
+    "websocket_error": {
+      "title": "BLUETTI realaus laiko atnaujinimai nepasiekiami",
+      "description": "BLUETTI debesija atmetė realaus laiko atnaujinimų ryšį: {error}\n\nĮrenginio duomenys vis dar atnaujinami apklausiant kas 30 sekundžių; tai veikia tik pakeitimų rodymo greitį. Jei problema kartojasi, pabandykite pašalinti ir iš naujo pridėti integraciją."
     }
   },
   "entity": {

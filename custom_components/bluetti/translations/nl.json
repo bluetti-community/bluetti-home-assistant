@@ -80,6 +80,10 @@
     "oauth_expired": {
       "title": "BLUETTI-authenticatie verlopen",
       "description": "De autorisatie van uw BLUETTI-account is verlopen. Ga naar de instellingen van de integratie en selecteer **Herconfigureren** om opnieuw in te loggen."
+    },
+    "websocket_error": {
+      "title": "BLUETTI realtime-updates niet beschikbaar",
+      "description": "De BLUETTI-cloud heeft de realtime-updateverbinding geweigerd: {error}\n\nApparaatgegevens worden nog steeds elke 30 seconden bijgewerkt via polling; dit heeft alleen invloed op hoe snel wijzigingen worden weergegeven. Als dit aanhoudt, probeer de integratie te verwijderen en opnieuw toe te voegen."
     }
   },
   "entity": {
