@@ -250,3 +250,53 @@ async def test_update_listener_reloads_entry(hass):
         await _async_update_listener(hass, entry)
 
     mock_reload.assert_awaited_once_with(entry.entry_id)
+
+
+async def test_stompclient_call_uses_keyword_only_args(
+    hass, enable_custom_integrations
+):
+    """Regression test for #27.
+
+    StompClient.__init__() in pybluetti>=0.2.0 accepts only 3 positional
+    arguments (session, url, access_token); handler, on_auth_expired and
+    on_error are keyword-only.  If someone re-introduces a 4th positional
+    argument, this test fails before users hit Failed Setup.
+    """
+    import time
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            "auth_implementation": DOMAIN,
+            "token": {"access_token": "tok", "expires_at": time.time() + 10000},
+            "products": [],
+        },
+        options={"devices": []},
+    )
+    entry.add_to_hass(hass)
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(return_value=MagicMock()),
+         ), \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls:
+        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
+        mock_stomp_cls.return_value.connect = AsyncMock()
+
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        mock_stomp_cls.assert_called_once()
+        call_args = mock_stomp_cls.call_args
+
+        # Exactly 3 positional args: session, url, access_token
+        assert len(call_args.args) == 3, (
+            "StompClient must receive exactly 3 positional arguments "
+            "(session, url, access_token). handler/on_auth_expired/on_error "
+            "must be keyword-only — see issue #27."
+        )
+        assert "handler" in call_args.kwargs
+        assert "on_auth_expired" in call_args.kwargs

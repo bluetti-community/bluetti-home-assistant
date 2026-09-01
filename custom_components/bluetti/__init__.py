@@ -68,6 +68,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     try:
         await APPLICATION_PROFILE.load_config(hass)
 
+        # Guard against a pybluetti version mismatch before we touch
+        # StompClient/ProductClient — a too-old pybluetti (pre-0.2.0) has
+        # StompClient accept `handler` as a positional argument, and a too-new
+        # one may break the keyword-only signature again.  Fail early with a
+        # clear message instead of a cryptic TypeError mid-setup (#27).
+        import pybluetti
+        from packaging.version import Version
+        _pybluetti_version = Version(pybluetti.__version__)
+        if _pybluetti_version < Version("0.2.0"):
+            raise ConfigEntryNotReady(
+                f"pybluetti {pybluetti.__version__} is too old; need >=0.2.0,<0.3. "
+                "Update the BLUETTI integration in HACS and restart Home Assistant."
+            )
+
         enabled_devices = entry.options.get("devices", [])
         all_products_data: list[dict[str, Any]] = entry.data.get("products", [])
         all_products: list[UserProduct] = [

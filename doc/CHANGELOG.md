@@ -1,3 +1,9 @@
+# 1.2.4rc2 2026-09-01 (pre-release, for testing)
+Fixes:
+- Guard against a pybluetti version mismatch at setup time: if the installed pybluetti is < 0.2.0, the integration now fails early with a clear ConfigEntryNotReady message ("pybluetti X.Y.Z is too old; need >=0.2.0,<0.3") instead of a cryptic `TypeError: StompClient.__init__() takes 4 positional arguments but 5` — root cause of #27 on fresh 1.2.2 installs where pip resolved pybluetti 0.2.0 (keyword-only callbacks) against an integration that still passed `handler` positionally.
+- Bound `pybluetti` to `>=0.2.0,<0.3` in manifest.json so a future breaking change in pybluetti 0.3+ does not silently break setup the same way 0.2.0 did for 1.2.2 users.
+- Added a regression test ensuring StompClient is called with exactly 3 positional arguments (session, url, access_token) and keyword-only callbacks.
+
 # 1.2.4rc1 2026-08-31 (pre-release, for testing)
 Fixes:
 - Requires `pybluetti>=0.2.1rc1`: 1.2.3 shipped with a heartbeat-task-cancellation fix that turned out to be a partial one - real production logs on 1.2.3 itself (bluetti-official/bluetti-home-assistant#145) showed `Failed to send heartbeat: Cannot write to closing transport` still repeating on every reconnect cycle. Root cause: `_run()` never closed the abandoned connection itself on this path (only a token-expiry did), so a concurrently-running heartbeat send could still slip past its own closed-check. `pybluetti` 0.2.1rc1 closes it directly. A plain floor rather than a hard pin, matching this repo's own convention - no stable `pybluetti` release satisfies it yet, so pip resolves to the pre-release regardless.
