@@ -1,3 +1,11 @@
+# 1.2.5rc1 2026-09-02 (pre-release, for testing)
+New:
+- Requires `bluetti-modbus>=0.3.1`: local Modbus TCP support for **EP2000** is back (it was pulled from `bluetti-modbus` pending confirmation it exposes Modbus TCP at all - see bluetti-official/bluetti-home-assistant#125). BLUETTI has since published an official Modbus TCP register spec confirming it does; this integration already recognized `"ep2000"` as a Modbus-capable model (`modbus_support.py`), it just needed the dependency to catch up. Still spec-derived rather than field-tested on real EP2000 hardware - if you have one and can confirm local Modbus works, that report is genuinely useful.
+- Balco260 also gains 66 new fields over local Modbus (per-phase grid/AC-load/inverter breakdowns, PV per-string type, pack status/serial/software versions, and more - see `bluetti-registers`' own changelog for the full list), confirmed against real Balco260 hardware this cycle. They'll show up as plain, unstyled sensors for now (no device_class/state_class yet) - richer presentation for the ones worth it is a follow-up, not bundled into this dependency bump.
+
+Fixes:
+- `pv_1_i_type`..`pv_4_i_type` (Balco260/EP2000) no longer warn and read `None` - confirmed on real hardware, this field always reports a value (100, "DC PV") outside the small range `bluetti-modbus` originally tried to decode as a named enum. Now a plain number.
+
 # 1.2.4rc1 2026-08-31 (pre-release, for testing)
 Fixes:
 - Requires `pybluetti>=0.2.1rc1`: 1.2.3 shipped with a heartbeat-task-cancellation fix that turned out to be a partial one - real production logs on 1.2.3 itself (bluetti-official/bluetti-home-assistant#145) showed `Failed to send heartbeat: Cannot write to closing transport` still repeating on every reconnect cycle. Root cause: `_run()` never closed the abandoned connection itself on this path (only a token-expiry did), so a concurrently-running heartbeat send could still slip past its own closed-check. `pybluetti` 0.2.1rc1 closes it directly. A plain floor rather than a hard pin, matching this repo's own convention - no stable `pybluetti` release satisfies it yet, so pip resolves to the pre-release regardless.
