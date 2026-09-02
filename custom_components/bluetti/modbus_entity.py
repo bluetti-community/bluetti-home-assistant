@@ -58,6 +58,11 @@ class BluettiModbusEntity(CoordinatorEntity[BluettiModbusCoordinator]):
             model=device.model,
             serial_number=device.sn,
             sw_version=_modbus_sw_version(coordinator),
+            # The device's own local web server, the same one Modbus TCP has
+            # to be enabled through in the first place. Port 80: the Modbus
+            # port (coordinator.host's companion port) is a different,
+            # unrelated service on the same device.
+            configuration_url=f"http://{coordinator.host}",
         )
 
     @property

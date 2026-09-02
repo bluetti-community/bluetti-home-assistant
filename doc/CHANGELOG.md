@@ -1,3 +1,7 @@
+# 1.2.5rc3 2026-09-02 (pre-release, for testing)
+New:
+- Modbus-connected devices (Balco260, EP2000) now have a "Visit device" link on their Device Info panel, pointing at the device's own local web UI (the same one Modbus TCP has to be enabled through). Matches how other local-network integrations (e.g. Shelly) expose this.
+
 # 1.2.5rc2 2026-09-02 (pre-release, for testing)
 New:
 - The 65 new Balco260 fields from 1.2.5rc1 now carry proper `device_class`/`state_class`/diagnostic categorization (transcribed from `bluetti-registers`' own `balco260.json`), instead of showing up as plain, unlabeled sensors.
