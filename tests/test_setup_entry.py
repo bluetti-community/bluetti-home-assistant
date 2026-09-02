@@ -366,6 +366,7 @@ async def test_select_setup_entry_creates_select_and_controls_it(hass):
 
 async def test_sensor_setup_entry_creates_modbus_sensors_grouped_with_cloud_device(hass):
     from enum import Enum
+    from types import SimpleNamespace
 
     from bluetti_modbus_lib.modbus.client import ClientReturnValue
 
@@ -396,8 +397,16 @@ async def test_sensor_setup_entry_creates_modbus_sensors_grouped_with_cloud_devi
             name="d_inverter_status", unit=None, value=_FakeInverterStatus.STANDBY
         ),
         "g_i_f": ClientReturnValue(name="g_i_f", unit="Hz", value=50.0),
+        # Excluded - the device's own identity, fed into DeviceInfo instead.
+        "d_serial": ClientReturnValue(name="d_serial", unit=None, value=123456),
     }
+    # Real scale for g_i_f (0.1) drives suggested_display_precision; every
+    # other field here defaults to an unscaled register.
+    scales = {"g_i_f": 0.1}
     modbus_coordinator = MagicMock(data=fields)
+    modbus_coordinator.device.get_field.side_effect = (
+        lambda name: SimpleNamespace(scale=scales.get(name, 1.0))
+    )
 
     entry = _entry_with_devices(hass, [device], modbus_coordinators={"SN1": modbus_coordinator})
     added = []
@@ -412,6 +421,8 @@ async def test_sensor_setup_entry_creates_modbus_sensors_grouped_with_cloud_devi
 
     assert modbus_sensors["g_i_f"].device_class == SensorDeviceClass.FREQUENCY
     assert modbus_sensors["g_i_f"].state_class == SensorStateClass.MEASUREMENT
+    assert modbus_sensors["g_i_f"].suggested_display_precision == 1
+    assert modbus_sensors["b_cycle_count"].suggested_display_precision is None
 
     assert modbus_sensors["b_soc_high"].entity_category == EntityCategory.DIAGNOSTIC
     assert modbus_sensors["b_cycle_count"].native_value == 12

@@ -1,3 +1,12 @@
+# 1.2.5rc2 2026-09-02 (pre-release, for testing)
+New:
+- The 65 new Balco260 fields from 1.2.5rc1 now carry proper `device_class`/`state_class`/diagnostic categorization (transcribed from `bluetti-registers`' own `balco260.json`), instead of showing up as plain, unlabeled sensors.
+- Scaled Modbus fields (0.1-scale voltage, frequency, etc. - both the original 51 fields and the 65 new ones) now set `suggested_display_precision` explicitly, so e.g. grid frequency shows `50.0 Hz` instead of `50 Hz`. Ported from the same fix on the home-assistant/core `bluetti_modbus` submission.
+- All 65 new fields now have proper translated names (English text seeded across every supported locale for now - a real translation per language is a welcome follow-up, not a blocker).
+
+Changed:
+- `d_serial`/`d_ver_arm`/`d_ver_dsp` are no longer separate Modbus sensors - they now feed the device's own Device Info panel (serial number stays cloud-sourced; a new firmware version field is added), matching how home-assistant/core's `bluetti_modbus` integration handles these same three fields. If you already have entities for these from an earlier version, they're removed automatically on this update - nothing to clean up by hand.
+
 # 1.2.5rc1 2026-09-02 (pre-release, for testing)
 New:
 - Requires `bluetti-modbus>=0.3.1`: local Modbus TCP support for **EP2000** is back (it was pulled from `bluetti-modbus` pending confirmation it exposes Modbus TCP at all - see bluetti-official/bluetti-home-assistant#125). BLUETTI has since published an official Modbus TCP register spec confirming it does; this integration already recognized `"ep2000"` as a Modbus-capable model (`modbus_support.py`), it just needed the dependency to catch up. Still spec-derived rather than field-tested on real EP2000 hardware - if you have one and can confirm local Modbus works, that report is genuinely useful.

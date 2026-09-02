@@ -23,7 +23,7 @@ from . import BluettiConfigEntry
 from .entity import BluettiEntity
 from .modbus_coordinator import BluettiModbusCoordinator
 from .modbus_entity import BluettiModbusEntity
-from .modbus_field_metadata import modbus_metadata_for
+from .modbus_field_metadata import modbus_metadata_for, suggested_precision_for_scale
 from .models import BluettiData, BluettiDevice, BluettiState
 
 __LOGGER__ = logging.getLogger(__name__)
@@ -79,6 +79,11 @@ SENSOR_MAP: dict[str, BaseSensorMetaInfo] = {
 # bluetti-modbus release show up automatically instead of needing to be
 # added to an include-list.
 MODBUS_FIELDS_DUPLICATING_CLOUD = {"ac_o_p_total", "pv_i_p_total", "g_i_p_total", "b_soc_total", "b_soc"}
+
+# The device's own identity - not entities, fed into DeviceInfo instead (see
+# modbus_entity.py). Matches home-assistant/core's bluetti_modbus
+# integration, which excludes exactly these same three fields the same way.
+MODBUS_FIELDS_SHOWN_VIA_DEVICE_INFO = {"d_serial", "d_ver_arm", "d_ver_dsp"}
 
 
 def _power_value_getter(state: BluettiState) -> Callable[[], str | float | None]:
@@ -169,6 +174,8 @@ async def async_setup_entry(
             continue
         for field_name in modbus_coordinator.data or {}:
             if field_name in MODBUS_FIELDS_DUPLICATING_CLOUD:
+                continue
+            if field_name in MODBUS_FIELDS_SHOWN_VIA_DEVICE_INFO:
                 continue
             entities.append(BluettiModbusSensor(modbus_device, modbus_coordinator, field_name))
 
@@ -342,6 +349,10 @@ class BluettiModbusSensor(BluettiModbusEntity, SensorEntity):
 
         field: ClientReturnValue | None = (coordinator.data or {}).get(field_name)
         self._attr_native_unit_of_measurement = field.unit if field else None
+
+        register_field = coordinator.device.get_field(field_name)
+        scale = getattr(register_field, "scale", 1.0)
+        self._attr_suggested_display_precision = suggested_precision_for_scale(scale)
 
         metadata = modbus_metadata_for(field_name)
         if metadata.device_class:

@@ -10,6 +10,24 @@ from .modbus_coordinator import BluettiModbusCoordinator
 from .models import BluettiDevice
 
 
+def _modbus_sw_version(coordinator: BluettiModbusCoordinator) -> str | None:
+    """
+    Firmware version string from the device's own Modbus-read d_ver_arm/d_ver_dsp.
+
+    Not sensor entities (see sensor.py's MODBUS_FIELDS_SHOWN_VIA_DEVICE_INFO)
+    - matches home-assistant/core's bluetti_modbus integration, which feeds
+    these same two fields into DeviceInfo.sw_version instead of exposing
+    them as sensors. None (both fields absent) before the coordinator's
+    first successful refresh.
+    """
+    data = coordinator.data or {}
+    arm = data.get("d_ver_arm")
+    dsp = data.get("d_ver_dsp")
+    if arm is None and dsp is None:
+        return None
+    return f"ARM {arm.value if arm else '?'}, DSP {dsp.value if dsp else '?'}"
+
+
 class BluettiModbusEntity(CoordinatorEntity[BluettiModbusCoordinator]):
     """
     Common behavior shared by BLUETTI entities sourced from local Modbus.
@@ -39,6 +57,7 @@ class BluettiModbusEntity(CoordinatorEntity[BluettiModbusCoordinator]):
             manufacturer=device.manufacturer,
             model=device.model,
             serial_number=device.sn,
+            sw_version=_modbus_sw_version(coordinator),
         )
 
     @property

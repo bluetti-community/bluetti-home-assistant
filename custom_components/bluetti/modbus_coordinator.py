@@ -6,6 +6,7 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+from bluetti_modbus_lib import EP2000, Balco260, SMeter
 from bluetti_modbus_lib.modbus.client import BluettiModbusClient, ClientReturnValue
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -51,6 +52,11 @@ class BluettiModbusCoordinator(DataUpdateCoordinator[dict[str, ClientReturnValue
         # per poll - a fresh connection on every poll is exactly the pattern
         # that has made the device's Modbus TCP stack unresponsive under load.
         self._client = BluettiModbusClient(host, port, dev_type)
+
+    @property
+    def device(self) -> Balco260 | EP2000 | SMeter:
+        """The underlying bluetti_modbus_lib device - field metadata (scale, etc.) lives here."""
+        return self._client.device
 
     async def _async_update_data(self) -> dict[str, ClientReturnValue]:
         """Fetch the latest field values over Modbus."""

@@ -351,6 +351,58 @@ async def test_async_setup_entry_wires_up_modbus_coordinator_for_capable_device(
     assert entry.runtime_data.modbus_coordinators["SN1"].last_update_success
 
 
+async def test_async_setup_entry_removes_retired_modbus_identity_sensors(
+    hass, enable_custom_integrations
+):
+    """
+    d_serial/d_ver_arm/d_ver_dsp used to be plain Modbus sensors; they now
+    feed DeviceInfo instead (see modbus_entity.py/sensor.py). An entity from
+    before that change doesn't disappear on its own just because the code
+    stops creating it - setup must remove it explicitly.
+    """
+    entry = _entry(
+        hass,
+        products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
+        devices=["SN1"],
+        modbus={"SN1": {"host": "10.2.1.60", "port": 502}},
+    )
+    status_data = MagicMock(sn="SN1", isBindByCurUser="1", online="1", stateList=[])
+
+    entity_registry = er.async_get(hass)
+    stale = entity_registry.async_get_or_create(
+        "sensor", DOMAIN, "SN1_modbus_d_serial", config_entry=entry
+    )
+    # A live entity (not one of the three retired ones) must survive the
+    # same cleanup pass untouched.
+    kept = entity_registry.async_get_or_create(
+        "sensor", DOMAIN, "SN1_modbus_b_soc", config_entry=entry
+    )
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(return_value=MagicMock()),
+         ), \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
+         patch("custom_components.bluetti.ProductClient") as mock_product_cls, \
+         patch("custom_components.bluetti.modbus_coordinator.BluettiModbusClient") as client_cls:
+        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
+        mock_stomp_cls.return_value.connect = AsyncMock()
+        mock_product_cls.return_value.get_device_status = AsyncMock(
+            return_value=MagicMock(data=[status_data])
+        )
+        client_cls.return_value.read = AsyncMock(return_value=[])
+        client_cls.return_value.aclose = AsyncMock()
+
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entity_registry.async_get(stale.entity_id) is None
+    assert entity_registry.async_get(kept.entity_id) is not None
+
+
 async def test_modbus_first_refresh_failure_does_not_prevent_cloud_entities_from_loading(
     hass, enable_custom_integrations
 ):

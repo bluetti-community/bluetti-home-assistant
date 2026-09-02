@@ -81,6 +81,13 @@ async def test_modbus_error_retries_once_before_giving_up(client_cls, hass):
 
 
 @patch("custom_components.bluetti.modbus_coordinator.BluettiModbusClient")
+async def test_device_property_returns_the_clients_device(client_cls, hass):
+    coordinator = BluettiModbusCoordinator(hass, MagicMock(), "SN1", "10.2.1.60", 502, "balco260")
+
+    assert coordinator.device is client_cls.return_value.device
+
+
+@patch("custom_components.bluetti.modbus_coordinator.BluettiModbusClient")
 async def test_async_shutdown_closes_the_underlying_client(client_cls, hass):
     client_cls.return_value.aclose = AsyncMock()
     coordinator = BluettiModbusCoordinator(hass, MagicMock(), "SN1", "10.2.1.60", 502, "balco260")

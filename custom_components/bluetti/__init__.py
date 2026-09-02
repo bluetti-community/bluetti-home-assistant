@@ -209,6 +209,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
                 dev_type,
             )
 
+    # d_serial/d_ver_arm/d_ver_dsp are no longer sensors - they feed
+    # DeviceInfo instead (see modbus_entity.py), matching home-assistant/core's
+    # bluetti_modbus integration. Entities from before this change don't
+    # disappear on their own just because the code stops creating them, so
+    # remove them explicitly, once - a no-op on every run after the first.
+    entity_registry = er.async_get(hass)
+    _RETIRED_MODBUS_SUFFIXES = ("_modbus_d_serial", "_modbus_d_ver_arm", "_modbus_d_ver_dsp")
+    for reg_entry in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
+        if reg_entry.unique_id.endswith(_RETIRED_MODBUS_SUFFIXES):
+            entity_registry.async_remove(reg_entry.entity_id)
+
     # Local Modbus is optional/supplementary - async_refresh() (not
     # async_config_entry_first_refresh()) never raises ConfigEntryNotReady,
     # so a device that doesn't answer just leaves that device's Modbus
