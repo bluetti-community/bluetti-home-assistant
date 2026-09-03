@@ -1,3 +1,7 @@
+# 1.2.6rc1 2026-09-03 (pre-release, for testing)
+New:
+- Balco260's battery empty/full SOC thresholds (`b_soc_low`/`b_soc_high`) are now writable number entities instead of read-only sensors - set them directly from Home Assistant. Requires `bluetti-modbus>=0.3.3`. Not available on EP2000 yet (still spec-derived, not field-tested).
+
 # 1.2.5rc3 2026-09-02 (pre-release, for testing)
 New:
 - Modbus-connected devices (Balco260, EP2000) now have a "Visit device" link on their Device Info panel, pointing at the device's own local web UI (the same one Modbus TCP has to be enabled through). Matches how other local-network integrations (e.g. Shelly) expose this.
