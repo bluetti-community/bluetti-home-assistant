@@ -25,6 +25,7 @@ from .modbus_coordinator import BluettiModbusCoordinator
 from .modbus_entity import BluettiModbusEntity
 from .modbus_field_metadata import modbus_metadata_for, suggested_precision_for_scale
 from .models import BluettiData, BluettiDevice, BluettiState
+from .number import MODBUS_FIELDS_SHOWN_VIA_NUMBER
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -177,6 +178,14 @@ async def async_setup_entry(
                 continue
             if field_name in MODBUS_FIELDS_SHOWN_VIA_DEVICE_INFO:
                 continue
+            # Only skip if number.py will actually create an entity for it
+            # on this device - a field in MODBUS_FIELDS_SHOWN_VIA_NUMBER
+            # that isn't writable here (e.g. EP2000 today) stays a normal
+            # read-only sensor, same as before this field existed there.
+            if field_name in MODBUS_FIELDS_SHOWN_VIA_NUMBER:
+                register_field = modbus_coordinator.device.get_field(field_name)
+                if register_field is not None and register_field.writable:
+                    continue
             entities.append(BluettiModbusSensor(modbus_device, modbus_coordinator, field_name))
 
     if entities:

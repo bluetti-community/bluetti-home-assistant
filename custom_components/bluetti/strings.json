@@ -415,6 +415,14 @@
       "pv_i_p_local": {
         "name": "PV Power Input (This Inverter)"
       }
+    },
+    "number": {
+      "b_soc_low": {
+        "name": "Min Discharge Limit (SoC Low)"
+      },
+      "b_soc_high": {
+        "name": "Max Charge Limit (SoC High)"
+      }
     }
   }
 }

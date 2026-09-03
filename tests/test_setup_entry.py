@@ -1,6 +1,6 @@
 """Tests for the async_setup_entry() function of each entity platform."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import EntityCategory
@@ -14,6 +14,8 @@ from custom_components.bluetti.binary_sensor import (
 )
 from custom_components.bluetti.const import DOMAIN
 from custom_components.bluetti.models import BluettiData, BluettiDevice
+from custom_components.bluetti.number import BluettiModbusNumber
+from custom_components.bluetti.number import async_setup_entry as number_setup_entry
 from custom_components.bluetti.select import BluettiSelect
 from custom_components.bluetti.select import async_setup_entry as select_setup_entry
 from custom_components.bluetti.sensor import (
@@ -401,11 +403,13 @@ async def test_sensor_setup_entry_creates_modbus_sensors_grouped_with_cloud_devi
         "d_serial": ClientReturnValue(name="d_serial", unit=None, value=123456),
     }
     # Real scale for g_i_f (0.1) drives suggested_display_precision; every
-    # other field here defaults to an unscaled register.
+    # other field here defaults to an unscaled register. b_soc_high is not
+    # writable on this (mocked) device - number.py's own tests cover the
+    # writable case, where it's excluded here instead.
     scales = {"g_i_f": 0.1}
     modbus_coordinator = MagicMock(data=fields)
     modbus_coordinator.device.get_field.side_effect = (
-        lambda name: SimpleNamespace(scale=scales.get(name, 1.0))
+        lambda name: SimpleNamespace(scale=scales.get(name, 1.0), writable=False)
     )
 
     entry = _entry_with_devices(hass, [device], modbus_coordinators={"SN1": modbus_coordinator})
@@ -432,6 +436,29 @@ async def test_sensor_setup_entry_creates_modbus_sensors_grouped_with_cloud_devi
     assert modbus_sensors["b_cycle_count"].native_value is None
 
 
+async def test_sensor_setup_entry_excludes_writable_soc_thresholds(hass):
+    # Where bluetti_modbus_lib marks b_soc_low/b_soc_high writable=True
+    # (Balco260), number.py creates the entity instead - sensor.py must not
+    # also add a duplicate read-only one for the same register.
+    from types import SimpleNamespace
+
+    from bluetti_modbus_lib.modbus.client import ClientReturnValue
+
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="Balco260", state_list=[],
+    )
+    fields = {"b_soc_low": ClientReturnValue(name="b_soc_low", unit="%", value=10)}
+    modbus_coordinator = MagicMock(data=fields)
+    modbus_coordinator.device.get_field.return_value = SimpleNamespace(scale=1.0, writable=True)
+
+    entry = _entry_with_devices(hass, [device], modbus_coordinators={"SN1": modbus_coordinator})
+    added = []
+
+    await sensor_setup_entry(hass, entry, added.extend)
+
+    assert added == []
+
+
 async def test_sensor_setup_entry_skips_modbus_coordinator_for_unknown_device(hass):
     entry = _entry_with_devices(hass, [], modbus_coordinators={"UNKNOWN_SN": MagicMock(data={})})
     added = []
@@ -440,6 +467,89 @@ async def test_sensor_setup_entry_skips_modbus_coordinator_for_unknown_device(ha
 
     assert result is True
     assert added == []
+
+
+async def test_number_setup_entry_creates_an_entity_per_writable_field(hass):
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="Balco260", state_list=[],
+    )
+    modbus_coordinator = MagicMock(data={})
+    modbus_coordinator.device.get_field.return_value = MagicMock(writable=True)
+
+    entry = _entry_with_devices(hass, [device], modbus_coordinators={"SN1": modbus_coordinator})
+    added = []
+
+    result = await number_setup_entry(hass, entry, added.extend)
+
+    assert result is True
+    numbers = {e._field_name: e for e in added if isinstance(e, BluettiModbusNumber)}
+    assert set(numbers) == {"b_soc_low", "b_soc_high"}
+    assert numbers["b_soc_low"].native_min_value == 0
+    assert numbers["b_soc_low"].native_max_value == 100
+
+
+async def test_number_setup_entry_skips_a_field_that_is_not_writable(hass):
+    # e.g. EP2000 today: the schema knows about b_soc_low/b_soc_high, but
+    # bluetti_modbus_lib doesn't mark them writable there yet.
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="EP2000", state_list=[],
+    )
+    modbus_coordinator = MagicMock(data={})
+    modbus_coordinator.device.get_field.return_value = MagicMock(writable=False)
+
+    entry = _entry_with_devices(hass, [device], modbus_coordinators={"SN1": modbus_coordinator})
+    added = []
+
+    await number_setup_entry(hass, entry, added.extend)
+
+    assert added == []
+
+
+async def test_number_setup_entry_skips_a_field_the_device_does_not_have(hass):
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="SMeter", state_list=[],
+    )
+    modbus_coordinator = MagicMock(data={})
+    modbus_coordinator.device.get_field.return_value = None
+
+    entry = _entry_with_devices(hass, [device], modbus_coordinators={"SN1": modbus_coordinator})
+    added = []
+
+    await number_setup_entry(hass, entry, added.extend)
+
+    assert added == []
+
+
+async def test_number_setup_entry_skips_modbus_coordinator_for_unknown_device(hass):
+    entry = _entry_with_devices(hass, [], modbus_coordinators={"UNKNOWN_SN": MagicMock(data={})})
+    added = []
+
+    result = await number_setup_entry(hass, entry, added.extend)
+
+    assert result is True
+    assert added == []
+
+
+async def test_modbus_number_writes_and_reads_the_field(hass):
+    from bluetti_modbus_lib.modbus.client import ClientReturnValue
+
+    device = BluettiDevice(device_id="SN1", on_line="1", name="Test", sn="SN1", model="Balco260")
+    modbus_coordinator = MagicMock(data={})
+    modbus_coordinator.device.write = AsyncMock()
+    number = BluettiModbusNumber(device, modbus_coordinator, "b_soc_low")
+
+    # No value read yet.
+    assert number.native_value is None
+
+    modbus_coordinator.data = {"b_soc_low": ClientReturnValue(name="b_soc_low", unit="%", value=20)}
+    assert number.native_value == 20
+
+    await number.async_set_native_value(42.0)
+
+    modbus_coordinator.device.write.assert_awaited_once_with("b_soc_low", 42)
+    # Not optimistic - native_value still reads live from coordinator.data,
+    # unchanged until the next poll actually updates it.
+    assert number.native_value == 20
 
 
 async def test_select_setup_entry_ignores_states_without_modes(hass):

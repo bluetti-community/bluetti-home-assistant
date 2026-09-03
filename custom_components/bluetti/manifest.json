@@ -15,7 +15,7 @@
   "quality_scale": "gold",
   "requirements": [
     "pybluetti>=0.2.1rc1",
-    "bluetti-modbus[cli]>=0.3.1"
+    "bluetti-modbus[cli]>=0.3.3"
   ],
-  "version": "1.2.5rc3"
+  "version": "1.2.6rc1"
 }
