@@ -52,11 +52,17 @@ class BluettiModbusCoordinator(DataUpdateCoordinator[dict[str, ClientReturnValue
         # per poll - a fresh connection on every poll is exactly the pattern
         # that has made the device's Modbus TCP stack unresponsive under load.
         self._client = BluettiModbusClient(host, port, dev_type)
+        self._host = host
 
     @property
     def device(self) -> Balco260 | EP2000 | SMeter:
         """The underlying bluetti_modbus_lib device - field metadata (scale, etc.) lives here."""
         return self._client.device
+
+    @property
+    def host(self) -> str:
+        """The device's own IP/hostname - also where its local web UI lives, on port 80."""
+        return self._host
 
     async def _async_update_data(self) -> dict[str, ClientReturnValue]:
         """Fetch the latest field values over Modbus."""

@@ -17,5 +17,5 @@
     "pybluetti>=0.2.1rc1",
     "bluetti-modbus[cli]>=0.3.1"
   ],
-  "version": "1.2.5rc2"
+  "version": "1.2.5rc3"
 }

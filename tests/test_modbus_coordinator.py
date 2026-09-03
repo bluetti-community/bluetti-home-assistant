@@ -88,6 +88,13 @@ async def test_device_property_returns_the_clients_device(client_cls, hass):
 
 
 @patch("custom_components.bluetti.modbus_coordinator.BluettiModbusClient")
+async def test_host_property_returns_the_configured_host(client_cls, hass):
+    coordinator = BluettiModbusCoordinator(hass, MagicMock(), "SN1", "10.2.1.60", 502, "balco260")
+
+    assert coordinator.host == "10.2.1.60"
+
+
+@patch("custom_components.bluetti.modbus_coordinator.BluettiModbusClient")
 async def test_async_shutdown_closes_the_underlying_client(client_cls, hass):
     client_cls.return_value.aclose = AsyncMock()
     coordinator = BluettiModbusCoordinator(hass, MagicMock(), "SN1", "10.2.1.60", 502, "balco260")

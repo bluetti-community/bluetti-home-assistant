@@ -57,3 +57,10 @@ def test_device_info_sw_version_built_from_arm_and_dsp():
     entity = BluettiModbusEntity(_device(), coordinator, "b_soc")
 
     assert entity.device_info["sw_version"] == "ARM 500110112, DSP 500140110"
+
+
+def test_device_info_configuration_url_points_at_the_devices_own_host():
+    coordinator = MagicMock(last_update_success=True, data={}, host="10.2.1.60")
+    entity = BluettiModbusEntity(_device(), coordinator, "b_soc")
+
+    assert entity.device_info["configuration_url"] == "http://10.2.1.60"
