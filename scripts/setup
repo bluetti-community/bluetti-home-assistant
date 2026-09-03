@@ -7,4 +7,4 @@ python3 -m pip install --upgrade pip
 python3 -m pip install --requirement requirements_test.txt
 # Runtime dependencies declared in custom_components/bluetti/manifest.json -
 # pytest-homeassistant-custom-component doesn't install them itself.
-python3 -m pip install "pybluetti>=0.2.1rc1" "bluetti-modbus[cli]>=0.3.1"
+python3 -m pip install "pybluetti>=0.2.1rc1" "bluetti-modbus[cli]>=0.4.0"
