@@ -79,7 +79,10 @@ async def test_websocket_on_error_creates_a_repair_issue(hass, enable_custom_int
     issue = ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_ID_WEBSOCKET_ERROR)
     assert issue is not None
     assert issue.translation_key == "websocket_error"
-    assert issue.translation_placeholders == {"error": "Upgrade required"}
+    # str(ApplicationRuntimeException) folds msgCode in (pybluetti>=0.2.2) -
+    # the whole point being a user sees the code without digging through
+    # debug logs, see bluetti-community/bluetti-home-assistant#35.
+    assert issue.translation_placeholders == {"error": "[1042] Upgrade required"}
     assert issue.is_fixable is False
     assert issue.severity == ir.IssueSeverity.WARNING
 
