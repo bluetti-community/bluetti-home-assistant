@@ -1,3 +1,7 @@
+# 1.2.6rc3 2026-09-10 (pre-release, for testing)
+Fixes:
+- Requires `pybluetti>=0.2.3`: the websocket real-time update connection no longer retries forever (every ~30 seconds with backoff) once the cloud rejects it with msgCode 400, 403, or 600 - confirmed (600) or strongly implied (400, 403) to never succeed on retry (bluetti-community/bluetti-home-assistant#35). Still surfaced the same way as before (a WARNING-level Repair issue showing the real error) - this only stops the pointless retries against a connection that was never going to recover on its own.
+
 # 1.2.6rc1 2026-09-03 (pre-release, for testing)
 New:
 - Balco260's battery empty/full SOC thresholds (`b_soc_low`/`b_soc_high`) are now writable number entities instead of read-only sensors - set them directly from Home Assistant. Requires `bluetti-modbus>=0.3.3`. Not available on EP2000 yet (still spec-derived, not field-tested).
