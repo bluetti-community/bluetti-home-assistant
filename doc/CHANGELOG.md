@@ -1,3 +1,7 @@
+# 1.2.6rc4 2026-09-10 (pre-release, for testing)
+Fixes:
+- Requires `bluetti-modbus[cli]>=0.19.3`: a local Modbus connection (Balco260, EP2000) that hits the same read error on every one of its retries in a row - a real sign the device's own Modbus TCP stack has gotten stuck, not just a one-off glitch - now gets disconnected right before the final failure is raised, so the next poll cycle opens a fresh connection instead of repeating into the same stuck one. Every earlier retry that still recovers on its own is unaffected.
+
 # 1.2.6rc3 2026-09-10 (pre-release, for testing)
 Fixes:
 - Requires `pybluetti>=0.2.3`: the websocket real-time update connection no longer retries forever (every ~30 seconds with backoff) once the cloud rejects it with msgCode 400, 403, or 600 - confirmed (600) or strongly implied (400, 403) to never succeed on retry (bluetti-community/bluetti-home-assistant#35). Still surfaced the same way as before (a WARNING-level Repair issue showing the real error) - this only stops the pointless retries against a connection that was never going to recover on its own.
