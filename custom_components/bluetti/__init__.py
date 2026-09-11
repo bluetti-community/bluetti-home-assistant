@@ -15,6 +15,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.loader import async_get_integration
 from pybluetti import (
     ApplicationRuntimeException,
     ProductClient,
@@ -23,7 +24,7 @@ from pybluetti import (
 )
 
 from .application_credentials import async_ensure_default_credential
-from .const import DOMAIN, EVENT_TOKEN_EXPIRED
+from .const import BLUETTI_APP_KEY, DOMAIN, EVENT_TOKEN_EXPIRED
 from .coordinator import BluettiDeviceCoordinator
 from .modbus_coordinator import BluettiModbusCoordinator
 from .modbus_support import modbus_dev_type_for_model
@@ -149,6 +150,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     # linger in Repairs forever.
     ir.async_delete_issue(hass, DOMAIN, ISSUE_ID_WEBSOCKET_ERROR)
 
+    # x-app-ver must be this integration's own manifest.json version,
+    # exactly as BLUETTI's own official client reads it (see BLUETTI_APP_KEY's
+    # own comment in const.py) - not a hardcoded string that would drift
+    # from the real installed version on the very next release.
+    integration = await async_get_integration(hass, DOMAIN)
+
     # Register WebSocket
     stomp_client = StompClient(
         httpSession,
@@ -157,6 +164,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         handler=bluetti_devices.web_socket_message_handler,
         on_auth_expired=lambda: hass.bus.fire(EVENT_TOKEN_EXPIRED),
         on_error=_on_websocket_error,
+        app_key=BLUETTI_APP_KEY,
+        app_ver=str(integration.version),
     )
     await stomp_client.connect()
 

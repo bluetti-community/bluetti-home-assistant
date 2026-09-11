@@ -56,6 +56,32 @@ async def test_async_setup_entry_with_no_devices(hass, enable_custom_integration
     mock_stomp_cls.return_value.connect.assert_awaited_once()
 
 
+async def test_stomp_client_sends_client_identification(hass, enable_custom_integrations):
+    from homeassistant.loader import async_get_integration
+
+    from custom_components.bluetti.const import BLUETTI_APP_KEY
+
+    entry = _entry(hass)
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(return_value=MagicMock()),
+         ), \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls:
+        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
+        mock_stomp_cls.return_value.connect = AsyncMock()
+
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    integration = await async_get_integration(hass, DOMAIN)
+    assert mock_stomp_cls.call_args.kwargs["app_key"] == BLUETTI_APP_KEY
+    assert mock_stomp_cls.call_args.kwargs["app_ver"] == str(integration.version)
+
+
 async def test_websocket_on_error_creates_a_repair_issue(hass, enable_custom_integrations):
     entry = _entry(hass)
 

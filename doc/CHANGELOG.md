@@ -1,3 +1,10 @@
+# 1.3.0 2026-09-11
+Fixes:
+- Requires `pybluetti>=0.2.4`: the websocket connection now identifies itself to the cloud (a dedicated client key for this integration, plus its own running version) on every CONNECT frame, alongside the existing OAuth2 token. The cloud's own websocket gateway does client identification/version gating - this is very likely the real, underlying cause of the persistent msgCode 600 ("Upgrade required") rejection tracked in #35, which the 1.2.6rc3 fix only stopped from retrying forever without addressing.
+
+Internal:
+- Release tags for a pre-release must use a dot before the phase from now on (`1.3.1.rc1`, not `1.3.1rc1`) - the cloud's own version parser (which now reads this integration's reported version on every websocket connection) fails on the undotted form.
+
 # 1.2.6rc4 2026-09-10 (pre-release, for testing)
 Fixes:
 - Requires `bluetti-modbus[cli]>=0.19.3`: a local Modbus connection (Balco260, EP2000) that hits the same read error on every one of its retries in a row - a real sign the device's own Modbus TCP stack has gotten stuck, not just a one-off glitch - now gets disconnected right before the final failure is raised, so the next poll cycle opens a fresh connection instead of repeating into the same stuck one. Every earlier retry that still recovers on its own is unaffected.

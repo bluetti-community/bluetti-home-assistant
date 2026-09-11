@@ -5,6 +5,12 @@ name: "Release"
 # actually reports that release's version - both in the downloadable ZIP
 # asset (what most HACS installs use) and, best-effort, back in the
 # repository itself.
+#
+# The tag name is used verbatim (only a leading "v" is stripped) as
+# manifest.json's version - which becomes x-app-ver on every websocket
+# CONNECT frame (see const.py's own BLUETTI_APP_KEY comment). A prerelease
+# tag MUST use a dot before its phase (e.g. "1.3.1.rc1", not "1.3.1rc1") -
+# the cloud's own version parser fails on the undotted form.
 
 on:
   release:
