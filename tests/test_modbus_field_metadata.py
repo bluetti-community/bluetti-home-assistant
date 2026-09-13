@@ -23,6 +23,16 @@ def test_known_diagnostic_energy_field():
     assert metadata.category == EntityCategory.DIAGNOSTIC
 
 
+def test_only_b_soc_is_device_class_battery_not_b_soc_total():
+    # Real hardware regression (confirmed in hassio-bluetti-modbus): with two
+    # device_class=BATTERY sensors on one device, HA's Devices-page summary
+    # column picks the wrong one. Only one sensor per device may claim to be
+    # "the" battery.
+    assert modbus_metadata_for("b_soc").device_class == SensorDeviceClass.BATTERY
+    assert modbus_metadata_for("b_soc_total").device_class is None
+    assert modbus_metadata_for("b_soc_total").state_class == SensorStateClass.MEASUREMENT
+
+
 def test_known_config_field():
     metadata = modbus_metadata_for("b_soc_high")
     assert metadata.device_class is None

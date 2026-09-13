@@ -94,9 +94,12 @@ MODBUS_FIELD_METADATA: dict[str, ModbusFieldMetadata] = {
     "d_num_battery_packs": _DIAGNOSTIC,
     "b_v_total": _VOLTAGE,
     "b_c_total": _CURRENT,
-    "b_soc_total": ModbusFieldMetadata(
-        device_class=SensorDeviceClass.BATTERY, state_class=SensorStateClass.MEASUREMENT
-    ),
+    # Not device_class=BATTERY - a device can only have one "the battery"
+    # entity for HA's Devices-page summary column, and b_soc (the always-
+    # populated reading) is that one. The identical bug (b_soc_total and
+    # b_soc both BATTERY-class) was confirmed against real hardware in
+    # hassio-bluetti-modbus - same fix applies here.
+    "b_soc_total": _MEASUREMENT,
     "b_soh_total": _DIAGNOSTIC_MEASUREMENT,
     "b_type": _DIAGNOSTIC,
     "b_v": _VOLTAGE,
