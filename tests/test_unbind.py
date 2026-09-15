@@ -29,7 +29,7 @@ async def test_web_socket_message_handler_schedules_coordinator_refresh(hass):
     data.loop = asyncio.get_running_loop()
 
     with patch("custom_components.bluetti.models.asyncio.run_coroutine_threadsafe") as mock_run:
-        data.web_socket_message_handler('{"data": {"deviceSn": "SN1"}}')
+        data.web_socket_message_handler('{"data": {"message": {"deviceSn": "SN1"}}}')
 
     mock_run.assert_called_once()
 
@@ -40,7 +40,7 @@ async def test_web_socket_message_handler_ignores_unknown_device(hass):
     data.loop = asyncio.get_running_loop()
 
     with patch("custom_components.bluetti.models.asyncio.run_coroutine_threadsafe") as mock_run:
-        data.web_socket_message_handler('{"data": {"deviceSn": "unknown"}}')
+        data.web_socket_message_handler('{"data": {"message": {"deviceSn": "unknown"}}}')
 
     mock_run.assert_not_called()
 

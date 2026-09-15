@@ -64,7 +64,7 @@ class BluettiData:
         __LOGGER__.debug("Received BLUETTI websocket message: %s", message)
 
         res = json.loads(message)
-        sn = res["data"]["deviceSn"]
+        sn = res["data"]["message"]["deviceSn"]
 
         device = self.get_device_by_sn(sn)
         if device and device.coordinator:
