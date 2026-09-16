@@ -3,8 +3,10 @@
 
 import asyncio
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlsplit
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
@@ -64,6 +66,32 @@ class BluettiRuntimeData:
 
 
 type BluettiConfigEntry = ConfigEntry[BluettiRuntimeData]
+
+
+def _websocket_url(token: Mapping[str, Any], default_url: str) -> str:
+    """
+    The websocket base URL to connect to.
+
+    The cloud names the data center holding the account in the token
+    response's "host" - the official integration connects there since
+    2026-08-27 (its commit ca73d0f), because the fixed gateway's DNS can
+    land on the wrong data center behind a proxy or VPN. The value's exact
+    form is inferred from that code, not observed, hence the tolerance:
+    "https://host" and a bare "host" both become wss, "http://host" ws; any
+    path on it is dropped for the profile URL's own. Without a host, the
+    profile URL is used as before.
+    """
+    host = token.get("host")
+    if not isinstance(host, str) or not host.strip():
+        return default_url
+    scheme, sep, rest = host.strip().partition("://")
+    if not sep:
+        scheme, rest = "https", host.strip()
+    netloc = urlsplit(f"{scheme}://{rest}").netloc
+    if not netloc:
+        return default_url
+    ws_scheme = "ws" if scheme in ("http", "ws") else "wss"
+    return f"{ws_scheme}://{netloc}{urlsplit(default_url).path}"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> bool:
@@ -157,9 +185,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     integration = await async_get_integration(hass, DOMAIN)
 
     # Register WebSocket
+    ws_url = _websocket_url(oAuth2Session.token, APPLICATION_PROFILE.config["server"]["wss"])
+    __LOGGER__.debug("Websocket endpoint: %s", ws_url)
     stomp_client = StompClient(
         httpSession,
-        APPLICATION_PROFILE.config["server"]["wss"],
+        ws_url,
         access_token,
         handler=bluetti_devices.web_socket_message_handler,
         on_auth_expired=lambda: hass.bus.fire(EVENT_TOKEN_EXPIRED),

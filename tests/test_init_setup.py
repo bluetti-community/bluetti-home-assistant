@@ -82,6 +82,54 @@ async def test_stomp_client_sends_client_identification(hass, enable_custom_inte
     assert mock_stomp_cls.call_args.kwargs["app_ver"] == str(integration.version)
 
 
+async def test_stomp_client_connects_to_the_data_center_named_in_the_token(hass, enable_custom_integrations):
+    entry = _entry(hass)
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(return_value=MagicMock()),
+         ), \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls:
+        mock_session_cls.return_value.token = {
+            "access_token": "tok",
+            "expires_at": time.time() + 10000,
+            "host": "https://gw-eu.bluettipower.com",
+        }
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
+        mock_stomp_cls.return_value.connect = AsyncMock()
+
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_stomp_cls.call_args.args[1] == "wss://gw-eu.bluettipower.com/api/edgeiotgw/ws-coordination"
+
+
+async def test_stomp_client_falls_back_to_the_profile_url_without_a_token_host(hass, enable_custom_integrations):
+    from custom_components.bluetti.profile.application_profile import (
+        APPLICATION_PROFILE,
+    )
+
+    entry = _entry(hass)
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(return_value=MagicMock()),
+         ), \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls:
+        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
+        mock_stomp_cls.return_value.connect = AsyncMock()
+
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_stomp_cls.call_args.args[1] == APPLICATION_PROFILE.config["server"]["wss"]
+
+
 async def test_websocket_on_error_creates_a_repair_issue(hass, enable_custom_integrations):
     entry = _entry(hass)
 

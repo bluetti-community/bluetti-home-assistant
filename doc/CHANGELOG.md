@@ -1,3 +1,7 @@
+# 1.3.5 2026-09-16
+Changed:
+- The real-time websocket now connects to the data center the cloud names for your account (the `host` returned with the login token), instead of always `gw.bluettipower.com`. This is what the official integration has done since 2026-08-27: the fixed gateway's DNS can route to the wrong data center behind a proxy or VPN, which is one plausible reason for a websocket that keeps being rejected. Accounts whose token carries no such host are unaffected.
+
 # 1.3.4 2026-09-16
 Internal:
 - HACS now installs the `bluetti.zip` attached to each release (`zip_release` in `hacs.json`) instead of the repository archive - the same setup as hassio-bluetti-modbus. No change to what gets installed; it makes HACS's download counter work, which had stayed at "-" since the first release.
