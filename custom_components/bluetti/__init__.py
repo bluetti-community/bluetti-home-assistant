@@ -186,7 +186,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
 
     # Register WebSocket
     ws_url = _websocket_url(oAuth2Session.token, APPLICATION_PROFILE.config["server"]["wss"])
-    __LOGGER__.debug("Websocket endpoint: %s", ws_url)
+    # Key names only, never values: enough to tell whether the cloud named a
+    # data center ("host") for this account, without leaking the token.
+    __LOGGER__.debug(
+        "Websocket endpoint: %s (token keys: %s)",
+        ws_url,
+        ", ".join(sorted(oAuth2Session.token)),
+    )
     stomp_client = StompClient(
         httpSession,
         ws_url,
