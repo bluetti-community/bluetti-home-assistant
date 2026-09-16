@@ -71,7 +71,7 @@ class BluettiData:
             __LOGGER__.debug("Ignoring a websocket message that is not JSON")
             return
         data = res.get("data") if isinstance(res, dict) else None
-        sn = data.get("deviceSn") if isinstance(data, dict) else None
+        sn = _device_sn(data)
         if not sn:
             __LOGGER__.debug("Ignoring a websocket message without a deviceSn")
             return
@@ -83,6 +83,24 @@ class BluettiData:
             asyncio.run_coroutine_threadsafe(
                 device.coordinator.async_request_refresh(), self.loop
             )
+
+def _device_sn(data: Any) -> str | None:
+    """
+    The device serial a websocket notification is about, if it is one.
+
+    The cloud moved it from data.deviceSn to data.message.deviceSn (the
+    official integration followed in its commit ba9e7fc, 2026-08-27); both
+    spellings are accepted so an account still on the old one keeps working.
+    """
+    if not isinstance(data, dict):
+        return None
+    message = data.get("message")
+    if isinstance(message, dict) and message.get("deviceSn"):
+        return str(message["deviceSn"])
+    if data.get("deviceSn"):
+        return str(data["deviceSn"])
+    return None
+
 
 class BluettiState:
     """Represents a single function/state of the device."""

@@ -1,3 +1,11 @@
+# 1.3.2 2026-09-16
+Fixes:
+- Real-time updates work again. The cloud sends a device notification's serial number as `data.message.deviceSn` (the official integration adapted on 2026-08-27, commit ba9e7fc), and this integration still read `data.deviceSn` - so once 1.3.0 got the websocket connection accepted, every device update failed to parse and only the 30-second polling kept things moving. Both spellings are accepted now. Found and first fixed by @MadDirtMonkey in #40, verified on live AP300/APEX 300 messages.
+
+# 1.3.1 2026-09-15
+Fixes:
+- No more `error from callback ... 'deviceSn'` log spam from `pybluetti.websocket` (#42, reported in #35): a websocket message the handler cannot attribute to a device is now skipped at debug level instead of raising. (Superseded in spirit by 1.3.2 - those messages were device updates in the cloud's newer shape - but the tolerance stays as a safety net for any other message on the account's notification topic.)
+
 # 1.3.0 2026-09-11
 Fixes:
 - Requires `pybluetti>=0.2.4`: the websocket connection now identifies itself to the cloud (a dedicated client key for this integration, plus its own running version) on every CONNECT frame, alongside the existing OAuth2 token. The cloud's own websocket gateway does client identification/version gating - this is very likely the real, underlying cause of the persistent msgCode 600 ("Upgrade required") rejection tracked in #35, which the 1.2.6rc3 fix only stopped from retrying forever without addressing.
