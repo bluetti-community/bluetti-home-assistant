@@ -1,14 +1,25 @@
-# BLUETTI Integration for Home Assistant
+# BLUETTI Integration for Home Assistant (community fork)
 
 [🇨🇳 简体中文](./README_zh.md) | [🇩🇪 German](./README_de.md) | [🇫🇷 Français](./README_fr.md) | [🇬🇧 English](./README.md) | 
 [🇳🇱 Dutch](./README_nl.md) | [🇺🇦 Ukrainian](./README_uk.md)
 
-BLUETTI Power Station Integration is an integrated component of Home Assistant
-supported by BLUETTI official. It allows you to use BLUETTI smart Power Station
-devices in Home Assistant.
+This is the **community-maintained fork** of BLUETTI's official Home Assistant
+integration, [bluetti-official/bluetti-home-assistant](https://github.com/bluetti-official/bluetti-home-assistant).
+It connects your BLUETTI power stations to Home Assistant through the BLUETTI
+cloud service (account login, real-time push updates), exactly like the official
+one - and adds what the community needs sooner than the official release cycle
+delivers it: bug fixes as they are found, plus an optional **local Modbus TCP**
+connection for Balco 260 and EP2000 (see [How Data Is Updated](#-how-data-is-updated)).
 
-The Integration's github repository is:
-[https://github.com/bluetti-community/bluetti-home-assistant](https://github.com/bluetti-community/bluetti-home-assistant).
+It is a drop-in replacement: same `bluetti` integration domain, so your existing
+configuration entry, devices and entities carry over as they are. It shows up as
+**BLUETTI (community)** in HACS and in Home Assistant, to tell it apart from the
+official one.
+
+> [!IMPORTANT]
+> Install **either** this fork **or** the official integration, not both: they
+> install into the same `custom_components/bluetti` folder, and whichever HACS
+> updates last silently overwrites the other.
 
 ## ✨ Features
 
@@ -73,56 +84,33 @@ The Integration's github repository is:
 |        AC200PL,AC200L        |             AC200PL,AC200L              |                 |      ✅      |     ✅     |      ✅     |             |   ✅    |   ✅    |        ✅         |            |       ✅        |        ✅         |        ✅        |        ✅        |
 
 
-## 📦 Integration installation
+## 📦 Installation
 
-There are two ways to install `BLUETTI Power Station Integration`.
+### Via HACS (recommended)
 
-### Install manually
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=bluetti-community&repository=bluetti-home-assistant&category=integration)
 
-1. Enter the `Home Assistant` configuration directory
+_or manually:_
 
-   ```bash
-   cd /<ha workspaces>/core/config/custom_components
-   ```
+1. [Install HACS](https://hacs.xyz/docs/setup/download) if you don't have it yet.
+2. In HACS, open the **⋮** menu → **Custom repositories**.
+3. Add `https://github.com/bluetti-community/bluetti-home-assistant` with category
+   **Integration**.
+4. Find **BLUETTI (community)** in HACS and install it.
+5. **Restart Home Assistant.**
 
-2. Clone `BLUETTI Power Station Integration` github repository.
+Coming from the official integration? Remove **BLUETTI** (the official one) from
+HACS first, then install this one - the removal deletes the shared
+`custom_components/bluetti` folder, and the install puts this fork's copy in its
+place. Your configuration entry and entities are kept.
 
-   ```bash
-   git clone https://github.com/bluetti-community/bluetti-home-assistant.git
-   ```
+### Manually
 
-3. Or download the integrated zip file and extract it to the custom integration
-   directory of `Home Assistant`:
-
-   ```bash
-   unzip xxx.zip -d /<ha workspaces>/core/config/custom_components/bluetti
-   ```
-
-4. Reboot your `Home Assistant` system.
-
-### Install by HACS
-
-`BLUETTI Power Station Integration` hasn't been submitted to the default HACS
-repository list yet, so for now it has to be added as a **custom repository**
-(the repository already meets HACS's technical requirements for default
-inclusion - `hacs.json`, a passing `hassfest`/HACS validation workflow,
-tagged releases - submission to the default list is a step only this
-repository's maintainers can take). HACS itself is a Home Assistant plugin
-(users need to install HACS first), similar to an app store. Through this app
-store, other third-party integrations can be installed.
-
-1. Follow the steps "HACS -> Integration -> Custom Repository (it is in the
-   upper right corner of the page)".
-
-2. Add repository and make the type selection:
-   - **Repository**:
-     [https://github.com/bluetti-community/bluetti-home-assistant.git](https://github.com/bluetti-community/bluetti-home-assistant.git)
-   - **Type:** Integration
-
-3. Then, on the "Integration" page of HACS, you can see the `BLUETTI`
-   Integration. Click to install.
-
-4. Finally, Reboot your `Home Assistant` system.
+1. Download `bluetti.zip` from the
+   [latest release](https://github.com/bluetti-community/bluetti-home-assistant/releases/latest)
+   and extract it into your Home Assistant configuration's
+   `custom_components/bluetti/` directory (replacing that folder if it exists).
+2. Restart Home Assistant.
 
 ## ⚙️ Integration configuration
 
@@ -132,8 +120,8 @@ store, other third-party integrations can be installed.
    <img src="./doc/images/1-setting_devices_and_services.png" width="880">
 
 2. Click the "Add Integration" button, then search for the brand keyword
-   `bluetti`; select the `BLUETTI` integration to proceed with the OAUTH
-   authorization login.
+   `bluetti`; select the **BLUETTI (community)** integration to proceed with the
+   OAUTH authorization login.
 
    <img src="./doc/images/2-search_and_add_integration.png" width="880">
 
@@ -228,15 +216,15 @@ automation:
 
 ## 🗑️ Removing the Integration
 
-1. Go to **Settings -> Devices & services**, open the `BLUETTI` integration
-   card, click the three-dot menu on the integration entry and select
+1. Go to **Settings -> Devices & services**, open the **BLUETTI (community)**
+   integration card, click the three-dot menu on the integration entry and select
    **Delete**. This removes the config entry, its devices and entities from
    `Home Assistant`.
 
 2. Remove the integration files:
 
-   - **Installed via HACS**: go to **HACS -> Integrations**, open `BLUETTI`,
-     and select **Remove**.
+   - **Installed via HACS**: go to **HACS -> Integrations**, open
+     **BLUETTI (community)**, and select **Remove**.
    - **Installed manually**: delete the `custom_components/bluetti` folder
      from your `Home Assistant` configuration directory.
 
@@ -258,16 +246,14 @@ the `Home Assistant` system has been restarted.
 Please check the **network**, **ports** and **firewall** to ensure that
 `Home Assistant` can access the power station devices.
 
-### How to update the `BLUETTI Integration`?
+### How to update the integration?
 
-1. Enter the HACS management page to perform the update.
-2. Update using `git`
+Through HACS, like any other HACS integration: it shows the new version as an
+available update. Installed manually? Replace the `custom_components/bluetti/`
+folder with the one from the
+[latest release](https://github.com/bluetti-community/bluetti-home-assistant/releases/latest)
+and restart Home Assistant.
 
-   ```bash
-   cd /<ha workspaces>/config/custom_components/bluetti
-   git pull
-   ```
-   
 ## ⚠️ Known Limitations
 
 - **Cloud-dependent by default**: this integration relies on the BLUETTI
@@ -293,6 +279,10 @@ Please check the **network**, **ports** and **firewall** to ensure that
 
 💬 Have any problems or suggestions? Create an issue on GitHub:
 [https://github.com/bluetti-community/bluetti-home-assistant/issues](https://github.com/bluetti-community/bluetti-home-assistant/issues)
+
+This fork is maintained by the community, not by BLUETTI. Anything about the
+official integration itself belongs on its own tracker,
+[bluetti-official/bluetti-home-assistant](https://github.com/bluetti-official/bluetti-home-assistant/issues).
 
 Want to contribute code? See [CONTRIBUTING.md](CONTRIBUTING.md) for how to set up a dev
 environment and submit a pull request.
