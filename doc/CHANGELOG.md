@@ -1,3 +1,7 @@
+# 1.3.4 2026-09-16
+Internal:
+- HACS now installs the `bluetti.zip` attached to each release (`zip_release` in `hacs.json`) instead of the repository archive - the same setup as hassio-bluetti-modbus. No change to what gets installed; it makes HACS's download counter work, which had stayed at "-" since the first release.
+
 # 1.3.3 2026-09-16
 Changed:
 - Shows up as "BLUETTI (community)" in HACS and in Home Assistant's integrations list, instead of the same "BLUETTI" as the official integration - the two were indistinguishable side by side in HACS. `codeowners` now names this fork's maintainer rather than `@bluetti-official`. The integration domain is unchanged, so nothing moves for existing installs.
