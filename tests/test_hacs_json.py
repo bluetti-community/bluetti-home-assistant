@@ -29,3 +29,16 @@ def test_the_fork_is_told_apart_from_the_official_integration():
 def test_hacs_json_renders_the_readme_in_the_hacs_ui():
     hacs_json = json.loads(HACS_JSON_PATH.read_text())
     assert hacs_json["render_readme"] is True
+
+
+def test_hacs_installs_the_release_asset_the_workflow_attaches():
+    """
+    HACS only counts downloads of a release asset it was told to use;
+    without zip_release it installs from the repository archive and the
+    counter never moves. release.yml attaches exactly this file.
+    """
+    hacs_json = json.loads(HACS_JSON_PATH.read_text())
+    assert hacs_json["zip_release"] is True
+    assert hacs_json["filename"] == "bluetti.zip"
+    workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "release.yml").read_text()
+    assert "bluetti.zip" in workflow
