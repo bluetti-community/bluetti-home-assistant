@@ -6,9 +6,24 @@ from pathlib import Path
 HACS_JSON_PATH = Path(__file__).parents[1] / "hacs.json"
 
 
+MANIFEST_PATH = Path(__file__).parents[1] / "custom_components" / "bluetti" / "manifest.json"
+
+
 def test_hacs_json_is_valid_and_has_a_name():
     hacs_json = json.loads(HACS_JSON_PATH.read_text())
-    assert hacs_json["name"] == "BLUETTI"
+    assert hacs_json["name"] == "BLUETTI (community)"
+
+
+def test_the_fork_is_told_apart_from_the_official_integration():
+    """
+    Same domain and brand icon as the official integration by design, so
+    the display name is the only thing HACS and HA show that can differ.
+    """
+    hacs_json = json.loads(HACS_JSON_PATH.read_text())
+    manifest = json.loads(MANIFEST_PATH.read_text())
+    assert manifest["domain"] == "bluetti"
+    assert manifest["name"] == hacs_json["name"] != "BLUETTI"
+    assert manifest["codeowners"] == ["@chpego"]
 
 
 def test_hacs_json_renders_the_readme_in_the_hacs_ui():

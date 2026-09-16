@@ -1,8 +1,8 @@
 {
   "domain": "bluetti",
-  "name": "BLUETTI",
+  "name": "BLUETTI (community)",
   "codeowners": [
-    "@bluetti-official"
+    "@chpego"
   ],
   "config_flow": true,
   "dependencies": [
@@ -17,5 +17,5 @@
     "pybluetti>=0.2.4",
     "bluetti-modbus[cli]>=0.19.3"
   ],
-  "version": "1.3.2"
+  "version": "1.3.3"
 }
