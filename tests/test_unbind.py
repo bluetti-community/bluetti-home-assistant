@@ -34,6 +34,28 @@ async def test_web_socket_message_handler_schedules_coordinator_refresh(hass):
     mock_run.assert_called_once()
 
 
+async def test_web_socket_message_handler_ignores_messages_without_a_device_sn(hass):
+    """
+    Real-world log spam: the notify topic also carries messages with no
+    deviceSn (430 "error from callback ...: 'deviceSn'" lines in one day,
+    bluetti-community/bluetti-home-assistant#35). None of them may raise -
+    pybluetti logs every handler exception at error level.
+    """
+    data = BluettiData.__new__(BluettiData)
+    data.devices = [BluettiDevice(device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L")]
+    data.loop = asyncio.get_running_loop()
+
+    with patch("custom_components.bluetti.models.asyncio.run_coroutine_threadsafe") as mock_run:
+        data.web_socket_message_handler('{"data": {"msgType": "notice"}}')
+        data.web_socket_message_handler('{"data": "a string, not an object"}')
+        data.web_socket_message_handler('{"data": null}')
+        data.web_socket_message_handler('{"code": 200}')
+        data.web_socket_message_handler("[]")
+        data.web_socket_message_handler("not json at all")
+
+    mock_run.assert_not_called()
+
+
 async def test_web_socket_message_handler_ignores_unknown_device(hass):
     data = BluettiData.__new__(BluettiData)
     data.devices = []

@@ -63,8 +63,18 @@ class BluettiData:
     def web_socket_message_handler(self, message: str) -> None:
         __LOGGER__.debug("Received BLUETTI websocket message: %s", message)
 
-        res = json.loads(message)
-        sn = res["data"]["deviceSn"]
+        # The subscription is the account's whole "notify" topic, so not every
+        # message is a device notification carrying a deviceSn.
+        try:
+            res = json.loads(message)
+        except ValueError:
+            __LOGGER__.debug("Ignoring a websocket message that is not JSON")
+            return
+        data = res.get("data") if isinstance(res, dict) else None
+        sn = data.get("deviceSn") if isinstance(data, dict) else None
+        if not sn:
+            __LOGGER__.debug("Ignoring a websocket message without a deviceSn")
+            return
 
         device = self.get_device_by_sn(sn)
         if device and device.coordinator:
