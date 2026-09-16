@@ -39,6 +39,13 @@ from .profile.application_profile import APPLICATION_PROFILE
 # here knows what specifically the cloud wants fixed - see the linked
 # reports at github.com/bluetti-official/bluetti-home-assistant/issues/145.
 ISSUE_ID_WEBSOCKET_ERROR = "websocket_error"
+# Local Modbus inside this integration is deprecated in favour of
+# bluetti-community/hassio-bluetti-modbus, which reads the same registers
+# and has caught up with what real hardware taught us (pack summary at the
+# aggregate unit id, registers that never report, write confirmations).
+# Raised while an entry still has a local Modbus connection configured.
+ISSUE_ID_MODBUS_DEPRECATED = "modbus_deprecated"
+MODBUS_INTEGRATION_URL = "https://github.com/bluetti-community/hassio-bluetti-modbus"
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -254,6 +261,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
                 modbus_config["port"],
                 dev_type,
             )
+
+    if modbus_coordinators:
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            ISSUE_ID_MODBUS_DEPRECATED,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            learn_more_url=MODBUS_INTEGRATION_URL,
+            translation_key="modbus_deprecated",
+            translation_placeholders={
+                "devices": ", ".join(
+                    product.name or product.sn
+                    for product in selected_products
+                    if product.sn in modbus_coordinators
+                ),
+            },
+        )
+    else:
+        ir.async_delete_issue(hass, DOMAIN, ISSUE_ID_MODBUS_DEPRECATED)
 
     # d_serial/d_ver_arm/d_ver_dsp are no longer sensors - they feed
     # DeviceInfo instead (see modbus_entity.py), matching home-assistant/core's

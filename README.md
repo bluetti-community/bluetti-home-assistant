@@ -8,8 +8,10 @@ integration, [bluetti-official/bluetti-home-assistant](https://github.com/bluett
 It connects your BLUETTI power stations to Home Assistant through the BLUETTI
 cloud service (account login, real-time push updates), exactly like the official
 one - and adds what the community needs sooner than the official release cycle
-delivers it: bug fixes as they are found, plus an optional **local Modbus TCP**
-connection for Balco 260 and EP2000 (see [How Data Is Updated](#-how-data-is-updated)).
+delivers it: bug fixes as they are found. For **local Modbus TCP** (Balco 260,
+S Meter, AC500), use the companion
+[Bluetti Modbus](https://github.com/bluetti-community/hassio-bluetti-modbus)
+integration alongside it - see [Local Modbus](#local-modbus).
 
 It is a drop-in replacement: same `bluetti` integration domain, so your existing
 configuration entry, devices and entities carry over as they are. It shows up as
@@ -160,24 +162,21 @@ service, not directly to your power station over the local network.
   authorization expires, affected entities are marked `unavailable` in Home
   Assistant rather than showing stale data.
 
-### Optional: local Modbus for Balco260 / EP2000
+### Local Modbus
 
-Balco260 and EP2000 also expose a local Modbus TCP interface, in addition to
-the cloud API. For these models, once the device is enabled in this
-integration, go to **Settings -> Devices & services -> BLUETTI -> Configure**
-and choose **Configure local Modbus** to add the device's IP address and
-port. This is entirely optional and additive:
+Local Modbus TCP is handled by the companion integration
+[**Bluetti Modbus**](https://github.com/bluetti-community/hassio-bluetti-modbus),
+installed alongside this one. It reads the device directly on your network - no
+cloud involved - and is where local Modbus is maintained: correct battery pack
+totals, registers the firmware never populates hidden by default, write
+confirmations handled, automatic discovery of Balco 260 and S Meter. It
+supports Balco 260, S Meter and AC500, and its readings show up on their own
+device, next to this integration's cloud-sourced one.
 
-- It surfaces data the cloud API doesn't report (real battery
-  charge/discharge energy, cycle count, per-string PV data), as extra
-  sensors on the same device.
-- It does not replace the cloud connection - if the local Modbus connection
-  drops, only those extra sensors go `unavailable`; the device's normal
-  cloud-sourced entities and controls keep working.
-- It is polled every 30 seconds, matching the cloud path. Bluetti's Modbus
-  TCP stack is known to become unresponsive under connection/polling
-  pressure, so this integration deliberately keeps one persistent
-  connection per device rather than reconnecting on every poll.
+The local Modbus connection this integration used to offer under **Configure ->
+Configure local Modbus** is **deprecated**: a connection already configured
+keeps working for now and raises a Repairs notice pointing at the replacement,
+no new one can be set up, and the code will be removed in a later release.
 
 ## 🧩 Example Automations
 
@@ -256,12 +255,11 @@ and restart Home Assistant.
 
 ## ⚠️ Known Limitations
 
-- **Cloud-dependent by default**: this integration relies on the BLUETTI
-  cloud service (OAuth2 login + WebSocket push), and stops updating if
-  BLUETTI's cloud service is unreachable. Balco260 and EP2000 can
-  additionally be configured with a local Modbus connection (see "How Data
-  Is Updated" above) for the data the cloud API doesn't report, but this is
-  optional and supplementary, not a replacement for the cloud connection.
+- **Cloud-dependent**: this integration relies on the BLUETTI cloud service
+  (OAuth2 login + WebSocket push), and stops updating if BLUETTI's cloud
+  service is unreachable. For readings that keep flowing without the cloud,
+  add the [Bluetti Modbus](https://github.com/bluetti-community/hassio-bluetti-modbus)
+  integration (see [Local Modbus](#local-modbus)).
 - **One BLUETTI account per Home Assistant install**: all devices from a
   given BLUETTI account are grouped under a single integration entry. If
   you have devices on multiple BLUETTI accounts, only the most recently

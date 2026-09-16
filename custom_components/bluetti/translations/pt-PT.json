@@ -84,6 +84,10 @@
     "websocket_error": {
       "title": "Atualizações em tempo real do BLUETTI indisponíveis",
       "description": "A nuvem BLUETTI rejeitou a ligação de atualização em tempo real: {error}\n\nOs dados do dispositivo continuam a ser atualizados por sondagem a cada 30 segundos; isto afeta apenas a rapidez com que as alterações são apresentadas. Se isto persistir, tente remover e voltar a adicionar a integração."
+    },
+    "modbus_deprecated": {
+      "title": "Local Modbus in this integration is deprecated",
+      "description": "Local Modbus support inside this integration will be removed in a future release. It is configured for: {devices}.\n\nInstall the dedicated **Bluetti Modbus** integration instead - it reads the same registers and is where local Modbus is maintained now (correct battery pack totals, registers that never report hidden, write confirmations handled). Once it is set up, remove the local Modbus configuration here to clear this notice."
     }
   },
   "entity": {

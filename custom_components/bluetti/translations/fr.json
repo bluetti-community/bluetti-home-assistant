@@ -84,6 +84,10 @@
     "websocket_error": {
       "title": "Mises à jour en temps réel BLUETTI indisponibles",
       "description": "Le cloud BLUETTI a rejeté la connexion de mise à jour en temps réel : {error}\n\nLes données de l'appareil continuent d'être actualisées par sondage toutes les 30 secondes ; seule la rapidité d'affichage des changements est affectée. Si cela persiste, essayez de retirer puis de rajouter l'intégration."
+    },
+    "modbus_deprecated": {
+      "title": "Le Modbus local de cette intégration est obsolète",
+      "description": "La prise en charge du Modbus local dans cette intégration sera retirée dans une prochaine version. Elle est configurée pour : {devices}.\n\nInstallez plutôt l'intégration dédiée **Bluetti Modbus** : elle lit les mêmes registres et c'est là que le Modbus local est maintenu désormais (totaux de packs corrects, registres muets masqués, confirmations d'écriture gérées). Une fois en place, retirez la configuration Modbus locale ici pour faire disparaître cet avis."
     }
   },
   "entity": {
