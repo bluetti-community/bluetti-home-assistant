@@ -84,6 +84,10 @@
     "websocket_error": {
       "title": "BLUETTI realaus laiko atnaujinimai nepasiekiami",
       "description": "BLUETTI debesija atmetė realaus laiko atnaujinimų ryšį: {error}\n\nĮrenginio duomenys vis dar atnaujinami apklausiant kas 30 sekundžių; tai veikia tik pakeitimų rodymo greitį. Jei problema kartojasi, pabandykite pašalinti ir iš naujo pridėti integraciją."
+    },
+    "modbus_deprecated": {
+      "title": "Local Modbus in this integration is deprecated",
+      "description": "Local Modbus support inside this integration will be removed in a future release. It is configured for: {devices}.\n\nInstall the dedicated **Bluetti Modbus** integration instead - it reads the same registers and is where local Modbus is maintained now (correct battery pack totals, registers that never report hidden, write confirmations handled). Once it is set up, remove the local Modbus configuration here to clear this notice."
     }
   },
   "entity": {

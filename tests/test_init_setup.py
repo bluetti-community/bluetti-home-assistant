@@ -11,7 +11,10 @@ from modbus_connection.exceptions import ModbusConnectionError
 from pybluetti import ApplicationRuntimeException
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.bluetti import ISSUE_ID_WEBSOCKET_ERROR
+from custom_components.bluetti import (
+    ISSUE_ID_MODBUS_DEPRECATED,
+    ISSUE_ID_WEBSOCKET_ERROR,
+)
 from custom_components.bluetti.const import DOMAIN
 
 
@@ -426,6 +429,39 @@ async def test_async_setup_entry_wires_up_modbus_coordinator_for_capable_device(
     client_cls.assert_called_once_with("10.2.1.60", 502, "balco260")
     assert "SN1" in entry.runtime_data.modbus_coordinators
     assert entry.runtime_data.modbus_coordinators["SN1"].last_update_success
+
+    # Deprecated: still works, but says so in Repairs and points at the replacement.
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_ID_MODBUS_DEPRECATED)
+    assert issue is not None
+    assert issue.severity == ir.IssueSeverity.WARNING
+    assert issue.is_fixable is False
+    assert issue.translation_placeholders == {"devices": "Balco"}
+    assert issue.learn_more_url == "https://github.com/bluetti-community/hassio-bluetti-modbus"
+
+
+async def test_no_modbus_deprecation_notice_without_a_modbus_connection(hass, enable_custom_integrations):
+    entry = _entry(hass)
+    # Left behind by an earlier run that still had one configured.
+    ir.async_create_issue(
+        hass, DOMAIN, ISSUE_ID_MODBUS_DEPRECATED, is_fixable=False,
+        severity=ir.IssueSeverity.WARNING, translation_key="modbus_deprecated",
+    )
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(return_value=MagicMock()),
+         ), \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls:
+        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
+        mock_stomp_cls.return_value.connect = AsyncMock()
+
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_ID_MODBUS_DEPRECATED) is None
 
 
 async def test_async_setup_entry_removes_retired_modbus_identity_sensors(

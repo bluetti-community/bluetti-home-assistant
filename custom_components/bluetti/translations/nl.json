@@ -84,6 +84,10 @@
     "websocket_error": {
       "title": "BLUETTI realtime-updates niet beschikbaar",
       "description": "De BLUETTI-cloud heeft de realtime-updateverbinding geweigerd: {error}\n\nApparaatgegevens worden nog steeds elke 30 seconden bijgewerkt via polling; dit heeft alleen invloed op hoe snel wijzigingen worden weergegeven. Als dit aanhoudt, probeer de integratie te verwijderen en opnieuw toe te voegen."
+    },
+    "modbus_deprecated": {
+      "title": "Local Modbus in this integration is deprecated",
+      "description": "Local Modbus support inside this integration will be removed in a future release. It is configured for: {devices}.\n\nInstall the dedicated **Bluetti Modbus** integration instead - it reads the same registers and is where local Modbus is maintained now (correct battery pack totals, registers that never report hidden, write confirmations handled). Once it is set up, remove the local Modbus configuration here to clear this notice."
     }
   },
   "entity": {

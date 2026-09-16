@@ -47,16 +47,16 @@ class BluettiOptionsFlowHandler(OptionsFlow):
     _products: list[UserProduct]
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Route to the add-devices form, or a menu if local Modbus is also configurable."""
-        entry: ConfigEntry = self.config_entry
-        enabled_devices = set(entry.options.get("devices", []))
-        modbus_capable = [
-            product
-            for product in _parse_products(entry)
-            if product.sn in enabled_devices and modbus_dev_type_for_model(product.model)
-        ]
+        """
+        Route to the add-devices form, or a menu if a local Modbus connection exists.
 
-        if not modbus_capable:
+        Local Modbus inside this integration is deprecated (see
+        ISSUE_ID_MODBUS_DEPRECATED in __init__.py): the menu entry only shows
+        for an entry that already has a connection configured, so it can
+        still be adjusted or pointed elsewhere, and nobody sets up a new one.
+        """
+        entry: ConfigEntry = self.config_entry
+        if not entry.options.get("modbus"):
             return await self.async_step_add_devices(user_input)
 
         return self.async_show_menu(step_id="init", menu_options=["add_devices", "configure_modbus"])

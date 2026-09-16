@@ -176,7 +176,24 @@ async def test_config_flow_exposes_options_flow(hass):
     assert isinstance(flow, BluettiOptionsFlowHandler)
 
 
-async def test_init_shows_menu_when_a_modbus_capable_device_is_enabled(hass):
+async def test_init_shows_menu_only_while_a_modbus_connection_is_already_configured(hass):
+    # Deprecated: an existing connection stays adjustable, a new one can't be set up.
+    entry = _entry(
+        hass,
+        products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
+        devices=["SN1"],
+        modbus={"SN1": {"host": "192.168.1.128", "port": 502}},
+    )
+    flow = _flow(hass, entry)
+
+    result = await flow.async_step_init(user_input=None)
+
+    assert result["type"] == "menu"
+    assert result["step_id"] == "init"
+    assert set(result["menu_options"]) == {"add_devices", "configure_modbus"}
+
+
+async def test_init_no_longer_offers_a_new_modbus_setup_for_a_capable_device(hass):
     entry = _entry(
         hass,
         products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
@@ -186,9 +203,10 @@ async def test_init_shows_menu_when_a_modbus_capable_device_is_enabled(hass):
 
     result = await flow.async_step_init(user_input=None)
 
-    assert result["type"] == "menu"
-    assert result["step_id"] == "init"
-    assert set(result["menu_options"]) == {"add_devices", "configure_modbus"}
+    # Straight into the add-devices step (which, with nothing left to add,
+    # aborts) - no menu, so no way to reach configure_modbus.
+    assert result["type"] != "menu"
+    assert "menu_options" not in result
 
 
 async def test_init_falls_through_to_add_devices_when_enabled_device_is_not_modbus_capable(hass):
@@ -348,10 +366,13 @@ async def test_configure_modbus_through_real_flow_manager_preserves_devices(
     # directly (as the other tests above do) never exercises that real
     # code path, so it couldn't catch this. Going through the actual flow
     # manager here is the only way to verify entry.options ends up correct.
+    # An already-configured connection: the only case the (deprecated) menu
+    # entry still shows for.
     entry = _entry(
         hass,
         products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
         devices=["SN1"],
+        modbus={"SN1": {"host": "192.168.1.128", "port": 502}},
     )
     client = MagicMock()
     client.read = AsyncMock(return_value=[])
