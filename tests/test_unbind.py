@@ -29,6 +29,23 @@ async def test_web_socket_message_handler_schedules_coordinator_refresh(hass):
     data.loop = asyncio.get_running_loop()
 
     with patch("custom_components.bluetti.models.asyncio.run_coroutine_threadsafe") as mock_run:
+        # The shape the cloud sends today (official integration's ba9e7fc),
+        # verified on live AP300/APEX 300 messages in #40.
+        data.web_socket_message_handler('{"data": {"message": {"deviceSn": "SN1"}}}')
+
+    mock_run.assert_called_once()
+
+
+async def test_web_socket_message_handler_still_accepts_the_old_flat_shape(hass):
+    device = BluettiDevice(device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L")
+    device.coordinator = MagicMock()
+    device.coordinator.async_request_refresh = MagicMock()
+
+    data = BluettiData.__new__(BluettiData)
+    data.devices = [device]
+    data.loop = asyncio.get_running_loop()
+
+    with patch("custom_components.bluetti.models.asyncio.run_coroutine_threadsafe") as mock_run:
         data.web_socket_message_handler('{"data": {"deviceSn": "SN1"}}')
 
     mock_run.assert_called_once()
@@ -47,6 +64,8 @@ async def test_web_socket_message_handler_ignores_messages_without_a_device_sn(h
 
     with patch("custom_components.bluetti.models.asyncio.run_coroutine_threadsafe") as mock_run:
         data.web_socket_message_handler('{"data": {"msgType": "notice"}}')
+        data.web_socket_message_handler('{"data": {"message": {"msgType": "notice"}}}')
+        data.web_socket_message_handler('{"data": {"message": "a string"}}')
         data.web_socket_message_handler('{"data": "a string, not an object"}')
         data.web_socket_message_handler('{"data": null}')
         data.web_socket_message_handler('{"code": 200}')
@@ -62,7 +81,7 @@ async def test_web_socket_message_handler_ignores_unknown_device(hass):
     data.loop = asyncio.get_running_loop()
 
     with patch("custom_components.bluetti.models.asyncio.run_coroutine_threadsafe") as mock_run:
-        data.web_socket_message_handler('{"data": {"deviceSn": "unknown"}}')
+        data.web_socket_message_handler('{"data": {"message": {"deviceSn": "unknown"}}}')
 
     mock_run.assert_not_called()
 
