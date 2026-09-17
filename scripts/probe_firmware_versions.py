@@ -51,6 +51,20 @@ x-app-key/x-app-ver/x-os are the headers this integration already sends on
 its websocket connection, so the gateway sees the same client identity
 here - not the app's.
 
+Result on a Balco 260 on 2026-09-17: every batch variant is accepted, the
+token alone included - neither gwcredentials nor the x-app-* headers are
+required. The v1 single-device endpoint wants the versions as top-level
+armVer/dspVer/... fields instead (msgCode 20100067 "The current version
+number of ARM cannot be empty") and is not needed. With the installed
+versions reported, the cloud answered with a single entry, the IoT module
+(firmwareType 0) at 500120120 against the installed 500120119 - i.e. it
+lists only the components it has something newer for, and leaves
+currVersion/hasNewVersion null: comparing is the client's job, as in the
+app. Each entry also carries a firmwareId (a record id, not the component
+number), fileSize, encrypted, forcedUpdate, upgradeInstruction (empty),
+creTime, upgradeRangeType and upgradeMin/MaxVersion. Run without --ver
+(every component at 0) to have the cloud list its latest for all of them.
+
 Download URLs in the cloud's answer are printed and saved with their query
 string removed (it may carry a credential); --keep-urls keeps them whole.
 """
@@ -292,14 +306,20 @@ def print_versions(payload: Any) -> None:
         if not versions:
             print("    (no firmware entries)")
         for fm in versions:
-            fid = fm.get("firmwareId", fm.get("firmwareType"))
+            # firmwareType is the component number; firmwareId in an answer
+            # is a record id (the request uses firmwareId for the component -
+            # the two are not the same thing).
+            ftype = fm.get("firmwareType")
             name = (
-                FIRMWARE_NAMES.get(fid, str(fid)) if isinstance(fid, int) else str(fid)
+                FIRMWARE_NAMES.get(ftype, str(ftype))
+                if isinstance(ftype, int)
+                else str(ftype)
             )
             print(
                 f"    {name:10s} latest {fm.get('version')!s:>12}  current {fm.get('currVersion')!s:>12}"
                 f"  new={fm.get('hasNewVersion')}  size={fm.get('fileSize')}  encrypted={fm.get('encrypted')}"
                 f"  broadcast={fm.get('supportBroadcastUpgrade')}  strategy={fm.get('upgradeStrategy')}"
+                f"  id={fm.get('firmwareId')}"
             )
             extra = {
                 k: v
