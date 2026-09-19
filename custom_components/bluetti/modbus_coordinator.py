@@ -6,7 +6,7 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from bluetti_modbus_lib import AC500, EP2000, Balco260, Balco500, SMeter
+from bluetti_modbus_lib import AC200L, AC500, EP2000, Balco260, Balco500, SMeter
 from bluetti_modbus_lib.modbus.client import BluettiModbusClient, ClientReturnValue
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -55,12 +55,12 @@ class BluettiModbusCoordinator(DataUpdateCoordinator[dict[str, ClientReturnValue
         self._host = host
 
     @property
-    def device(self) -> AC500 | Balco260 | Balco500 | EP2000 | SMeter:
+    def device(self) -> AC200L | AC500 | Balco260 | Balco500 | EP2000 | SMeter:
         """
         The underlying bluetti_modbus_lib device - field metadata (scale, etc.) lives here.
 
-        AC500/Balco500 are part of BluettiModbusClient's own return type
-        since a recent bluetti-modbus release, but never actually returned
+        AC200L/AC500/Balco500 are part of BluettiModbusClient's own return
+        type since recent bluetti-modbus releases, but never actually returned
         here in practice - this integration's local Modbus flow only ever
         offers "balco260"/"ep2000" as a dev_type (see
         MODBUS_CAPABLE_DEV_TYPES in modbus_support.py).
