@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 from homeassistant.config_entries import SOURCE_RECONFIGURE
 from homeassistant.helpers.json import JSONEncoder
-from pybluetti import UnifyResponse, UserProduct
+from pybluetti import HttpStatusException, UnifyResponse, UserProduct
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti.const import ACCOUNT_UNIQUE_ID, DOMAIN, INTEGRATION_NAME
@@ -213,6 +213,26 @@ async def test_get_user_products_failure_aborts_cannot_connect(hass):
 
     assert result["type"] == "abort"
     assert result["reason"] == "cannot_connect"
+
+
+async def test_get_user_products_retries_once_on_a_transient_gateway_error(hass):
+    # A lone 504 on this call aborted a real reauthentication the user then
+    # had to redo (2026-09-19); one immediate retry absorbs it.
+    flow = _make_flow(hass)
+    products = SimpleNamespace(
+        data=[UserProduct(sn="SN1", stateList=[], online="1", model="Balco260", name="B")],
+        is_ok=lambda: True,
+    )
+
+    with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
+         patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products = AsyncMock(
+            side_effect=[HttpStatusException(504, "Gateway Timeout"), products]
+        )
+        result = await flow.async_step_select_devices(user_input=None)
+
+    assert result["type"] == "form"
+    assert mock_client_cls.return_value.get_user_products.await_count == 2
 
 
 async def test_get_user_products_failed_envelope_aborts_cannot_connect(hass):

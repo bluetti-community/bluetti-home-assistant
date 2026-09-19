@@ -196,9 +196,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     # Key names only, never values: enough to tell whether the cloud named a
     # data center ("host") for this account, without leaking the token.
     __LOGGER__.debug(
-        "Websocket endpoint: %s (token keys: %s)",
+        "Websocket endpoint: %s (token keys: %s; expires_at: %s)",
         ws_url,
         ", ".join(sorted(oAuth2Session.token)),
+        oAuth2Session.token.get("expires_at"),
     )
     stomp_client = StompClient(
         httpSession,
@@ -219,7 +220,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         device._hass = hass
         device._entry = entry
         device._entry_id = entry.entry_id
-        coordinators[device.device_id] = BluettiDeviceCoordinator(hass, entry, device)
+        coordinators[device.device_id] = BluettiDeviceCoordinator(
+            hass, entry, device, on_auth_rejected=authTokenRefresh.async_force_refresh
+        )
 
     # Assigned before the first refresh below, not after: a device already
     # unbound in the cloud triggers _handle_unbind() during that refresh,
