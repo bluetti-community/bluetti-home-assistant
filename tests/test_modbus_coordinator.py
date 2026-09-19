@@ -102,3 +102,27 @@ async def test_async_shutdown_closes_the_underlying_client(client_cls, hass):
     await coordinator.async_shutdown()
 
     client_cls.return_value.aclose.assert_awaited_once()
+
+
+def test_imports_from_bluetti_modbus_lib_only_what_the_manifest_floor_has():
+    # Regression test for #57: 1.4.1 imported AC200L from bluetti_modbus_lib
+    # to match the latest library's return type, while manifest.json still
+    # asked for bluetti-modbus>=0.19.3 - and Home Assistant never upgrades a
+    # requirement that is already satisfied, so every install with an older
+    # library lost the whole integration to an ImportError at load. Nothing
+    # here can pip-install 0.19.3 to prove the import works against it, so
+    # this pins the next best thing: the names this module takes from the
+    # library are a fixed list, every one of them present in 0.19.3. Adding
+    # a name here means raising the manifest's floor in the same change.
+    import ast
+    from pathlib import Path
+
+    source = Path(__file__).parents[1] / "custom_components" / "bluetti" / "modbus_coordinator.py"
+    imported = {
+        alias.name
+        for node in ast.walk(ast.parse(source.read_text()))
+        if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("bluetti_modbus_lib")
+        for alias in node.names
+    }
+
+    assert imported == {"BluettiDevice", "BluettiModbusClient", "ClientReturnValue"}

@@ -6,7 +6,12 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from bluetti_modbus_lib import AC200L, AC500, EP2000, Balco260, Balco500, SMeter
+# Only names the manifest's minimum bluetti-modbus (>=0.19.3) already has -
+# never a device class: 1.4.1 imported AC200L here to match the *latest*
+# library's return type, and every install whose already-present library
+# predated it (a satisfied ">=0.19.3" is never upgraded) lost the whole
+# integration to an ImportError at load, cloud included (#57).
+from bluetti_modbus_lib.base_devices import BluettiDevice
 from bluetti_modbus_lib.modbus.client import BluettiModbusClient, ClientReturnValue
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -55,15 +60,17 @@ class BluettiModbusCoordinator(DataUpdateCoordinator[dict[str, ClientReturnValue
         self._host = host
 
     @property
-    def device(self) -> AC200L | AC500 | Balco260 | Balco500 | EP2000 | SMeter:
+    def device(self) -> BluettiDevice:
         """
         The underlying bluetti_modbus_lib device - field metadata (scale, etc.) lives here.
 
-        AC200L/AC500/Balco500 are part of BluettiModbusClient's own return
-        type since recent bluetti-modbus releases, but never actually returned
-        here in practice - this integration's local Modbus flow only ever
-        offers "balco260"/"ep2000" as a dev_type (see
-        MODBUS_CAPABLE_DEV_TYPES in modbus_support.py).
+        Typed as the common base rather than BluettiModbusClient's own union
+        of device classes: that union grows with every model the library
+        adds, and spelling it out here tied this module to a library newer
+        than the manifest requires (#57). Only "balco260"/"ep2000" are ever
+        returned in practice - this integration's local Modbus flow offers
+        nothing else as a dev_type (MODBUS_CAPABLE_DEV_TYPES in
+        modbus_support.py).
         """
         return self._client.device
 
