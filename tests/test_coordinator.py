@@ -1,5 +1,7 @@
 """Tests for BluettiDeviceCoordinator."""
 
+import logging
+import time
 from unittest.mock import AsyncMock
 
 import aiohttp
@@ -68,6 +70,7 @@ async def test_coordinator_raises_update_failed_on_non_auth_api_error(hass):
 
 @pytest.mark.parametrize("msg_code", [401, 805])
 async def test_coordinator_raises_auth_failed_on_auth_error_codes(hass, msg_code):
+    # No refresh hook wired (the default): straight to reauthentication.
     device = _make_device()
     device.async_refresh_from_api = AsyncMock(
         side_effect=ApplicationRuntimeException(msgCode=msg_code, errMessage="unauthorized")
@@ -78,6 +81,44 @@ async def test_coordinator_raises_auth_failed_on_auth_error_codes(hass, msg_code
     coordinator = BluettiDeviceCoordinator(hass, entry, device)
     with pytest.raises(ConfigEntryAuthFailed):
         await coordinator._async_update_data()
+
+
+async def test_a_rejected_token_is_refreshed_before_asking_for_a_sign_in(hass, caplog):
+    # Seen on a real account (2026-09-19): a token the SSO had issued for
+    # 31 days rejected with 805 after 2.9 days, refresh token at hand. The
+    # refresh hook gets a go first; when it stores a new token the entry
+    # reloads on its own and this poll just fails once, without reauth.
+    device = _make_device()
+    device.async_refresh_from_api = AsyncMock(
+        side_effect=ApplicationRuntimeException(msgCode=805, errMessage="expired")
+    )
+    entry = MockConfigEntry(domain=DOMAIN, data={"token": {"expires_at": time.time() + 28 * 86400}})
+    entry.add_to_hass(hass)
+    refresh = AsyncMock(return_value=True)
+
+    coordinator = BluettiDeviceCoordinator(hass, entry, device, on_auth_rejected=refresh)
+    with caplog.at_level(logging.INFO), pytest.raises(UpdateFailed, match=r"expired \(code 805\)"):
+        await coordinator._async_update_data()
+
+    refresh.assert_awaited_once()
+    assert "rejected the access token (code 805) 28.0 days before its announced expiry" in caplog.text
+    assert "access token refreshed after the cloud rejected it" in caplog.text
+
+
+async def test_a_rejected_token_that_cannot_be_refreshed_needs_a_sign_in(hass):
+    device = _make_device()
+    device.async_refresh_from_api = AsyncMock(
+        side_effect=ApplicationRuntimeException(msgCode=805, errMessage="expired")
+    )
+    entry = MockConfigEntry(domain=DOMAIN)  # no token data at all: no expiry line either
+    entry.add_to_hass(hass)
+    refresh = AsyncMock(return_value=False)
+
+    coordinator = BluettiDeviceCoordinator(hass, entry, device, on_auth_rejected=refresh)
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+
+    refresh.assert_awaited_once()
 
 
 async def test_a_lone_transient_gateway_error_is_retried_once(hass):

@@ -278,6 +278,51 @@ async def test_async_check_token_expiry_refreshes_and_reloads(hass):
     mock_reload.assert_awaited_once_with(entry.entry_id)
 
 
+async def test_async_force_refresh_stores_the_new_token_and_reloads(hass):
+    # The cloud rejected a token far inside its announced lifetime: refresh
+    # regardless of expires_at, store it, let the update listener reload.
+    entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": 0.0})
+    entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.LOADED)
+    entry.add_update_listener(_async_update_listener)
+    session = MagicMock()
+    session.token = {"expires_at": time.time() + 28 * 86400}
+    session.implementation.async_refresh_token = AsyncMock(return_value={"access_token": "new"})
+    refresher = AuthTokenRefresh(hass, entry, session)
+
+    with patch.object(hass.config_entries, "async_reload", AsyncMock()) as mock_reload:
+        assert await refresher.async_force_refresh() is True
+        await hass.async_block_till_done()
+
+    updated = hass.config_entries.async_get_entry(entry.entry_id)
+    assert updated.data["token"] == {"access_token": "new"}
+    assert updated.data["last_token_refresh"] > 0
+    mock_reload.assert_awaited_once_with(entry.entry_id)
+
+
+async def test_async_force_refresh_holds_within_an_hour_of_a_refresh(hass):
+    # A fresh token rejected again within the hour: refreshing once more
+    # would only hammer the SSO - the caller sends the user to reauth.
+    entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": time.time() - 60})
+    entry.add_to_hass(hass)
+    session = MagicMock()
+    session.implementation.async_refresh_token = AsyncMock()
+    refresher = AuthTokenRefresh(hass, entry, session)
+
+    assert await refresher.async_force_refresh() is False
+    session.implementation.async_refresh_token.assert_not_awaited()
+
+
+async def test_async_force_refresh_reports_a_failed_grant(hass):
+    entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": 0.0})
+    entry.add_to_hass(hass)
+    session = MagicMock()
+    session.implementation.async_refresh_token = AsyncMock(side_effect=RuntimeError("boom"))
+    refresher = AuthTokenRefresh(hass, entry, session)
+
+    assert await refresher.async_force_refresh() is False
+
+
 async def test_async_check_token_expiry_refresh_failure_is_logged(hass):
     entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": 0.0})
     entry.add_to_hass(hass)

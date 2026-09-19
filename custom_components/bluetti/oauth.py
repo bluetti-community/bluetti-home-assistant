@@ -16,6 +16,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
 from pybluetti import ProductClient, UnifyResponse, UserProduct
 
+from .cloud_retry import async_call_retrying_once
 from .const import (
     ACCOUNT_UNIQUE_ID,
     DOMAIN,
@@ -144,7 +145,9 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
             on_auth_expired=lambda: self.hass.bus.fire(EVENT_TOKEN_EXPIRED),
         )
         try:
-            products = await product_client.get_user_products()
+            # One immediate retry on a transient gateway error: a lone 504
+            # here aborted a reauthentication the user then had to redo.
+            products = await async_call_retrying_once(product_client.get_user_products)
         except Exception as err:
             __LOGGER__.error("Failed to fetch BLUETTI products: %s", err)
             return self.async_abort(reason="cannot_connect")
@@ -328,6 +331,36 @@ class AuthTokenRefresh:
             severity=ir.IssueSeverity.ERROR,
             translation_key="oauth_expired",
         )
+
+    async def async_force_refresh(self) -> bool:
+        """
+        Refresh the token now, because the cloud rejected it.
+
+        Same refresh-token grant and same once-an-hour guard as the daily
+        proactive check below, but unconditional on expires_at: the cloud
+        has rejected tokens well inside their announced lifetime. Returns
+        True when a new token was stored (the entry's update listener then
+        reloads it), False when the guard held or the grant failed - the
+        caller then sends the user through reauthentication.
+        """
+        current_timestamp = time.time()
+        last_refresh = self.entry.data.get("last_token_refresh", 0.0)
+        if current_timestamp - last_refresh < 3600:
+            __LOGGER__.info("token rejected again within an hour of a refresh, not retrying")
+            return False
+        try:
+            new_token = await self.oAuth2Session.implementation.async_refresh_token(
+                self.oAuth2Session.token
+            )
+        except Exception as e:
+            __LOGGER__.error("refresh token failed: %s", e)
+            return False
+        self.hass.config_entries.async_update_entry(
+            self.entry,
+            data={**self.entry.data, "token": new_token, "last_token_refresh": current_timestamp},
+        )
+        __LOGGER__.info("refresh token ok")
+        return True
 
     # check token is in 7 day if in 7day refesh token
     async def async_check_token_expiry(self, now: datetime | None = None) -> None:
