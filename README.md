@@ -9,7 +9,7 @@ It connects your BLUETTI power stations to Home Assistant through the BLUETTI
 cloud service (account login, real-time push updates), exactly like the official
 one - and adds what the community needs sooner than the official release cycle
 delivers it: bug fixes as they are found. For **local Modbus TCP** (Balco 260,
-S Meter, AC500), use the companion
+S Meter, AC500, AC200L2, EP500Pro), use the companion
 [Bluetti Modbus](https://github.com/bluetti-community/hassio-bluetti-modbus)
 integration alongside it - see [Local Modbus](#local-modbus).
 
@@ -37,8 +37,8 @@ official one.
 - ✅ Sleep Mode
 - ✅ PV Input Power
 - ✅ Grid Input Power
-- ✅ AC Ouput Power
-- ✅ DC Ouput Power
+- ✅ AC Output Power
+- ✅ DC Output Power
 
 ## 💡 Use Cases
 
@@ -63,11 +63,15 @@ official one.
 
 > [!NOTE]
 >
-> More power station models will be added in the future.
+> Entities are derived from what the BLUETTI cloud reports for each device, so a
+> model missing from this list generally works too - the list is what has been
+> seen. More models are added as the cloud starts serving them.
 
-|     Power Station Model      |             Buesiness Name              | Inverter Status | Battery SOC | AC Switch | DC Switch | power switch | AC ECO | DC ECO | Work mode switch | Sleep Mode | PV Input Power | Grid Input Power | AC Output Power | DC Output Power | 
+|     Power Station Model      |             Business name              | Inverter Status | Battery SOC | AC Switch | DC Switch | power switch | AC ECO | DC ECO | Work mode switch | Sleep Mode | PV Input Power | Grid Input Power | AC Output Power | DC Output Power | 
 |:----------------------------:|:---------------------------------------:|:---------------:|:-----------:|:---------:|:---------:|:------------:|:------:|:------:|:----------------:|:----------:|:--------------:|:----------------:|:---------------:|:---------------:|
 |            AP300             |                Apex 300                 |                 |      ✅      |     ✅     |           |             |   ✅    |        |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|            AP200             |                 Apex 200                |                 |      ✅      |     ✅     |           |             |   ✅    |        |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
+|           AP300V2            |               Apex 300 V2               |                 |      ✅      |     ✅     |           |             |   ✅    |        |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
 |            EL300             |           Elite 300,AORA 300            |                 |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
 |        EL320,AORA320         |           Elite 320,AORA 320            |                 |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
 |            EL400             |                Elite 400                |                 |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
@@ -77,6 +81,7 @@ official one.
 |            EP760             |                  EP760                  |        ✅        |      ✅      |           |           |      ✅      |        |        |                  |            |                |                  |                 |                 |
 |           EP500Pro           |                EP500Pro                 |                 |      ✅      |     ✅     |      ✅     |             |        |        |        ✅         |            |       ✅        |        ✅         |        ✅        |        ✅        |
 |              FP              |             Fridge Product              |        ✅        |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |                |                  |                 |                 |
+|             HA1              |                  Hub A1                 |                 |      ✅      |     ✅     |           |             |   ✅    |        |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
 |  PR100V2,EL100V2,AORA100V2   | Premium 100 V2,Elite 100 V2,AORA 100 V2 |                 |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
 | PR200V2,Elite 200 V2,AORA200 | Premium 200 V2,Elite 200 V2,AORA 200 V2 |                 |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
 |        PR30V2,EL30V2         |  Premium 30 V2,Elite 30 V2,AORA 30 V2   |                 |      ✅      |     ✅     |     ✅     |             |   ✅    |   ✅    |        ✅         |     ✅      |       ✅        |        ✅         |        ✅        |        ✅        |
@@ -116,14 +121,13 @@ place. Your configuration entry and entities are kept.
 
 ## ⚙️ Integration configuration
 
-1. Follow the steps "Settings -> Devices & services", click to enter the
-   `Integration List` page.
+1. Go to **Settings -> Devices & services**, the integration list.
 
    <img src="./doc/images/1-setting_devices_and_services.png" width="880">
 
 2. Click the "Add Integration" button, then search for the brand keyword
    `bluetti`; select the **BLUETTI (community)** integration to proceed with the
-   OAUTH authorization login.
+   OAuth authorization login.
 
    <img src="./doc/images/2-search_and_add_integration.png" width="880">
 
@@ -132,11 +136,11 @@ place. Your configuration entry and entities are kept.
 
    <img src="./doc/images/3-oauth_agree_to_connect_with_bluetti.png">
 
-4. Enter your BLUETTI account to authorize and login.
+4. Enter your BLUETTI account to authorize and log in.
 
    <img src="./doc/images/4-oauth_enter_bluetti_account.png">
 
-5. You must agree that `Home Assistant` link to your BLUETTI account.
+5. You must agree that `Home Assistant` can link to your BLUETTI account.
 
    <img src="./doc/images/5-oauth_link_account_to_ha.png">
 
@@ -170,8 +174,8 @@ installed alongside this one. It reads the device directly on your network - no
 cloud involved - and is where local Modbus is maintained: correct battery pack
 totals, registers the firmware never populates hidden by default, write
 confirmations handled, automatic discovery of Balco 260 and S Meter. It
-supports Balco 260, S Meter and AC500, and its readings show up on their own
-device, next to this integration's cloud-sourced one.
+supports Balco 260, S Meter, AC500, AC200L / AC200L2 and EP500Pro, and its
+readings show up on their own device, next to this integration's cloud-sourced one.
 
 The local Modbus connection this integration used to offer under **Configure ->
 Configure local Modbus** is **deprecated**: a connection already configured
@@ -235,15 +239,15 @@ automation:
 
 ## ❓ Frequently Asked Questions (FAQ)
 
-### Not found `BLUETTI Integration` after installation?
+### `BLUETTI (community)` not found after installation?
 
 Please check whether the `custom_components` path is correct and confirm whether
 the `Home Assistant` system has been restarted.
 
-### Always offline or failed connect to BLUETTI server?
+### Always offline, or failed to connect to the BLUETTI server?
 
 Please check the **network**, **ports** and **firewall** to ensure that
-`Home Assistant` can access the power station devices.
+`Home Assistant` can reach BLUETTI's cloud service (HTTPS and WebSocket).
 
 ### How to update the integration?
 
