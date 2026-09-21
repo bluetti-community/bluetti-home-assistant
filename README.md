@@ -9,7 +9,7 @@ It connects your BLUETTI power stations to Home Assistant through the BLUETTI
 cloud service (account login, real-time push updates), exactly like the official
 one - and adds what the community needs sooner than the official release cycle
 delivers it: bug fixes as they are found. For **local Modbus TCP** (Balco 260,
-S Meter, AC500, AC200L, EP500Pro), use the companion
+S Meter, AC500, AC200L, EP500Pro, FridgePower), use the companion
 [BLUETTI Modbus](https://github.com/bluetti-community/hassio-bluetti-modbus)
 integration alongside it - see [Local Modbus](#local-modbus).
 
@@ -174,7 +174,7 @@ installed alongside this one. It reads the device directly on your network - no
 cloud involved - and is where local Modbus is maintained: correct battery pack
 totals, registers the firmware never populates hidden by default, write
 confirmations handled, automatic discovery of Balco 260 and S Meter. It
-supports Balco 260, S Meter, AC500, AC200L and EP500Pro, and its
+supports Balco 260, S Meter, AC500, AC200L, EP500Pro and FridgePower, and its
 readings show up on their own device, next to this integration's cloud-sourced one.
 
 The local Modbus connection this integration used to offer under **Configure ->
