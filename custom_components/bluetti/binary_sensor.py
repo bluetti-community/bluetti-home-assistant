@@ -29,7 +29,7 @@ async def async_setup_entry(
     config_entry: BluettiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> bool:
-    """Set up Bluetti binary sensors from config entry."""
+    """Set up BLUETTI binary sensors from config entry."""
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
     entities: list[BluettiBinarySensor] = []
 
@@ -47,7 +47,7 @@ async def async_setup_entry(
 
 
 class BluettiBinarySensor(BluettiEntity, BinarySensorEntity):
-    """Bluetti binary sensor for online/offline state."""
+    """BLUETTI binary sensor for online/offline state."""
 
     def __init__(self, device: BluettiDevice, state: BluettiState, meta: dict[str, Any]) -> None:
         super().__init__(device, state)

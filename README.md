@@ -10,7 +10,7 @@ cloud service (account login, real-time push updates), exactly like the official
 one - and adds what the community needs sooner than the official release cycle
 delivers it: bug fixes as they are found. For **local Modbus TCP** (Balco 260,
 S Meter, AC500, AC200L2, EP500Pro), use the companion
-[Bluetti Modbus](https://github.com/bluetti-community/hassio-bluetti-modbus)
+[BLUETTI Modbus](https://github.com/bluetti-community/hassio-bluetti-modbus)
 integration alongside it - see [Local Modbus](#local-modbus).
 
 It is a drop-in replacement: same `bluetti` integration domain, so your existing
@@ -169,7 +169,7 @@ service, not directly to your power station over the local network.
 ### Local Modbus
 
 Local Modbus TCP is handled by the companion integration
-[**Bluetti Modbus**](https://github.com/bluetti-community/hassio-bluetti-modbus),
+[**BLUETTI Modbus**](https://github.com/bluetti-community/hassio-bluetti-modbus),
 installed alongside this one. It reads the device directly on your network - no
 cloud involved - and is where local Modbus is maintained: correct battery pack
 totals, registers the firmware never populates hidden by default, write
@@ -262,7 +262,7 @@ and restart Home Assistant.
 - **Cloud-dependent**: this integration relies on the BLUETTI cloud service
   (OAuth2 login + WebSocket push), and stops updating if BLUETTI's cloud
   service is unreachable. For readings that keep flowing without the cloud,
-  add the [Bluetti Modbus](https://github.com/bluetti-community/hassio-bluetti-modbus)
+  add the [BLUETTI Modbus](https://github.com/bluetti-community/hassio-bluetti-modbus)
   integration (see [Local Modbus](#local-modbus)).
 - **One BLUETTI account per Home Assistant install**: all devices from a
   given BLUETTI account are grouped under a single integration entry. If

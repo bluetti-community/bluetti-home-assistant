@@ -123,7 +123,7 @@ können andere Integrationen von Drittanbietern installiert werden.
    <img src="./doc/images/3-oauth_agree_to_connect_with_bluetti.png">
 
 4. Geben Sie Ihr BLUETTI-Konto ein, um die Anmeldung durchzuführen. Diese nutzen
-   Sie z.B bereits in der Bluetti-App
+   Sie z.B bereits in der BLUETTI-App
 
    <img src="./doc/images/4-oauth_enter_bluetti_account.png">
 
@@ -145,7 +145,7 @@ können andere Integrationen von Drittanbietern installiert werden.
 Bitte überprüfen Sie, ob der Pfad `custom_components` korrekt ist, und
 vergewissern Sie sich, dass das System `Home Assistant` neu gestartet wurde.
 
-### Permanent offline oder Verbindung zu den Bluetti-Servern fehlgeschlagen?
+### Permanent offline oder Verbindung zu den BLUETTI-Servern fehlgeschlagen?
 
 Bitte überprüfen Sie das **Netzwerk**, die **Ports** und die **Firewall**, um
 sicherzustellen, dass die `Home Assistant`-Integration auf die Geräte zugreifen
