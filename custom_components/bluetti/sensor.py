@@ -103,7 +103,7 @@ async def async_setup_entry(
     config_entry: BluettiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> bool:
-    """Set up Bluetti sensors from config entry."""
+    """Set up BLUETTI sensors from config entry."""
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
     entities: list[BluettiEntity | BluettiModbusEntity] = []
 
@@ -130,7 +130,7 @@ async def async_setup_entry(
                 }
                 entities.append(BluettiSensor(device, state, meta))
                 if meta["device_class"] == SensorDeviceClass.POWER:
-                    # Bluetti only ever reports power (W), never cumulated
+                    # BLUETTI only ever reports power (W), never cumulated
                     # energy. Integrate it over time (trapezoidal method,
                     # kilo prefix, hours) the same way a manually added
                     # Home Assistant "Integral - Riemann sum" helper would,
@@ -195,7 +195,7 @@ async def async_setup_entry(
 
 
 class BluettiSensor(BluettiEntity, SensorEntity):
-    """Bluetti sensor for numeric or enum states."""
+    """BLUETTI sensor for numeric or enum states."""
 
     def __init__(self, device: BluettiDevice, state: BluettiState, meta: NamedSensorMetaInfo) -> None:
         super().__init__(device, state)

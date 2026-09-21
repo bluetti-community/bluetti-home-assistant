@@ -129,7 +129,7 @@ async def test_remove_entry_cleans_up_device_and_entity_registries(hass):
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, "SN1")},
         name="Test Device",
-        manufacturer="Bluetti",
+        manufacturer="BLUETTI",
         model="AC200L",
     )
     entity_registry = er.async_get(hass)
@@ -141,7 +141,7 @@ async def test_remove_entry_cleans_up_device_and_entity_registries(hass):
 
     await async_remove_entry(hass, entry)
 
-    assert device_registry.async_get_device(identifiers={(DOMAIN, "SN1")}) is None
+    assert device_registry.async_get_devices(identifiers={(DOMAIN, "SN1")}) == []
     assert entity_registry.async_get_entity_id("sensor", DOMAIN, "SN1_standalone") is None
 
 
@@ -168,7 +168,7 @@ async def test_remove_config_entry_device_stops_polling_and_updates_options(hass
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, "SN1")},
         name="First",
-        manufacturer="Bluetti",
+        manufacturer="BLUETTI",
         model="Balco260",
     )
 

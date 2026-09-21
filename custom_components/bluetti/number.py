@@ -1,4 +1,4 @@
-"""Writable Bluetti Modbus registers, e.g. battery SOC thresholds."""
+"""Writable BLUETTI Modbus registers, e.g. battery SOC thresholds."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ async def async_setup_entry(
     config_entry: BluettiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> bool:
-    """Set up Bluetti number entities from config entry."""
+    """Set up BLUETTI number entities from config entry."""
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
     entities: list[BluettiModbusNumber] = []
 

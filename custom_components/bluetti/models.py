@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 __LOGGER__ = logging.getLogger(__name__)
 
-manufacturer = "Bluetti"
+manufacturer = "BLUETTI"
 
 class BluettiData:
     """Data for the BLUETTI integration."""
@@ -145,7 +145,7 @@ class BluettiState:
 
 
 class BluettiDevice:
-    """Represents a single Bluetti device."""
+    """Represents a single BLUETTI device."""
 
     def __init__(
         self,

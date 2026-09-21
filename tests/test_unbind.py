@@ -110,7 +110,7 @@ async def test_handle_unbind_full_cleanup(hass):
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, "SN1")},
         name="Test Device",
-        manufacturer="Bluetti",
+        manufacturer="BLUETTI",
         model="Balco260",
     )
     entity_registry = er.async_get(hass)
@@ -142,7 +142,7 @@ async def test_handle_unbind_full_cleanup(hass):
         await hass.async_block_till_done()
 
     # Device + its entities removed from the registries.
-    assert device_registry.async_get_device(identifiers={(DOMAIN, "SN1")}) is None
+    assert device_registry.async_get_devices(identifiers={(DOMAIN, "SN1")}) == []
     assert entity_registry.async_get_entity_id("sensor", DOMAIN, "SN1_SOC") is None
 
     # Removed from runtime data.
@@ -205,7 +205,7 @@ def _bound_device_with_registry_entries(hass, entry) -> tuple[BluettiDevice, "dr
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, "SN1")},
         name="Test Device",
-        manufacturer="Bluetti",
+        manufacturer="BLUETTI",
         model="AC200L",
     )
     er.async_get(hass).async_get_or_create(

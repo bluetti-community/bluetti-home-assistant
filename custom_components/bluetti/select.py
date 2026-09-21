@@ -18,7 +18,7 @@ async def async_setup_entry(
     config_entry: BluettiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> bool:
-    """Set up Bluetti selects from config entry."""
+    """Set up BLUETTI selects from config entry."""
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
 
     entities: list[BluettiSelect] = []
@@ -36,7 +36,7 @@ async def async_setup_entry(
 
 
 class BluettiSelect(BluettiEntity, SelectEntity):
-    """Representation of a Bluetti select (mode choice)."""
+    """Representation of a BLUETTI select (mode choice)."""
 
     def __init__(self, device: BluettiDevice, state: BluettiState) -> None:
         super().__init__(device, state)

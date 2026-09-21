@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-# Matches the cloud coordinator's cadence. Bluetti's Modbus TCP stack is
+# Matches the cloud coordinator's cadence. BLUETTI's Modbus TCP stack is
 # known to become unresponsive under connection/poll pressure - a rapid
 # burst of connections during testing once required a factory reset to
 # recover - so there is no reason to poll faster locally just because it's

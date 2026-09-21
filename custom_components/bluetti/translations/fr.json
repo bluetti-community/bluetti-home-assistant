@@ -87,7 +87,7 @@
     },
     "modbus_deprecated": {
       "title": "Le Modbus local de cette intégration est obsolète",
-      "description": "La prise en charge du Modbus local dans cette intégration sera retirée dans une prochaine version. Elle est configurée pour : {devices}.\n\nInstallez plutôt l'intégration dédiée **Bluetti Modbus** : elle lit les mêmes registres et c'est là que le Modbus local est maintenu désormais (totaux de packs corrects, registres muets masqués, confirmations d'écriture gérées). Une fois en place, retirez la configuration Modbus locale ici pour faire disparaître cet avis."
+      "description": "La prise en charge du Modbus local dans cette intégration sera retirée dans une prochaine version. Elle est configurée pour : {devices}.\n\nInstallez plutôt l'intégration dédiée **BLUETTI Modbus** : elle lit les mêmes registres et c'est là que le Modbus local est maintenu désormais (totaux de packs corrects, registres muets masqués, confirmations d'écriture gérées). Une fois en place, retirez la configuration Modbus locale ici pour faire disparaître cet avis."
     }
   },
   "entity": {
