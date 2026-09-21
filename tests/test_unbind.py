@@ -10,6 +10,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.bluetti import BluettiRuntimeData, _async_update_listener
 from custom_components.bluetti.const import DOMAIN
 from custom_components.bluetti.models import BluettiData, BluettiDevice
+from tests import devices_with_identifier
 
 
 async def test_bluetti_data_test_connection_returns_true():
@@ -142,7 +143,7 @@ async def test_handle_unbind_full_cleanup(hass):
         await hass.async_block_till_done()
 
     # Device + its entities removed from the registries.
-    assert device_registry.async_get_devices(identifiers={(DOMAIN, "SN1")}) == []
+    assert devices_with_identifier(device_registry, (DOMAIN, "SN1")) == []
     assert entity_registry.async_get_entity_id("sensor", DOMAIN, "SN1_SOC") is None
 
     # Removed from runtime data.

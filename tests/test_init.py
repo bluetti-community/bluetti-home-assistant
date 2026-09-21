@@ -15,6 +15,7 @@ from custom_components.bluetti import (
 )
 from custom_components.bluetti.const import DOMAIN
 from custom_components.bluetti.models import BluettiDevice
+from tests import devices_with_identifier
 
 
 def _runtime_data(stomp_client) -> BluettiRuntimeData:
@@ -141,7 +142,7 @@ async def test_remove_entry_cleans_up_device_and_entity_registries(hass):
 
     await async_remove_entry(hass, entry)
 
-    assert device_registry.async_get_devices(identifiers={(DOMAIN, "SN1")}) == []
+    assert devices_with_identifier(device_registry, (DOMAIN, "SN1")) == []
     assert entity_registry.async_get_entity_id("sensor", DOMAIN, "SN1_standalone") is None
 
 
