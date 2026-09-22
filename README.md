@@ -249,6 +249,17 @@ the `Home Assistant` system has been restarted.
 Please check the **network**, **ports** and **firewall** to ensure that
 `Home Assistant` can reach BLUETTI's cloud service (HTTPS and WebSocket).
 
+### Signed in, but "token rejected" or "sign in again" right away?
+
+BLUETTI runs several data centers, and a token issued for an account held on
+one of them is rejected by the others (the same code 805 as an expired
+token). The integration finds the right one on its own when you sign in - it
+asks the default gateway for your devices and, if that one rejects the fresh
+token, the European and US ones in turn - and remembers the answer. An entry
+set up before this existed keeps the default until its next sign-in: if it
+starts asking you to sign in again after every restart, do so once and the
+right data center is recorded.
+
 ### How to update the integration?
 
 Through HACS, like any other HACS integration: it shows the new version as an

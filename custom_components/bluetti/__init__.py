@@ -28,6 +28,7 @@ from pybluetti import (
 from .application_credentials import async_ensure_default_credential
 from .const import BLUETTI_APP_KEY, DOMAIN, EVENT_TOKEN_EXPIRED
 from .coordinator import BluettiDeviceCoordinator
+from .gateway import entry_gateway, gateway_url
 from .modbus_coordinator import BluettiModbusCoordinator
 from .modbus_support import modbus_dev_type_for_model
 from .models import BluettiData
@@ -151,9 +152,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         # time access_token is read below, so this must still run inline.
         await oAuth2Session.async_ensure_token_valid()
         access_token = oAuth2Session.token["access_token"]
+        region = entry_gateway(entry.data)
+        __LOGGER__.debug("Cloud gateway: %s (%s)", region, gateway_url(region))
         product_client = ProductClient(
             httpSession,
-            APPLICATION_PROFILE.config["server"]["gateway"],
+            gateway_url(region),
             access_token,
             on_auth_expired=lambda: hass.bus.fire(EVENT_TOKEN_EXPIRED),
         )

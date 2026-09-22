@@ -1,3 +1,7 @@
+# 1.5.0 (unreleased)
+Fixes:
+- Accounts held on another BLUETTI data center (European accounts in particular) could sign in and then be rejected on every cloud request with code 805, "token have expired", by the default gateway `gw.bluettipower.com` - the same accounts work on `gwde.bluettipower.com`, BLUETTI's own recommendation for them (bluetti-official/bluetti-home-assistant#72, #172). The token response names no data center (checked on French and German accounts), so the sign-in flow now finds it by asking: the default gateway first, then the European and US ones if it rejects the token the sign-in just issued. The answering data center is recorded in the config entry and used for every cloud request after that; an entry created before this keeps the default until its next sign-in.
+
 # 1.4.0 2026-09-16
 Deprecated:
 - Local Modbus inside this integration. The dedicated [BLUETTI Modbus](https://github.com/bluetti-community/hassio-bluetti-modbus) integration reads the same registers and is where local Modbus is maintained now - it has caught up with what real hardware taught us (battery pack totals read at the aggregate unit id, registers that never report hidden, write confirmations handled), none of which this integration's copy has. A connection already configured here keeps working for now and raises a Repairs notice pointing at the replacement; no new one can be set up. The code will be removed in a later release.

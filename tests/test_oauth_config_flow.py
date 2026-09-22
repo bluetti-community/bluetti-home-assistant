@@ -332,3 +332,59 @@ async def test_reconfigure_token_missing_entry_aborts(hass):
 
     assert result["type"] == "abort"
     assert result["reason"] == "reconfigure_failed"
+
+
+async def test_a_token_rejected_by_the_global_gateway_is_served_from_the_eu_one(hass):
+    # bluetti-official/bluetti-home-assistant#172: a German account's fresh
+    # token gets msgCode 805 from gw.bluettipower.com and 200 from
+    # gwde.bluettipower.com. The flow finds the data center itself and
+    # records it in the entry, so setup and later device additions use it.
+    flow = _make_flow(hass)
+    rejected = UnifyResponse(msgId="1", msgCode=805)
+    served = SimpleNamespace(
+        data=[UserProduct(sn="SN1", stateList=[], online="1", model="Balco260", name="B")],
+        is_ok=lambda: True,
+    )
+    urls: list[str] = []
+
+    def _client(session, url, token, on_auth_expired=None):
+        urls.append(url)
+        client = AsyncMock()
+        client.get_user_products = AsyncMock(return_value=rejected if "gwde" not in url else served)
+        client.bind_devices = AsyncMock(return_value=UnifyResponse(msgId="1", msgCode=0))
+        return client
+
+    with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
+         patch("custom_components.bluetti.oauth.ProductClient", side_effect=_client):
+        result = await flow.async_step_select_devices(user_input=None)
+        assert result["type"] == "form"
+        result = await flow.async_step_select_devices(user_input={"devices": ["SN1"]})
+
+    assert result["type"] == "create_entry"
+    assert result["data"]["gateway"] == "eu"
+    # Probed global then EU; the client used afterwards is on the EU gateway.
+    assert urls[:2] == ["https://gw.bluettipower.com", "https://gwde.bluettipower.com"]
+    assert urls[-1] == "https://gwde.bluettipower.com"
+
+
+async def test_an_account_the_global_gateway_serves_records_global(hass):
+    flow = _make_flow(hass)
+    served = SimpleNamespace(
+        data=[UserProduct(sn="SN1", stateList=[], online="1", model="Balco260", name="B")],
+        is_ok=lambda: True,
+    )
+
+    with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
+         patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products = AsyncMock(return_value=served)
+        mock_client_cls.return_value.bind_devices = AsyncMock(
+            return_value=UnifyResponse(msgId="1", msgCode=0)
+        )
+        await flow.async_step_select_devices(user_input=None)
+        result = await flow.async_step_select_devices(user_input={"devices": ["SN1"]})
+
+    assert result["type"] == "create_entry"
+    assert result["data"]["gateway"] == "global"
+    # One fetch only: the global gateway answered, nothing else was asked.
+    assert mock_client_cls.return_value.get_user_products.await_count == 1
+

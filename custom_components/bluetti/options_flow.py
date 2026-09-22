@@ -27,8 +27,8 @@ from modbus_connection.exceptions import ModbusError
 from pybluetti import ProductClient, UnifyResponse, UserProduct
 
 from .const import EVENT_TOKEN_EXPIRED
+from .gateway import entry_gateway, gateway_url
 from .modbus_support import modbus_dev_type_for_model
-from .profile.application_profile import APPLICATION_PROFILE
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -108,7 +108,7 @@ class BluettiOptionsFlowHandler(OptionsFlow):
         http_session = async_get_clientsession(self.hass)
         product_client = ProductClient(
             http_session,
-            APPLICATION_PROFILE.config["server"]["gateway"],
+            gateway_url(entry_gateway(entry.data)),
             access_token,
             on_auth_expired=lambda: self.hass.bus.fire(EVENT_TOKEN_EXPIRED),
         )
