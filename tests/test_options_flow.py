@@ -20,19 +20,18 @@ def _flow(hass, entry) -> BluettiOptionsFlowHandler:
     return flow
 
 
-def _entry(hass, *, products=None, devices=None, modbus=None) -> MockConfigEntry:
+def _entry(hass, *, products=None, devices=None, modbus=None, gateway=None) -> MockConfigEntry:
     options = {"devices": devices or []}
     if modbus is not None:
         options["modbus"] = modbus
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            "auth_implementation": DOMAIN,
-            "token": {"access_token": "tok"},
-            "products": products or [],
-        },
-        options=options,
-    )
+    data = {
+        "auth_implementation": DOMAIN,
+        "token": {"access_token": "tok"},
+        "products": products or [],
+    }
+    if gateway is not None:
+        data["gateway"] = gateway
+    entry = MockConfigEntry(domain=DOMAIN, data=data, options=options)
     entry.add_to_hass(hass)
     return entry
 
@@ -438,3 +437,18 @@ async def test_add_devices_through_real_flow_manager_preserves_modbus(
     updated = hass.config_entries.async_get_entry(entry.entry_id)
     assert set(updated.options["devices"]) == {"SN1", "SN2"}
     assert updated.options["modbus"] == {"SN1": {"host": "10.2.1.60", "port": 502}}
+
+
+async def test_adding_devices_asks_the_data_center_the_entry_recorded(hass):
+    entry = _entry(hass, gateway="eu")
+    flow = _flow(hass, entry)
+
+    with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
+         patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products = AsyncMock(
+            return_value=SimpleNamespace(data=[], is_ok=lambda: True)
+        )
+        await flow.async_step_init(user_input=None)
+
+    assert mock_client_cls.call_args.args[1] == "https://gwde.bluettipower.com"
+

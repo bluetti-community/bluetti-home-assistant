@@ -18,19 +18,18 @@ from custom_components.bluetti import (
 from custom_components.bluetti.const import DOMAIN
 
 
-def _entry(hass, *, products=None, devices=None, modbus=None) -> MockConfigEntry:
+def _entry(hass, *, products=None, devices=None, modbus=None, gateway=None) -> MockConfigEntry:
     options = {"devices": devices or []}
     if modbus is not None:
         options["modbus"] = modbus
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data={
-            "auth_implementation": DOMAIN,
-            "token": {"access_token": "tok", "expires_at": time.time() + 10000},
-            "products": products or [],
-        },
-        options=options,
-    )
+    data = {
+        "auth_implementation": DOMAIN,
+        "token": {"access_token": "tok", "expires_at": time.time() + 10000},
+        "products": products or [],
+    }
+    if gateway is not None:
+        data["gateway"] = gateway
+    entry = MockConfigEntry(domain=DOMAIN, data=data, options=options)
     entry.add_to_hass(hass)
     return entry
 
@@ -557,3 +556,50 @@ async def test_modbus_first_refresh_failure_does_not_prevent_cloud_entities_from
     assert "SN1" in entry.runtime_data.coordinators
     assert entry.runtime_data.coordinators["SN1"].last_update_success
     assert not entry.runtime_data.modbus_coordinators["SN1"].last_update_success
+
+
+async def test_setup_uses_the_data_center_the_entry_recorded(hass, enable_custom_integrations):
+    # The sign-in flow found the account on the EU gateway (gateway.py);
+    # setup must talk to that one, not the profile default.
+    entry = _entry(hass, gateway="eu")
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(return_value=MagicMock()),
+         ), \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
+         patch("custom_components.bluetti.ProductClient") as mock_product_cls:
+        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
+        mock_stomp_cls.return_value.connect = AsyncMock()
+
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_product_cls.call_args.args[1] == "https://gwde.bluettipower.com"
+
+
+async def test_setup_of_an_entry_without_a_recorded_data_center_uses_the_default(
+    hass, enable_custom_integrations
+):
+    entry = _entry(hass)
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(return_value=MagicMock()),
+         ), \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
+         patch("custom_components.bluetti.ProductClient") as mock_product_cls:
+        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
+        mock_stomp_cls.return_value.connect = AsyncMock()
+
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_product_cls.call_args.args[1] == "https://gw.bluettipower.com"
+

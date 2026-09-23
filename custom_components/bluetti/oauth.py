@@ -24,7 +24,13 @@ from .const import (
     INTEGRATION_NAME,
     NOTIFY_ID_TOKEN_EXPIRED,
 )
-from .profile.application_profile import APPLICATION_PROFILE
+from .gateway import (
+    CONF_GATEWAY,
+    GATEWAY_GLOBAL,
+    async_probe_gateway,
+    entry_gateway,
+    gateway_url,
+)
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -40,6 +46,8 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
     _oauth_data: dict[str, Any]
     _product_client: ProductClient
     _products: list[UserProduct]
+    # The data center the account answered from - see gateway.py.
+    _region: str = GATEWAY_GLOBAL
     entry: config_entries.ConfigEntry
 
     @property
@@ -119,7 +127,8 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
                     data={
                         "auth_implementation": self._oauth_data["auth_implementation"],
                         "token": self._oauth_data["token"],
-                        "products": merged_products
+                        "products": merged_products,
+                        CONF_GATEWAY: self._region,
                     },
                     options={"devices": merged_devices}
                 )
@@ -131,26 +140,41 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
                 data={
                     "auth_implementation": self._oauth_data["auth_implementation"],
                     "token": self._oauth_data["token"],
-                    "products": [p.model_dump() for p in selected_products]
+                    "products": [p.model_dump() for p in selected_products],
+                    CONF_GATEWAY: self._region,
                 },
                 options=user_input,
             )
 
         httpSession = async_get_clientsession(self.hass)
         access_token = self._oauth_data["token"]["access_token"]
-        product_client = ProductClient(
-            httpSession,
-            APPLICATION_PROFILE.config["server"]["gateway"],
-            access_token,
-            on_auth_expired=lambda: self.hass.bus.fire(EVENT_TOKEN_EXPIRED),
-        )
-        try:
+
+        # The data center an existing entry already answered from goes
+        # first; a fresh account starts at the default. No on_auth_expired
+        # while probing: a rejection here is the probe's own signal, not a
+        # token expiry to announce.
+        preferred = GATEWAY_GLOBAL
+        for entry in self.hass.config_entries.async_entries(DOMAIN):
+            preferred = entry_gateway(entry.data)
+            break
+
+        def _fetch_products(url: str) -> Any:
+            client = ProductClient(httpSession, url, access_token, on_auth_expired=None)
             # One immediate retry on a transient gateway error: a lone 504
             # here aborted a reauthentication the user then had to redo.
-            products = await async_call_retrying_once(product_client.get_user_products)
+            return async_call_retrying_once(client.get_user_products)
+
+        try:
+            self._region, products = await async_probe_gateway(_fetch_products, preferred)
         except Exception as err:
             __LOGGER__.error("Failed to fetch BLUETTI products: %s", err)
             return self.async_abort(reason="cannot_connect")
+        product_client = ProductClient(
+            httpSession,
+            gateway_url(self._region),
+            access_token,
+            on_auth_expired=lambda: self.hass.bus.fire(EVENT_TOKEN_EXPIRED),
+        )
 
         # A failed application-level response (nonzero msgCode) doesn't
         # raise - it would otherwise look like a real "no devices" account.
@@ -193,6 +217,7 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
                 **cur_entry.data,
                 "auth_implementation": self._oauth_data["auth_implementation"],
                 "token": self._oauth_data["token"],
+                CONF_GATEWAY: self._region,
             }
             # async_update_entry() already fires the entry's registered
             # update listener, which reloads it - no separate reload needed.
