@@ -1,0 +1,23 @@
+# Categories for GitHub's "Generate release notes" button, which is the
+# starting point for a release's notes rather than the finished text - see
+# RELEASING.md for what a release here is expected to say.
+changelog:
+  exclude:
+    labels:
+      - duplicate
+      - invalid
+      - question
+      - wontfix
+  categories:
+    - title: ✨ New Features
+      labels:
+        - enhancement
+    - title: 🐛 Bug Fixes
+      labels:
+        - bug
+    - title: 📘 Documentation
+      labels:
+        - documentation
+    - title: 🔧 Other
+      labels:
+        - "*"
