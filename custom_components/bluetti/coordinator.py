@@ -31,6 +31,17 @@ UPDATE_INTERVAL = timedelta(seconds=30)
 # msgCode values that mean the OAuth token is no longer valid.
 AUTH_ERROR_CODES = {401, 805}
 
+# How many polls in a row may fail before the entities go unavailable. The
+# BLUETTI cloud drops out for a few seconds at a time - the official app
+# loses the device at the same moment, showing "Device not found" (#63) -
+# and the one retry inside a poll does not always outlast it. Failing at
+# that point sent every entity to unavailable for a whole interval, so
+# owners were guarding their automations with "for:" delays instead. Two
+# tolerated failures keep the last values for at most 90 s; after that the
+# entities do go unavailable, because by then it is not a blip. An auth
+# failure is never ridden out - it needs the sign-in path immediately.
+POLL_FAILURES_TOLERATED = 2
+
 
 class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
     """Coordinate REST polling and websocket-triggered refreshes for one device."""
@@ -58,6 +69,7 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         )
         self.device = device
         self._on_auth_rejected = on_auth_rejected
+        self._failed_polls = 0
         device.coordinator = self
 
     async def _async_update_data(self) -> BluettiDevice:
@@ -71,12 +83,38 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         try:
             await async_call_retrying_once(self.device.async_refresh_from_api)
         except ApplicationRuntimeException as err:
+            message = f"BLUETTI cloud answered {err.message} (code {err.msgCode})"
             if err.msgCode in AUTH_ERROR_CODES:
                 await self._async_handle_auth_rejected(err)
-            raise UpdateFailed(f"BLUETTI cloud answered {err.message} (code {err.msgCode})") from err
+                raise UpdateFailed(message) from err
+            if (kept := self._ride_out(err)) is not None:
+                return kept
+            raise UpdateFailed(message) from err
         except Exception as err:
+            if (kept := self._ride_out(err)) is not None:
+                return kept
             raise UpdateFailed(f"Error communicating with BLUETTI cloud: {err}") from err
+        self._failed_polls = 0
         return self.device
+
+    def _ride_out(self, err: Exception) -> BluettiDevice | None:
+        """
+        The values already shown, when a failed poll is still inside the tolerance.
+
+        Returns None once the run of failures passes POLL_FAILURES_TOLERATED,
+        or on the very first poll, where there is nothing to keep - the
+        caller then raises UpdateFailed and the entities go unavailable.
+        """
+        if self.data is None or self._failed_polls >= POLL_FAILURES_TOLERATED:
+            return None
+        self._failed_polls += 1
+        _LOGGER.debug(
+            "Poll failed (%d of %d tolerated), keeping the last values: %s",
+            self._failed_polls,
+            POLL_FAILURES_TOLERATED,
+            err,
+        )
+        return self.data
 
     async def _async_handle_auth_rejected(self, err: ApplicationRuntimeException) -> None:
         """
