@@ -208,3 +208,114 @@ async def test_an_auth_error_on_the_http_layer_is_still_reauth(hass):
     coordinator = BluettiDeviceCoordinator(hass, entry, device)
     with pytest.raises(ConfigEntryAuthFailed):
         await coordinator._async_update_data()
+
+
+def _coordinator_with_values(hass) -> BluettiDeviceCoordinator:
+    """A coordinator that has already polled once, so it has values to keep."""
+    device = _make_device()
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+    coordinator = BluettiDeviceCoordinator(hass, entry, device)
+    coordinator.data = device
+    return coordinator
+
+
+async def test_a_cloud_blip_keeps_the_last_values(hass):
+    # The BLUETTI cloud drops out for a few seconds at a time and the
+    # official app loses the device with it (#63). Sending every entity to
+    # unavailable for that is what had owners guarding their automations
+    # with "for:" delays.
+    coordinator = _coordinator_with_values(hass)
+    coordinator.device.async_refresh_from_api = AsyncMock(
+        side_effect=HttpStatusException(504, "Gateway Time-out")
+    )
+
+    assert await coordinator._async_update_data() is coordinator.device
+
+
+async def test_the_entities_go_unavailable_once_it_is_not_a_blip(hass):
+    coordinator = _coordinator_with_values(hass)
+    coordinator.device.async_refresh_from_api = AsyncMock(
+        side_effect=HttpStatusException(504, "Gateway Time-out")
+    )
+
+    for _ in range(2):
+        await coordinator._async_update_data()
+
+    with pytest.raises(UpdateFailed, match="504"):
+        await coordinator._async_update_data()
+
+
+async def test_a_poll_that_succeeds_forgives_the_ones_before_it(hass):
+    coordinator = _coordinator_with_values(hass)
+    device = coordinator.device
+    device.async_refresh_from_api = AsyncMock(
+        side_effect=HttpStatusException(504, "Gateway Time-out")
+    )
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+
+    device.async_refresh_from_api = AsyncMock()
+    await coordinator._async_update_data()
+
+    # Two more blips are ridden out again, where an unforgiven counter
+    # would have failed on the first.
+    device.async_refresh_from_api = AsyncMock(
+        side_effect=HttpStatusException(504, "Gateway Time-out")
+    )
+    assert await coordinator._async_update_data() is device
+
+
+async def test_an_expired_token_is_never_ridden_out(hass):
+    # A blip is worth waiting through; a rejected token is not - it needs
+    # the sign-in path at once.
+    coordinator = _coordinator_with_values(hass)
+    coordinator.device.async_refresh_from_api = AsyncMock(
+        side_effect=ApplicationRuntimeException(msgCode=805, errMessage="token have expired")
+    )
+
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+
+
+async def test_a_first_poll_that_fails_has_nothing_to_keep(hass):
+    device = _make_device()
+    device.async_refresh_from_api = AsyncMock(
+        side_effect=HttpStatusException(504, "Gateway Time-out")
+    )
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+
+    coordinator = BluettiDeviceCoordinator(hass, entry, device)
+
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+
+async def test_an_api_error_that_is_not_the_token_is_ridden_out_too(hass):
+    # A 500 from the cloud is as transient as a 504; only an expired token
+    # is not. Past the tolerance it fails like any other.
+    coordinator = _coordinator_with_values(hass)
+    coordinator.device.async_refresh_from_api = AsyncMock(
+        side_effect=ApplicationRuntimeException(msgCode=500, errMessage="server error")
+    )
+
+    assert await coordinator._async_update_data() is coordinator.device
+    await coordinator._async_update_data()
+
+    with pytest.raises(UpdateFailed, match="500"):
+        await coordinator._async_update_data()
+
+
+async def test_a_network_failure_is_ridden_out_like_a_cloud_one(hass):
+    # Not everything arrives as an API error: a dropped connection or a
+    # bug in the client lands here, and a single one of those is no more
+    # worth flipping the entities for.
+    coordinator = _coordinator_with_values(hass)
+    coordinator.device.async_refresh_from_api = AsyncMock(side_effect=RuntimeError("boom"))
+
+    assert await coordinator._async_update_data() is coordinator.device
+    await coordinator._async_update_data()
+
+    with pytest.raises(UpdateFailed, match="boom"):
+        await coordinator._async_update_data()
