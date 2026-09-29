@@ -4,12 +4,15 @@ import time
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import aiohttp
+import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.helpers import issue_registry as ir
 from pybluetti import UserProduct
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti import _async_update_listener
+from custom_components.bluetti.cloud_retry import CloudUnreachableError
 from custom_components.bluetti.const import DOMAIN
 from custom_components.bluetti.oauth import (
     ISSUE_ID_OAUTH_EXPIRED,
@@ -321,6 +324,70 @@ async def test_async_force_refresh_reports_a_failed_grant(hass):
     refresher = AuthTokenRefresh(hass, entry, session)
 
     assert await refresher.async_force_refresh() is False
+
+
+async def test_async_force_refresh_raises_when_the_cloud_is_unreachable(hass):
+    # A grant that never reached the SSO judges nothing. Reporting it as a
+    # failed refresh sent owners to a sign-in page that fixed nothing while
+    # their DNS was failing (#65), so it is raised instead.
+    entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": 0.0})
+    entry.add_to_hass(hass)
+    session = MagicMock()
+    session.implementation.async_refresh_token = AsyncMock(
+        side_effect=aiohttp.ClientConnectionError("DNS server returned answer with no data")
+    )
+    refresher = AuthTokenRefresh(hass, entry, session)
+
+    with pytest.raises(CloudUnreachableError):
+        await refresher.async_force_refresh()
+
+
+async def test_async_force_refresh_reports_a_refused_grant_as_a_plain_failure(hass):
+    # The SSO answering 400 is the one case that means the refresh token
+    # itself is done: the caller does send the user through reauth.
+    entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": 0.0})
+    entry.add_to_hass(hass)
+    session = MagicMock()
+    session.implementation.async_refresh_token = AsyncMock(
+        side_effect=aiohttp.ClientResponseError(MagicMock(), (), status=400)
+    )
+    refresher = AuthTokenRefresh(hass, entry, session)
+
+    assert await refresher.async_force_refresh() is False
+
+
+async def test_async_check_token_expiry_unreachable_cloud_does_not_ask_for_a_sign_in(hass):
+    # Same rule on the daily check: an expired token whose refresh could not
+    # be attempted waits for the next one rather than raising the notice.
+    entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": 0.0})
+    entry.add_to_hass(hass)
+    session = MagicMock()
+    session.token = {"expires_at": time.time() - 100}
+    session.implementation.async_refresh_token = AsyncMock(
+        side_effect=aiohttp.ClientConnectionError("dns")
+    )
+    refresher = AuthTokenRefresh(hass, entry, session)
+    refresher.send_expired_notification = MagicMock()
+
+    await refresher.async_check_token_expiry()
+
+    refresher.send_expired_notification.assert_not_called()
+
+
+async def test_async_check_token_expiry_refused_grant_asks_for_a_sign_in(hass):
+    entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": 0.0})
+    entry.add_to_hass(hass)
+    session = MagicMock()
+    session.token = {"expires_at": time.time() - 100}
+    session.implementation.async_refresh_token = AsyncMock(
+        side_effect=aiohttp.ClientResponseError(MagicMock(), (), status=400)
+    )
+    refresher = AuthTokenRefresh(hass, entry, session)
+    refresher.send_expired_notification = MagicMock()
+
+    await refresher.async_check_token_expiry()
+
+    refresher.send_expired_notification.assert_called_once()
 
 
 async def test_async_check_token_expiry_refresh_failure_is_logged(hass):

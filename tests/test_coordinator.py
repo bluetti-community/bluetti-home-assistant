@@ -11,6 +11,7 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 from pybluetti import ApplicationRuntimeException, HttpStatusException
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.bluetti.cloud_retry import CloudUnreachableError
 from custom_components.bluetti.const import DOMAIN
 from custom_components.bluetti.coordinator import BluettiDeviceCoordinator
 from custom_components.bluetti.models import BluettiDevice
@@ -103,6 +104,26 @@ async def test_a_rejected_token_is_refreshed_before_asking_for_a_sign_in(hass, c
     refresh.assert_awaited_once()
     assert "rejected the access token (code 805) 28.0 days before its announced expiry" in caplog.text
     assert "access token refreshed after the cloud rejected it" in caplog.text
+
+
+async def test_a_rejected_token_is_not_a_sign_in_when_the_cloud_is_unreachable(hass, caplog):
+    # 805 arriving while DNS is failing: the refresh cannot say whether the
+    # credentials are still good, so the poll fails and Home Assistant
+    # retries - no sign-in request the owner cannot act on (#65).
+    device = _make_device()
+    device.async_refresh_from_api = AsyncMock(
+        side_effect=ApplicationRuntimeException(msgCode=805, errMessage="expired")
+    )
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+    refresh = AsyncMock(side_effect=CloudUnreachableError("dns"))
+
+    coordinator = BluettiDeviceCoordinator(hass, entry, device, on_auth_rejected=refresh)
+    with caplog.at_level(logging.WARNING), pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    refresh.assert_awaited_once()
+    assert "Could not reach the BLUETTI cloud to refresh the rejected token" in caplog.text
 
 
 async def test_a_rejected_token_that_cannot_be_refreshed_needs_a_sign_in(hass):

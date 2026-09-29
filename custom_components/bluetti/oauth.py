@@ -16,7 +16,11 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
 from pybluetti import ProductClient, UnifyResponse, UserProduct
 
-from .cloud_retry import async_call_retrying_once
+from .cloud_retry import (
+    CloudUnreachableError,
+    async_call_retrying_once,
+    is_transient_failure,
+)
 from .const import (
     ACCOUNT_UNIQUE_ID,
     DOMAIN,
@@ -366,7 +370,11 @@ class AuthTokenRefresh:
         has rejected tokens well inside their announced lifetime. Returns
         True when a new token was stored (the entry's update listener then
         reloads it), False when the guard held or the grant failed - the
-        caller then sends the user through reauthentication.
+        caller then sends the user through reauthentication. Raises
+        CloudUnreachableError when the grant could not be judged at all
+        (the cloud unreachable, or answering 5xx): the credentials are not
+        the problem then, so the caller retries instead of sending anyone
+        to a sign-in page (#65).
         """
         current_timestamp = time.time()
         last_refresh = self.entry.data.get("last_token_refresh", 0.0)
@@ -378,6 +386,9 @@ class AuthTokenRefresh:
                 self.oAuth2Session.token
             )
         except Exception as e:
+            if is_transient_failure(e):
+                __LOGGER__.warning("could not reach the cloud to refresh the token: %s", e)
+                raise CloudUnreachableError(str(e)) from e
             __LOGGER__.error("refresh token failed: %s", e)
             return False
         self.hass.config_entries.async_update_entry(
@@ -430,5 +441,9 @@ class AuthTokenRefresh:
                 __LOGGER__.info("refresh token ok")
             except Exception as e:
                 __LOGGER__.error("refresh token failed: %s", e)
-                if remain_timestamp < 0:
+                # An unreachable cloud says nothing about the token: the
+                # next daily check, or the first poll the cloud answers,
+                # settles it. Only a grant the SSO actually refused sends
+                # the user to a sign-in page (#65).
+                if remain_timestamp < 0 and not is_transient_failure(e):
                     self.send_expired_notification()

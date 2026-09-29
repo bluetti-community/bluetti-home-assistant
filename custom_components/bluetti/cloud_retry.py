@@ -11,6 +11,29 @@ from pybluetti import HttpStatusException
 _LOGGER = logging.getLogger(__name__)
 
 
+class CloudUnreachableError(Exception):
+    """A cloud call failed for a reason that says nothing about the credentials."""
+
+
+def is_transient_failure(err: BaseException) -> bool:
+    """
+    Whether a failed cloud call leaves the credentials unjudged.
+
+    A refused connection, a DNS failure or a timeout says the cloud could
+    not be reached; a 5xx (or a 408/429) says it was reached and would not
+    answer. Neither tells us anything about the token. A 4xx does: Home
+    Assistant's OAuth helper calls raise_for_status(), so every status at
+    or above 400 arrives as ClientResponseError, and a refresh token the
+    SSO no longer honours comes back as 400 - that one has to reach the
+    user as a sign-in request rather than be retried forever.
+    """
+    if isinstance(err, HttpStatusException):
+        return err.is_transient
+    if isinstance(err, aiohttp.ClientResponseError):
+        return err.status >= 500 or err.status in (408, 429)
+    return isinstance(err, (TimeoutError, aiohttp.ClientError))
+
+
 async def async_call_retrying_once[T](call: Callable[[], Awaitable[T]]) -> T:
     """
     Await call(), retrying it once immediately on a transient failure.
