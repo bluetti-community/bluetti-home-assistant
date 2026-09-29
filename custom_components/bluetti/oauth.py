@@ -18,6 +18,7 @@ from pybluetti import ProductClient, UnifyResponse, UserProduct
 
 from .cloud_retry import (
     CloudUnreachableError,
+    RefreshDeferredError,
     async_call_retrying_once,
     is_transient_failure,
 )
@@ -39,6 +40,15 @@ from .gateway import (
 __LOGGER__ = logging.getLogger(__name__)
 
 ISSUE_ID_OAUTH_EXPIRED = "oauth_expired"
+
+# How soon after a refresh another rejection may trigger a second one. The
+# floor exists so a cloud that rejects every token it is handed cannot turn
+# one poll into a refresh loop; it used to be an hour, which on an account
+# whose tokens the cloud drops within the hour left the entities unavailable
+# for that whole hour (#65). A transient failure no longer reaches this path
+# at all, so five minutes is enough to stop a loop - twelve grants an hour at
+# the worst.
+FORCE_REFRESH_FLOOR = 300
 
 
 class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, domain=DOMAIN):
@@ -371,16 +381,21 @@ class AuthTokenRefresh:
         True when a new token was stored (the entry's update listener then
         reloads it), False when the guard held or the grant failed - the
         caller then sends the user through reauthentication. Raises
-        CloudUnreachableError when the grant could not be judged at all
-        (the cloud unreachable, or answering 5xx): the credentials are not
-        the problem then, so the caller retries instead of sending anyone
-        to a sign-in page (#65).
+        RefreshNotJudged - CloudUnreachableError when the grant could not be
+        judged (the cloud unreachable, or answering 5xx), RefreshDeferredError
+        when the floor below held and no grant was made at all: neither says
+        anything about the credentials, so the caller retries instead of
+        sending anyone to a sign-in page (#65).
         """
         current_timestamp = time.time()
         last_refresh = self.entry.data.get("last_token_refresh", 0.0)
-        if current_timestamp - last_refresh < 3600:
-            __LOGGER__.info("token rejected again within an hour of a refresh, not retrying")
-            return False
+        if current_timestamp - last_refresh < FORCE_REFRESH_FLOOR:
+            __LOGGER__.info(
+                "token rejected again %.0f s after a refresh, not retrying for another %.0f s",
+                current_timestamp - last_refresh,
+                FORCE_REFRESH_FLOOR - (current_timestamp - last_refresh),
+            )
+            raise RefreshDeferredError("a refresh was made moments ago")
         try:
             new_token = await self.oAuth2Session.implementation.async_refresh_token(
                 self.oAuth2Session.token
@@ -388,7 +403,7 @@ class AuthTokenRefresh:
         except Exception as e:
             if is_transient_failure(e):
                 __LOGGER__.warning("could not reach the cloud to refresh the token: %s", e)
-                raise CloudUnreachableError(str(e)) from e
+                raise CloudUnreachableError(f"the cloud could not be reached: {e}") from e
             __LOGGER__.error("refresh token failed: %s", e)
             return False
         self.hass.config_entries.async_update_entry(

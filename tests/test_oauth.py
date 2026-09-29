@@ -12,7 +12,10 @@ from pybluetti import UserProduct
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti import _async_update_listener
-from custom_components.bluetti.cloud_retry import CloudUnreachableError
+from custom_components.bluetti.cloud_retry import (
+    CloudUnreachableError,
+    RefreshDeferredError,
+)
 from custom_components.bluetti.const import DOMAIN
 from custom_components.bluetti.oauth import (
     ISSUE_ID_OAUTH_EXPIRED,
@@ -303,17 +306,35 @@ async def test_async_force_refresh_stores_the_new_token_and_reloads(hass):
     mock_reload.assert_awaited_once_with(entry.entry_id)
 
 
-async def test_async_force_refresh_holds_within_an_hour_of_a_refresh(hass):
-    # A fresh token rejected again within the hour: refreshing once more
-    # would only hammer the SSO - the caller sends the user to reauth.
+async def test_async_force_refresh_defers_just_after_a_refresh(hass):
+    # A fresh token rejected again moments later: refreshing once more would
+    # only hammer the SSO. Nothing was learnt about the credentials, so this
+    # is not a failed refresh - the caller retries rather than asking for a
+    # sign-in (#65).
     entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": time.time() - 60})
     entry.add_to_hass(hass)
     session = MagicMock()
     session.implementation.async_refresh_token = AsyncMock()
     refresher = AuthTokenRefresh(hass, entry, session)
 
-    assert await refresher.async_force_refresh() is False
+    with pytest.raises(RefreshDeferredError):
+        await refresher.async_force_refresh()
     session.implementation.async_refresh_token.assert_not_awaited()
+
+
+async def test_async_force_refresh_retries_once_the_floor_has_passed(hass):
+    # The same rejection five minutes later does get a grant: the floor only
+    # stops a loop, it does not leave the entry stuck for an hour.
+    entry = MockConfigEntry(domain=DOMAIN, data={"last_token_refresh": time.time() - 301})
+    entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.LOADED)
+    session = MagicMock()
+    session.token = {"expires_at": time.time() + 28 * 86400}
+    session.implementation.async_refresh_token = AsyncMock(return_value={"access_token": "new"})
+    refresher = AuthTokenRefresh(hass, entry, session)
+
+    assert await refresher.async_force_refresh() is True
+    session.implementation.async_refresh_token.assert_awaited_once()
 
 
 async def test_async_force_refresh_reports_a_failed_grant(hass):

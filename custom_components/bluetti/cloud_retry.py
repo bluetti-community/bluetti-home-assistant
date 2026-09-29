@@ -11,8 +11,16 @@ from pybluetti import HttpStatusException
 _LOGGER = logging.getLogger(__name__)
 
 
-class CloudUnreachableError(Exception):
-    """A cloud call failed for a reason that says nothing about the credentials."""
+class RefreshNotJudged(Exception):
+    """A token refresh that never settled whether the credentials are still good."""
+
+
+class CloudUnreachableError(RefreshNotJudged):
+    """A refresh that never reached the cloud: a connection failure, a timeout, a 5xx."""
+
+
+class RefreshDeferredError(RefreshNotJudged):
+    """A refresh that was not attempted, because one was made moments ago."""
 
 
 def is_transient_failure(err: BaseException) -> bool:

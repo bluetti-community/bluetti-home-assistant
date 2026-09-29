@@ -11,7 +11,10 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 from pybluetti import ApplicationRuntimeException, HttpStatusException
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.bluetti.cloud_retry import CloudUnreachableError
+from custom_components.bluetti.cloud_retry import (
+    CloudUnreachableError,
+    RefreshDeferredError,
+)
 from custom_components.bluetti.const import DOMAIN
 from custom_components.bluetti.coordinator import BluettiDeviceCoordinator
 from custom_components.bluetti.models import BluettiDevice
@@ -123,7 +126,28 @@ async def test_a_rejected_token_is_not_a_sign_in_when_the_cloud_is_unreachable(h
         await coordinator._async_update_data()
 
     refresh.assert_awaited_once()
-    assert "Could not reach the BLUETTI cloud to refresh the rejected token" in caplog.text
+    assert "The rejected token was not refreshed" in caplog.text
+
+
+async def test_a_rejected_token_is_not_a_sign_in_when_the_refresh_was_deferred(hass, caplog):
+    # The cloud dropped a token 30 days inside its life, moments after a
+    # refresh. Declining to refresh again says nothing about the credentials,
+    # so the poll fails and Home Assistant retries - it does not ask the owner
+    # to sign in (#65).
+    device = _make_device()
+    device.async_refresh_from_api = AsyncMock(
+        side_effect=ApplicationRuntimeException(msgCode=805, errMessage="expired")
+    )
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+    refresh = AsyncMock(side_effect=RefreshDeferredError("a refresh was made moments ago"))
+
+    coordinator = BluettiDeviceCoordinator(hass, entry, device, on_auth_rejected=refresh)
+    with caplog.at_level(logging.WARNING), pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+
+    refresh.assert_awaited_once()
+    assert "a refresh was made moments ago" in caplog.text
 
 
 async def test_a_rejected_token_that_cannot_be_refreshed_needs_a_sign_in(hass):
