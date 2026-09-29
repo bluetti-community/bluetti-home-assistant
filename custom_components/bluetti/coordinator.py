@@ -13,7 +13,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from pybluetti import ApplicationRuntimeException
 
-from .cloud_retry import CloudUnreachableError, async_call_retrying_once
+from .cloud_retry import RefreshNotJudged, async_call_retrying_once
 from .models import BluettiDevice
 
 if TYPE_CHECKING:
@@ -129,11 +129,12 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         case; returns when a new token was stored (the entry reloads on its
         own, this poll's UpdateFailed is moot).
 
-        A grant that never reached the cloud also returns: the network being
-        down says nothing about the credentials, and reporting it as expired
-        authentication sent owners through a sign-in that fixed nothing while
-        their DNS was failing (#65). The poll still fails, so Home Assistant
-        retries on its own.
+        A grant that never reached the cloud also returns, and so does one the
+        floor declined to make: neither says anything about the credentials,
+        and reporting either as expired authentication sent owners through a
+        sign-in that fixed nothing - once while their DNS was failing, once
+        while the cloud was dropping a token that still had 30 days to run
+        (#65). The poll still fails, so Home Assistant retries on its own.
         """
         # config_entry is always set here (passed to __init__), but typed
         # Optional on the base class.
@@ -148,10 +149,9 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         if self._on_auth_rejected is not None:
             try:
                 refreshed = await self._on_auth_rejected()
-            except CloudUnreachableError as refresh_err:
+            except RefreshNotJudged as refresh_err:
                 _LOGGER.warning(
-                    "Could not reach the BLUETTI cloud to refresh the rejected token, "
-                    "keeping the sign-in and retrying: %s",
+                    "The rejected token was not refreshed (%s), keeping the sign-in and retrying",
                     refresh_err,
                 )
                 return
