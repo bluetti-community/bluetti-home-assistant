@@ -1,5 +1,6 @@
 """Tests for oauth.py: OAuth2FlowHandler helpers and AuthTokenRefresh."""
 
+import logging
 import time
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -454,3 +455,122 @@ async def test_select_devices_shows_form_with_available_devices(hass):
 
     assert result["type"] == "form"
     assert result["step_id"] == "select_devices"
+
+
+# --- a fresh token rejected: ask the other data centers (#65) ---------------
+
+
+def _deferring_refresher(hass, gateway: str = "global"):
+    """A refresher whose floor will hold: a refresh was made a minute ago."""
+    entry = MockConfigEntry(
+        domain=DOMAIN, data={"last_token_refresh": time.time() - 60, "gateway": gateway}
+    )
+    entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.LOADED)
+    entry.add_update_listener(_async_update_listener)
+    session = MagicMock()
+    session.token = {"access_token": "fresh"}
+    session.implementation.async_refresh_token = AsyncMock()
+    return AuthTokenRefresh(hass, entry, session), entry, session
+
+
+def _answer(msg_code: int) -> MagicMock:
+    response = MagicMock()
+    response.msgCode = msg_code
+    return response
+
+
+async def test_a_fresh_token_rejected_moves_the_account_to_the_data_center_that_takes_it(hass):
+    # A token refused moments after the SSO issued it is not expired: the
+    # recorded gateway stopped honouring the account. Ask the others, move the
+    # entry to the one that answers, and let the data update reload it.
+    refresher, entry, session = _deferring_refresher(hass)
+    seen: list[str] = []
+
+    async def _probe(fetch, preferred):
+        seen.append(preferred)
+        await fetch("https://gwde.bluettipower.com")  # the real fetch, client patched
+        return "eu", _answer(0)
+
+    with (
+        patch("custom_components.bluetti.oauth.async_probe_gateway", side_effect=_probe),
+        patch("custom_components.bluetti.oauth.ProductClient") as client_cls,
+        patch.object(hass.config_entries, "async_reload", AsyncMock()) as mock_reload,
+    ):
+        client_cls.return_value.get_user_products = AsyncMock(return_value=_answer(0))
+        with pytest.raises(RefreshDeferredError, match="moved to the eu data center"):
+            await refresher.async_force_refresh()
+        await hass.async_block_till_done()
+
+    assert seen == ["global"]
+    client_cls.assert_called_once_with(
+        client_cls.call_args.args[0], "https://gwde.bluettipower.com", "fresh", on_auth_expired=None
+    )
+    assert hass.config_entries.async_get_entry(entry.entry_id).data["gateway"] == "eu"
+    mock_reload.assert_awaited_once_with(entry.entry_id)
+    session.implementation.async_refresh_token.assert_not_awaited()
+
+
+async def test_every_data_center_rejecting_is_an_outage_said_once(hass, caplog):
+    # Every gateway refusing the same fresh token is BLUETTI's outage, not a
+    # sign-in problem. Said once per episode, even across the reloads every
+    # refresh causes - not once per five minutes for ten hours.
+    refresher, entry, session = _deferring_refresher(hass)
+    probe = AsyncMock(return_value=("global", _answer(805)))
+
+    with patch("custom_components.bluetti.oauth.async_probe_gateway", probe):
+        with caplog.at_level(logging.DEBUG), pytest.raises(RefreshDeferredError, match="moments ago"):
+            await refresher.async_force_refresh()
+        warned = [r for r in caplog.records if "Every BLUETTI data center" in r.message]
+        assert [r.levelno for r in warned] == [logging.WARNING]
+
+        caplog.clear()
+        reloaded = AuthTokenRefresh(hass, entry, session)  # what the next reload builds
+        with caplog.at_level(logging.DEBUG), pytest.raises(RefreshDeferredError):
+            await reloaded.async_force_refresh()
+        warned = [r for r in caplog.records if "Every BLUETTI data center" in r.message]
+        assert [r.levelno for r in warned] == [logging.DEBUG]
+
+    assert hass.config_entries.async_get_entry(entry.entry_id).data["gateway"] == "global"
+
+
+async def test_the_recorded_data_center_taking_the_token_again_changes_nothing(hass, caplog):
+    refresher, entry, _session = _deferring_refresher(hass)
+    probe = AsyncMock(return_value=("global", _answer(0)))
+
+    with (
+        patch("custom_components.bluetti.oauth.async_probe_gateway", probe),
+        caplog.at_level(logging.WARNING),
+        pytest.raises(RefreshDeferredError, match="moments ago"),
+    ):
+        await refresher.async_force_refresh()
+
+    assert "data center" not in caplog.text
+    assert hass.config_entries.async_get_entry(entry.entry_id).data["gateway"] == "global"
+
+
+async def test_the_other_data_centers_are_asked_once_per_setup(hass):
+    # Once per setup is once per refresh window: polls keep landing inside
+    # the floor, and each must not cost a round of the data centers.
+    refresher, _entry, _session = _deferring_refresher(hass)
+    probe = AsyncMock(return_value=("global", _answer(805)))
+
+    with patch("custom_components.bluetti.oauth.async_probe_gateway", probe):
+        for _ in range(3):
+            with pytest.raises(RefreshDeferredError):
+                await refresher.async_force_refresh()
+
+    probe.assert_awaited_once()
+
+
+async def test_a_data_center_probe_that_fails_changes_nothing(hass):
+    refresher, entry, _session = _deferring_refresher(hass)
+    probe = AsyncMock(side_effect=aiohttp.ClientConnectionError("unreachable"))
+
+    with (
+        patch("custom_components.bluetti.oauth.async_probe_gateway", probe),
+        pytest.raises(RefreshDeferredError, match="moments ago"),
+    ):
+        await refresher.async_force_refresh()
+
+    assert hass.config_entries.async_get_entry(entry.entry_id).data["gateway"] == "global"

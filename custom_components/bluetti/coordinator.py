@@ -13,7 +13,12 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from pybluetti import ApplicationRuntimeException
 
-from .cloud_retry import RefreshNotJudged, async_call_retrying_once
+from .cloud_retry import (
+    RefreshNotJudged,
+    async_call_retrying_once,
+    end_episode,
+    first_in_episode,
+)
 from .models import BluettiDevice
 
 if TYPE_CHECKING:
@@ -95,6 +100,8 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
                 return kept
             raise UpdateFailed(f"Error communicating with BLUETTI cloud: {err}") from err
         self._failed_polls = 0
+        if self.config_entry is not None:
+            end_episode(self.config_entry.entry_id)
         return self.device
 
     def _ride_out(self, err: Exception) -> BluettiDevice | None:
@@ -150,7 +157,12 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
             try:
                 refreshed = await self._on_auth_rejected()
             except RefreshNotJudged as refresh_err:
-                _LOGGER.warning(
+                # Once per episode at WARNING: the same decision repeats on
+                # every poll until the cloud takes the token again, and it is
+                # the decision working, not a new problem each time.
+                entry_id = self.config_entry.entry_id if self.config_entry is not None else ""
+                _LOGGER.log(
+                    logging.WARNING if first_in_episode(entry_id, "not_refreshed") else logging.DEBUG,
                     "The rejected token was not refreshed (%s), keeping the sign-in and retrying",
                     refresh_err,
                 )

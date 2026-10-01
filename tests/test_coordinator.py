@@ -364,3 +364,39 @@ async def test_a_network_failure_is_ridden_out_like_a_cloud_one(hass):
 
     with pytest.raises(UpdateFailed, match="boom"):
         await coordinator._async_update_data()
+
+
+async def test_the_not_refreshed_warning_is_logged_once_per_episode(hass, caplog):
+    # The same decision repeats on every poll while the cloud keeps refusing
+    # the token, and every refresh in that time reloads the entry - one log
+    # carried the line 178 times in ten hours (#65). WARNING once, DEBUG after,
+    # across the reload; a poll that goes through ends the episode.
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+    rejected = ApplicationRuntimeException(msgCode=805, errMessage="expired")
+    refresh = AsyncMock(side_effect=RefreshDeferredError("a refresh was made moments ago"))
+
+    def _levels():
+        return [r.levelno for r in caplog.records if "keeping the sign-in" in r.message]
+
+    first = _make_device()
+    first.async_refresh_from_api = AsyncMock(side_effect=rejected)
+    with caplog.at_level(logging.DEBUG), pytest.raises(UpdateFailed):
+        await BluettiDeviceCoordinator(hass, entry, first, on_auth_rejected=refresh)._async_update_data()
+    assert _levels() == [logging.WARNING]
+
+    caplog.clear()
+    again = _make_device()  # what the reload after a refresh builds
+    again.async_refresh_from_api = AsyncMock(side_effect=rejected)
+    with caplog.at_level(logging.DEBUG), pytest.raises(UpdateFailed):
+        await BluettiDeviceCoordinator(hass, entry, again, on_auth_rejected=refresh)._async_update_data()
+    assert _levels() == [logging.DEBUG]
+
+    recovered = _make_device()
+    recovered.async_refresh_from_api = AsyncMock(side_effect=[None, rejected])
+    coordinator = BluettiDeviceCoordinator(hass, entry, recovered, on_auth_rejected=refresh)
+    await coordinator._async_update_data()
+    caplog.clear()
+    with caplog.at_level(logging.DEBUG), pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+    assert _levels() == [logging.WARNING]

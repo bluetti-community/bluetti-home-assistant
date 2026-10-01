@@ -23,6 +23,30 @@ class RefreshDeferredError(RefreshNotJudged):
     """A refresh that was not attempted, because one was made moments ago."""
 
 
+# (entry id, what) pairs already logged at WARNING in the current episode of
+# the cloud rejecting an entry's token. Module level on purpose: every
+# successful refresh during such an episode reloads the entry, which builds a
+# new coordinator and a new token refresher every five minutes, so anything an
+# instance remembered would be forgotten - one owner's log showed the same
+# line 178 times in ten hours.
+_WARNED_IN_EPISODE: set[tuple[str, str]] = set()
+
+
+def first_in_episode(entry_id: str, what: str) -> bool:
+    """True the first time ``what`` happens for this entry in an episode."""
+    key = (entry_id, what)
+    if key in _WARNED_IN_EPISODE:
+        return False
+    _WARNED_IN_EPISODE.add(key)
+    return True
+
+
+def end_episode(entry_id: str) -> None:
+    """Forget an entry's episode, once a poll has gone through again."""
+    for key in [k for k in _WARNED_IN_EPISODE if k[0] == entry_id]:
+        _WARNED_IN_EPISODE.discard(key)
+
+
 def is_transient_failure(err: BaseException) -> bool:
     """
     Whether a failed cloud call leaves the credentials unjudged.

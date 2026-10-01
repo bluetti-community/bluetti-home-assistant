@@ -20,6 +20,7 @@ from .cloud_retry import (
     CloudUnreachableError,
     RefreshDeferredError,
     async_call_retrying_once,
+    first_in_episode,
     is_transient_failure,
 )
 from .const import (
@@ -32,6 +33,7 @@ from .const import (
 from .gateway import (
     CONF_GATEWAY,
     GATEWAY_GLOBAL,
+    TOKEN_REJECTED,
     async_probe_gateway,
     entry_gateway,
     gateway_url,
@@ -298,6 +300,10 @@ class AuthTokenRefresh:
         self.hass = hass
         self.entry = entry
         self.oAuth2Session = oauth_session
+        # Whether this setup already asked the other data centres. Once per
+        # setup is once per refresh window: a successful refresh reloads the
+        # entry, which builds a new refresher.
+        self._gateways_probed = False
         unsub = hass.bus.async_listen(EVENT_TOKEN_EXPIRED, self.on_token_expired_event)
         entry.async_on_unload(unsub)
 
@@ -395,6 +401,9 @@ class AuthTokenRefresh:
                 current_timestamp - last_refresh,
                 FORCE_REFRESH_FLOOR - (current_timestamp - last_refresh),
             )
+            moved_to = await self._async_try_the_other_gateways()
+            if moved_to is not None:
+                raise RefreshDeferredError(f"moved to the {moved_to} data center, reloading")
             raise RefreshDeferredError("a refresh was made moments ago")
         try:
             new_token = await self.oAuth2Session.implementation.async_refresh_token(
@@ -412,6 +421,57 @@ class AuthTokenRefresh:
         )
         __LOGGER__.info("refresh token ok")
         return True
+
+    async def _async_try_the_other_gateways(self) -> str | None:
+        """
+        Ask every data center for the devices, after a fresh token was rejected.
+
+        A token rejected moments after the SSO issued it is not an expired
+        token: the gateway the entry recorded at sign-in has stopped honouring
+        the account's tokens. Sign-in is the only place the data center is
+        detected, so without this the entry sat on that gateway for ten hours,
+        refreshing a token every five minutes that was rejected each time
+        (#65). Returns the data center the entry moved to - its reload then
+        follows from the data update - or None when there was nothing better:
+        either the recorded one takes the token again, or every one rejects
+        it, which is an outage on BLUETTI's side and is said so once.
+        """
+        if self._gateways_probed:
+            return None
+        self._gateways_probed = True
+        current = entry_gateway(self.entry.data)
+        session = async_get_clientsession(self.hass)
+        access_token = self.oAuth2Session.token["access_token"]
+
+        def _fetch_products(url: str) -> Any:
+            client = ProductClient(session, url, access_token, on_auth_expired=None)
+            return async_call_retrying_once(client.get_user_products)
+
+        try:
+            region, response = await async_probe_gateway(_fetch_products, current)
+        except Exception as err:
+            __LOGGER__.debug("Could not ask the other data centers: %s", err)
+            return None
+        if region != current:
+            __LOGGER__.warning(
+                "The %s data center rejected a token issued moments ago and the %s one "
+                "accepts it; moving this account there",
+                current,
+                region,
+            )
+            self.hass.config_entries.async_update_entry(
+                self.entry, data={**self.entry.data, CONF_GATEWAY: region}
+            )
+            return region
+        if getattr(response, "msgCode", 0) == TOKEN_REJECTED:
+            __LOGGER__.log(
+                logging.WARNING
+                if first_in_episode(self.entry.entry_id, "every_gateway_rejects")
+                else logging.DEBUG,
+                "Every BLUETTI data center rejects a token issued moments ago - "
+                "an outage on BLUETTI's side, not a sign-in problem; retrying",
+            )
+        return None
 
     # check token is in 7 day if in 7day refesh token
     async def async_check_token_expiry(self, now: datetime | None = None) -> None:
