@@ -59,11 +59,15 @@ jobs:
     runs-on: "ubuntu-latest"
     permissions:
       contents: write
+    # The release target is usually an exact commit SHA, which cannot be
+    # pushed to; the version is synced onto the default branch instead, for
+    # stable releases only (a prerelease's version does not belong there).
+    if: "${{ !github.event.release.prerelease }}"
     steps:
-      - name: "Checkout the release's target branch"
+      - name: "Checkout the default branch"
         uses: "actions/checkout@v4"
         with:
-          ref: "${{ github.event.release.target_commitish }}"
+          ref: "${{ github.event.repository.default_branch }}"
 
       - name: "Set manifest.json version to the release tag"
         shell: "bash"
@@ -93,6 +97,6 @@ jobs:
           # reviews, etc.) can legitimately reject this push. That must not
           # fail the release - the ZIP asset from the other job already has
           # the correct version regardless.
-          if ! git push origin "HEAD:${{ github.event.release.target_commitish }}"; then
-            echo "::warning::Could not push the manifest.json version bump to ${{ github.event.release.target_commitish }} (branch protection?). Update it manually, or exempt github-actions[bot] from required reviews on that branch."
+          if ! git push origin "HEAD:${{ github.event.repository.default_branch }}"; then
+            echo "::warning::Could not push the manifest.json version bump to ${{ github.event.repository.default_branch }} (branch protection?). Update it manually, or exempt github-actions[bot] from required reviews on that branch."
           fi
