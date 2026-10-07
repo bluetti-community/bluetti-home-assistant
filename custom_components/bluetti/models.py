@@ -261,6 +261,12 @@ class BluettiDevice:
             return
 
         self.on_line = data.online
+        __LOGGER__.debug(
+            "Cloud status for %s: online=%s, values=%s",
+            self.device_id,
+            data.online,
+            {s["fnCode"]: s["fnValue"] for s in data.stateList},
+        )
 
         for s in data.stateList:
             state_obj = self.get_state(s["fnCode"])
