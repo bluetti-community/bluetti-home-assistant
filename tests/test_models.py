@@ -1,5 +1,6 @@
 """Tests for the BLUETTI data models."""
 
+import logging
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -129,6 +130,26 @@ async def test_async_refresh_from_api_updates_states():
 
     assert device.online is True
     assert device.get_state("SOC").fn_value == "77"
+
+
+async def test_async_refresh_from_api_logs_the_cloud_answer(caplog):
+    # The raw online flag and values, so a debug log shows what the cloud
+    # actually sent (e.g. "online" with every reading at 0).
+    device = BluettiDevice(
+        device_id="SN1", on_line="0", name="Test", sn="SN1", model="AC200L",
+        state_list=[{"fnCode": "SOC", "fnName": "Battery", "fnValue": "10", "fnType": "SENSOR"}],
+    )
+    status_data = SimpleNamespace(
+        sn="SN1", online="1", isBindByCurUser="1",
+        stateList=[{"fnCode": "SOC", "fnValue": "0"}],
+    )
+    device._api_client = AsyncMock()
+    device._api_client.get_device_status.return_value = SimpleNamespace(data=[status_data], is_ok=lambda: True)
+
+    with caplog.at_level(logging.DEBUG, logger="custom_components.bluetti.models"):
+        await device.async_refresh_from_api()
+
+    assert "Cloud status for SN1: online=1, values={'SOC': '0'}" in caplog.text
 
 
 async def test_async_refresh_from_api_raises_on_failed_envelope():
