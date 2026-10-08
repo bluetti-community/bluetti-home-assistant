@@ -87,6 +87,46 @@ async def test_web_socket_message_handler_ignores_unknown_device(hass):
     mock_run.assert_not_called()
 
 
+async def test_web_socket_message_handler_notes_when_a_realtime_push_arrived(hass):
+    device = BluettiDevice(device_id="SN1", on_line="0", name="Test", sn="SN1", model="AC200PL")
+    data = BluettiData.__new__(BluettiData)
+    data.devices = [device]
+    data.loop = asyncio.get_running_loop()
+
+    # Trimmed from a live AC200PL message (#75), which still has the flat shape.
+    status = (
+        '{"messageType": "DEVICE_REALTIME_STATUS", "deviceSn": "SN1", "type": "AC200PL",'
+        ' "payload": {"allFieldIsNull": false, "powerGridIn": "919", "batterySoc": "62"}}'
+    )
+    for message in (f'{{"data": {status}}}', f'{{"data": {{"message": {status}}}}}'):
+        device.last_push = None
+        with patch("custom_components.bluetti.models.time.monotonic", return_value=42.0):
+            data.web_socket_message_handler(message)
+        assert device.last_push == 42.0
+
+
+async def test_web_socket_message_handler_does_not_count_a_push_without_readings(hass):
+    device = BluettiDevice(device_id="SN1", on_line="0", name="Test", sn="SN1", model="AC200PL")
+    data = BluettiData.__new__(BluettiData)
+    data.devices = [device]
+    data.loop = asyncio.get_running_loop()
+
+    data.web_socket_message_handler('{"data": {"deviceSn": "SN1"}}')
+    data.web_socket_message_handler(
+        '{"data": {"messageType": "DEVICE_REALTIME_STATUS", "deviceSn": "SN1"}}'
+    )
+    data.web_socket_message_handler(
+        '{"data": {"messageType": "DEVICE_REALTIME_STATUS", "deviceSn": "SN1",'
+        ' "payload": {"allFieldIsNull": true}}}'
+    )
+    data.web_socket_message_handler(
+        '{"data": {"messageType": "SOMETHING_ELSE", "deviceSn": "SN1",'
+        ' "payload": {"allFieldIsNull": false}}}'
+    )
+
+    assert device.last_push is None
+
+
 async def test_handle_unbind_without_hass_or_entry_returns_early(hass):
     device = BluettiDevice(device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L")
     # _hass and _entry default to None.

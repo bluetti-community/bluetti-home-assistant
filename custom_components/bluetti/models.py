@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components import persistent_notification
@@ -27,6 +28,15 @@ if TYPE_CHECKING:
 __LOGGER__ = logging.getLogger(__name__)
 
 manufacturer = "BLUETTI"
+
+# How long a realtime push keeps a unit online when the cloud's own online
+# flag says it is offline. The cloud has been seen holding that flag at "0"
+# for hours while still relaying the unit's readings (#75), and blanking
+# every entity then throws away data that is arriving. A unit that is being
+# reported pushes every one to four minutes, so ten minutes rides out the
+# gaps; a unit that really is offline pushes nothing and goes unavailable
+# once the window has passed.
+PUSH_ONLINE_WINDOW = 600
 
 class BluettiData:
     """Data for the BLUETTI integration."""
@@ -72,11 +82,13 @@ class BluettiData:
             return
         data = res.get("data") if isinstance(res, dict) else None
         sn = _device_sn(data)
-        if not sn:
+        if not sn or not isinstance(data, dict):
             __LOGGER__.debug("Ignoring a websocket message without a deviceSn")
             return
 
         device = self.get_device_by_sn(sn)
+        if device and _is_realtime_status(data):
+            device.last_push = time.monotonic()
         if device and device.coordinator:
             # This runs on the websocket thread, not the event loop, so a
             # thread-safe scheduling call is required here.
@@ -107,6 +119,23 @@ def _is_zero(value: Any) -> bool:
         return float(value) == 0
     except (TypeError, ValueError):
         return False
+
+
+def _is_realtime_status(data: dict[str, Any]) -> bool:
+    """
+    Whether a device notification carries readings from the unit itself.
+
+    Follows the same two spellings as _device_sn. A push whose payload is
+    all null says nothing about the unit being alive, so it does not count.
+    """
+    message = data.get("message")
+    body = message if isinstance(message, dict) else data
+    payload = body.get("payload")
+    return (
+        body.get("messageType") == "DEVICE_REALTIME_STATUS"
+        and isinstance(payload, dict)
+        and payload.get("allFieldIsNull") is False
+    )
 
 
 class BluettiState:
@@ -165,6 +194,7 @@ class BluettiDevice:
     ) -> None:
         self.device_id = device_id
         self.on_line = on_line
+        self.last_push: float | None = None
         self.name = name
         self.sn = sn
         self.model = model
@@ -234,7 +264,14 @@ class BluettiDevice:
 
     @property
     def online(self) -> bool:
-        return self.on_line == "1" and not self._no_readings
+        if self._no_readings:
+            return False
+        if self.on_line == "1":
+            return True
+        return (
+            self.last_push is not None
+            and time.monotonic() - self.last_push < PUSH_ONLINE_WINDOW
+        )
 
     @property
     def battery_level(self) -> int:

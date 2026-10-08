@@ -1,5 +1,6 @@
 """Tests for the BLUETTI entity platforms (sensor/binary_sensor, switch, select)."""
 
+import time
 from datetime import timedelta
 
 import pytest
@@ -84,6 +85,18 @@ async def test_sensor_unavailable_when_device_offline(hass):
     entity = BluettiSensor(coordinator.device, state, meta)
 
     assert entity.available is False
+
+
+async def test_sensor_available_when_the_cloud_says_offline_but_still_pushes(hass):
+    coordinator = _make_coordinator(hass)
+    coordinator.device.on_line = "0"
+    coordinator.device.last_push = time.monotonic()
+    state = coordinator.device.get_state("SOC")
+    meta = {"name": state.fn_name, "unit": "%", "device_class": None, "state_class": None}
+
+    entity = BluettiSensor(coordinator.device, state, meta)
+
+    assert entity.available is True
 
 
 async def test_sensor_unavailable_when_coordinator_update_failed(hass):

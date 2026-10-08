@@ -2,13 +2,18 @@
 
 import logging
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from homeassistant.exceptions import HomeAssistantError
 from pybluetti import ApplicationRuntimeException, UnifyResponse
 
-from custom_components.bluetti.models import BluettiData, BluettiDevice, BluettiState
+from custom_components.bluetti.models import (
+    PUSH_ONLINE_WINDOW,
+    BluettiData,
+    BluettiDevice,
+    BluettiState,
+)
 
 
 def test_state_is_switch_without_modes():
@@ -104,6 +109,22 @@ def test_device_online_property():
     assert device.online is True
     device.on_line = "0"
     assert device.online is False
+
+
+def test_device_stays_online_on_a_recent_push_while_the_flag_says_offline():
+    """
+    Seen on an AC200PL and a PR200V2 (#75): the status reply said online "0"
+    for hours while a current state list and realtime pushes kept arriving.
+    """
+    device = BluettiDevice(device_id="SN1", on_line="0", name="Test", sn="SN1", model="AC200PL")
+    assert device.online is False
+
+    with patch("custom_components.bluetti.models.time.monotonic", return_value=1000.0):
+        device.last_push = 1000.0 - PUSH_ONLINE_WINDOW + 1
+        assert device.online is True
+        # A unit that stopped pushing is offline once the window has passed.
+        device.last_push = 1000.0 - PUSH_ONLINE_WINDOW
+        assert device.online is False
 
 
 def test_bluetti_data_get_device_by_sn():
