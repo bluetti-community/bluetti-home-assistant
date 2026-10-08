@@ -29,16 +29,11 @@ __LOGGER__ = logging.getLogger(__name__)
 
 manufacturer = "BLUETTI"
 
-# How long a sign of life keeps a unit online when the cloud's own online
-# flag says it is offline. The cloud has been seen holding that flag at "0"
-# for hours while still relaying the unit's readings (#75), and blanking
-# every entity then throws away data that is arriving. A sign of life is a
-# realtime push with readings in it, or a poll whose values differ from the
-# poll before. The cloud answers for a unit that really is offline with the
-# last values it had, so those never differ, and such a unit goes
-# unavailable once the window has passed. Pushes alone are not enough: a
-# unit charging at a steady power went ten minutes without one while its
-# polled values kept moving.
+# How long, in seconds, a sign of life keeps a unit online while the cloud's
+# online flag says it is offline. A sign of life is a realtime push with
+# readings in it, or a poll whose readings differ from the poll before. The
+# cloud answers for a unit that really is offline with the last readings it
+# had, so those never differ.
 ALIVE_WINDOW = 600
 
 class BluettiData:
@@ -198,7 +193,7 @@ class BluettiDevice:
         self.device_id = device_id
         self.on_line = on_line
         self.last_alive: float | None = None
-        self._last_polled: dict[str, Any] | None = None
+        self._last_readings: dict[str, Any] | None = None
         self.name = name
         self.sn = sn
         self.model = model
@@ -327,24 +322,31 @@ class BluettiDevice:
         if self._no_readings:
             return
 
-        # Compared with the previous poll, not with the states: those also
-        # hold the listing's values from setup and optimistic writes.
-        if self._last_polled is not None and values != self._last_polled:
+        # Only readings are compared: a switch or mode changed from the app
+        # can come back for a unit that is offline. They are compared with
+        # the previous poll, not with the states, which start out with the
+        # listing's values.
+        readings = self._readings(values)
+        if self._last_readings is not None and readings != self._last_readings:
             self.last_alive = time.monotonic()
-        self._last_polled = values
+        self._last_readings = readings
 
         for s in data.stateList:
             state_obj = self.get_state(s["fnCode"])
             if state_obj:
                 state_obj.fn_value = s["fnValue"]
 
-    def _is_empty_snapshot(self, values: dict[str, Any]) -> bool:
-        """Whether a status reply carries the battery level and every reading at 0."""
-        readings = [
-            value
+    def _readings(self, values: dict[str, Any]) -> dict[str, Any]:
+        """The SENSOR values of a status reply."""
+        return {
+            fn_code: value
             for fn_code, value in values.items()
             if (state := self.get_state(fn_code)) and state.fn_type == "SENSOR"
-        ]
+        }
+
+    def _is_empty_snapshot(self, values: dict[str, Any]) -> bool:
+        """Whether a status reply carries the battery level and every reading at 0."""
+        readings = self._readings(values).values()
         return "SOC" in values and bool(readings) and all(_is_zero(v) for v in readings)
 
     async def _handle_unbind(self) -> None:

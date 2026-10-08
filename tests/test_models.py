@@ -112,17 +112,13 @@ def test_device_online_property():
 
 
 def test_device_stays_online_on_a_recent_sign_of_life_while_the_flag_says_offline():
-    """
-    Seen on an AC200PL and a PR200V2 (#75): the status reply said online "0"
-    for hours while a current state list and realtime pushes kept arriving.
-    """
     device = BluettiDevice(device_id="SN1", on_line="0", name="Test", sn="SN1", model="AC200PL")
     assert device.online is False
 
     with patch("custom_components.bluetti.models.time.monotonic", return_value=1000.0):
         device.last_alive = 1000.0 - ALIVE_WINDOW + 1
         assert device.online is True
-        # A unit that went quiet is offline once the window has passed.
+        # Offline once the window has passed.
         device.last_alive = 1000.0 - ALIVE_WINDOW
         assert device.online is False
 
@@ -151,39 +147,6 @@ async def test_async_refresh_from_api_updates_states():
 
     assert device.online is True
     assert device.get_state("SOC").fn_value == "77"
-
-
-async def test_async_refresh_from_api_takes_changing_values_as_a_sign_of_life():
-    """
-    The AC200PL in #75 went ten minutes without a push while it charged at a
-    steady power, and its polled values kept moving the whole time.
-    """
-    device = BluettiDevice(
-        device_id="SN1", on_line="0", name="Test", sn="SN1", model="AC200PL",
-        state_list=[{"fnCode": "SOC", "fnName": "Battery", "fnValue": "10", "fnType": "SENSOR"}],
-    )
-    device._api_client = AsyncMock()
-
-    async def poll(soc: str) -> None:
-        status_data = SimpleNamespace(
-            sn="SN1", online="0", isBindByCurUser="1",
-            stateList=[{"fnCode": "SOC", "fnValue": soc}],
-        )
-        device._api_client.get_device_status.return_value = SimpleNamespace(
-            data=[status_data], is_ok=lambda: True
-        )
-        await device.async_refresh_from_api()
-
-    # The first poll has nothing to be compared with: it differs from the
-    # listing's value for an offline unit too.
-    await poll("86")
-    assert device.online is False
-    # The cloud repeating itself is what an offline unit looks like.
-    await poll("86")
-    assert device.online is False
-
-    await poll("87")
-    assert device.online is True
 
 
 async def test_async_refresh_from_api_logs_the_cloud_answer(caplog):
@@ -289,6 +252,62 @@ async def test_async_refresh_from_api_reads_a_value_that_is_not_a_number_as_a_re
 
     assert device.online is True
     assert device.get_state("DsgFullTime").fn_value == "--"
+
+
+async def test_async_refresh_from_api_takes_changing_readings_as_a_sign_of_life():
+    api_client = AsyncMock()
+    device = _elite_200_v2(api_client)
+
+    async def poll(**values: str) -> None:
+        api_client.get_device_status.return_value = _status("0", **values)
+        await device.async_refresh_from_api()
+
+    # The first poll has nothing to be compared with: it differs from the
+    # listing's values for an offline unit too.
+    await poll(SOC="86", DsgFullTime="2133", DCLoadAllTotalPower="5", SetCtrlDc="1")
+    assert device.online is False
+    # The cloud repeating itself is what an offline unit looks like.
+    await poll(SOC="86", DsgFullTime="2133", DCLoadAllTotalPower="5", SetCtrlDc="1")
+    assert device.online is False
+
+    await poll(SOC="87", DsgFullTime="2133", DCLoadAllTotalPower="5", SetCtrlDc="1")
+    assert device.online is True
+
+
+async def test_async_refresh_from_api_does_not_take_a_changed_switch_as_a_sign_of_life():
+    api_client = AsyncMock()
+    device = _elite_200_v2(api_client)
+
+    for dc in ("1", "0"):
+        api_client.get_device_status.return_value = _status(
+            "0", SOC="86", DsgFullTime="2133", DCLoadAllTotalPower="5", SetCtrlDc=dc
+        )
+        await device.async_refresh_from_api()
+
+    assert device.get_state("SetCtrlDc").fn_value == "0"
+    assert device.online is False
+
+
+async def test_async_refresh_from_api_does_not_take_every_reading_at_zero_as_a_sign_of_life():
+    api_client = AsyncMock()
+    device = _elite_200_v2(api_client)
+
+    async def poll(**values: str) -> None:
+        api_client.get_device_status.return_value = _status("0", **values)
+        await device.async_refresh_from_api()
+
+    await poll(SOC="86", DsgFullTime="2133", DCLoadAllTotalPower="5")
+    await poll(SOC="0", DsgFullTime="0", DCLoadAllTotalPower="0")
+    assert device.online is False
+    # The readings from before the empty reply are still the ones to compare with.
+    await poll(SOC="86", DsgFullTime="2133", DCLoadAllTotalPower="5")
+    assert device.online is False
+
+    await poll(SOC="87", DsgFullTime="2133", DCLoadAllTotalPower="5")
+    assert device.online is True
+    # The empty reply outweighs a recent sign of life.
+    await poll(SOC="0", DsgFullTime="0", DCLoadAllTotalPower="0")
+    assert device.online is False
 
 
 async def test_async_refresh_from_api_raises_on_failed_envelope():

@@ -93,7 +93,7 @@ async def test_web_socket_message_handler_notes_when_a_realtime_push_arrived(has
     data.devices = [device]
     data.loop = asyncio.get_running_loop()
 
-    # Trimmed from a live AC200PL message (#75), which still has the flat shape.
+    # Both shapes: the flat one and the one nested under "message".
     status = (
         '{"messageType": "DEVICE_REALTIME_STATUS", "deviceSn": "SN1", "type": "AC200PL",'
         ' "payload": {"allFieldIsNull": false, "powerGridIn": "919", "batterySoc": "62"}}'
