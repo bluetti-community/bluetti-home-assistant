@@ -87,10 +87,10 @@ async def test_sensor_unavailable_when_device_offline(hass):
     assert entity.available is False
 
 
-async def test_sensor_available_when_the_cloud_says_offline_but_still_pushes(hass):
+async def test_sensor_available_when_the_cloud_says_offline_but_the_unit_reports(hass):
     coordinator = _make_coordinator(hass)
     coordinator.device.on_line = "0"
-    coordinator.device.last_push = time.monotonic()
+    coordinator.device.last_alive = time.monotonic()
     state = coordinator.device.get_state("SOC")
     meta = {"name": state.fn_name, "unit": "%", "device_class": None, "state_class": None}
 

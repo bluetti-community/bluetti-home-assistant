@@ -99,10 +99,10 @@ async def test_web_socket_message_handler_notes_when_a_realtime_push_arrived(has
         ' "payload": {"allFieldIsNull": false, "powerGridIn": "919", "batterySoc": "62"}}'
     )
     for message in (f'{{"data": {status}}}', f'{{"data": {{"message": {status}}}}}'):
-        device.last_push = None
+        device.last_alive = None
         with patch("custom_components.bluetti.models.time.monotonic", return_value=42.0):
             data.web_socket_message_handler(message)
-        assert device.last_push == 42.0
+        assert device.last_alive == 42.0
 
 
 async def test_web_socket_message_handler_does_not_count_a_push_without_readings(hass):
@@ -124,7 +124,7 @@ async def test_web_socket_message_handler_does_not_count_a_push_without_readings
         ' "payload": {"allFieldIsNull": false}}}'
     )
 
-    assert device.last_push is None
+    assert device.last_alive is None
 
 
 async def test_handle_unbind_without_hass_or_entry_returns_early(hass):

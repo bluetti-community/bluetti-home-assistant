@@ -29,14 +29,17 @@ __LOGGER__ = logging.getLogger(__name__)
 
 manufacturer = "BLUETTI"
 
-# How long a realtime push keeps a unit online when the cloud's own online
+# How long a sign of life keeps a unit online when the cloud's own online
 # flag says it is offline. The cloud has been seen holding that flag at "0"
 # for hours while still relaying the unit's readings (#75), and blanking
-# every entity then throws away data that is arriving. A unit that is being
-# reported pushes every one to four minutes, so ten minutes rides out the
-# gaps; a unit that really is offline pushes nothing and goes unavailable
-# once the window has passed.
-PUSH_ONLINE_WINDOW = 600
+# every entity then throws away data that is arriving. A sign of life is a
+# realtime push with readings in it, or a poll whose values differ from the
+# poll before. The cloud answers for a unit that really is offline with the
+# last values it had, so those never differ, and such a unit goes
+# unavailable once the window has passed. Pushes alone are not enough: a
+# unit charging at a steady power went ten minutes without one while its
+# polled values kept moving.
+ALIVE_WINDOW = 600
 
 class BluettiData:
     """Data for the BLUETTI integration."""
@@ -88,7 +91,7 @@ class BluettiData:
 
         device = self.get_device_by_sn(sn)
         if device and _is_realtime_status(data):
-            device.last_push = time.monotonic()
+            device.last_alive = time.monotonic()
         if device and device.coordinator:
             # This runs on the websocket thread, not the event loop, so a
             # thread-safe scheduling call is required here.
@@ -194,7 +197,8 @@ class BluettiDevice:
     ) -> None:
         self.device_id = device_id
         self.on_line = on_line
-        self.last_push: float | None = None
+        self.last_alive: float | None = None
+        self._last_polled: dict[str, Any] | None = None
         self.name = name
         self.sn = sn
         self.model = model
@@ -269,8 +273,8 @@ class BluettiDevice:
         if self.on_line == "1":
             return True
         return (
-            self.last_push is not None
-            and time.monotonic() - self.last_push < PUSH_ONLINE_WINDOW
+            self.last_alive is not None
+            and time.monotonic() - self.last_alive < ALIVE_WINDOW
         )
 
     @property
@@ -322,6 +326,12 @@ class BluettiDevice:
         self._no_readings = self._is_empty_snapshot(values)
         if self._no_readings:
             return
+
+        # Compared with the previous poll, not with the states: those also
+        # hold the listing's values from setup and optimistic writes.
+        if self._last_polled is not None and values != self._last_polled:
+            self.last_alive = time.monotonic()
+        self._last_polled = values
 
         for s in data.stateList:
             state_obj = self.get_state(s["fnCode"])
