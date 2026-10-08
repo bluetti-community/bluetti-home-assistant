@@ -102,6 +102,13 @@ def _device_sn(data: Any) -> str | None:
     return None
 
 
+def _is_zero(value: Any) -> bool:
+    try:
+        return float(value) == 0
+    except (TypeError, ValueError):
+        return False
+
+
 class BluettiState:
     """Represents a single function/state of the device."""
 
@@ -180,6 +187,7 @@ class BluettiDevice:
         ]
 
         self._api_client: ProductClient | None = None
+        self._no_readings = False
         self._unbind_processed = False
         self._hass: HomeAssistant | None = None
         self._entry: ConfigEntry | None = None
@@ -226,7 +234,7 @@ class BluettiDevice:
 
     @property
     def online(self) -> bool:
-        return self.on_line == "1"
+        return self.on_line == "1" and not self._no_readings
 
     @property
     def battery_level(self) -> int:
@@ -261,17 +269,36 @@ class BluettiDevice:
             return
 
         self.on_line = data.online
+        values = {s["fnCode"]: s["fnValue"] for s in data.stateList}
         __LOGGER__.debug(
             "Cloud status for %s: online=%s, values=%s",
             self.device_id,
             data.online,
-            {s["fnCode"]: s["fnValue"] for s in data.stateList},
+            values,
         )
+
+        # Around a reconnection the cloud can answer "online" with every
+        # reading at 0 before the unit's real values arrive. That is no
+        # reading at all: the values are kept out of the states and the unit
+        # counts as offline until a real one comes. A unit really at 0 % has
+        # shut down, and the cloud reports it offline.
+        self._no_readings = self._is_empty_snapshot(values)
+        if self._no_readings:
+            return
 
         for s in data.stateList:
             state_obj = self.get_state(s["fnCode"])
             if state_obj:
                 state_obj.fn_value = s["fnValue"]
+
+    def _is_empty_snapshot(self, values: dict[str, Any]) -> bool:
+        """Whether a status reply carries the battery level and every reading at 0."""
+        readings = [
+            value
+            for fn_code, value in values.items()
+            if (state := self.get_state(fn_code)) and state.fn_type == "SENSOR"
+        ]
+        return "SOC" in values and bool(readings) and all(_is_zero(v) for v in readings)
 
     async def _handle_unbind(self) -> None:
         """Handle device unbinding: Clean up the device, entity, and configuration, and display the notification."""
