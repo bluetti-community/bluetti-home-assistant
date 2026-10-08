@@ -152,6 +152,91 @@ async def test_async_refresh_from_api_logs_the_cloud_answer(caplog):
     assert "Cloud status for SN1: online=1, values={'SOC': '0'}" in caplog.text
 
 
+def _elite_200_v2(api_client: AsyncMock) -> BluettiDevice:
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="Elite 200 V2",
+        state_list=[
+            {"fnCode": "SOC", "fnName": "Battery", "fnValue": "100", "fnType": "SENSOR"},
+            {"fnCode": "DsgFullTime", "fnName": "Time to empty", "fnValue": "5994", "fnType": "SENSOR"},
+            {"fnCode": "DCLoadAllTotalPower", "fnName": "DC load", "fnValue": "5", "fnType": "SENSOR"},
+            {"fnCode": "SetCtrlDc", "fnName": "DC", "fnValue": "1", "fnType": "SWITCH"},
+        ],
+    )
+    device._api_client = api_client
+    return device
+
+
+def _status(online: str, **values: str) -> SimpleNamespace:
+    status_data = SimpleNamespace(
+        sn="SN1", online=online, isBindByCurUser="1",
+        stateList=[{"fnCode": code, "fnValue": value} for code, value in values.items()],
+    )
+    return SimpleNamespace(data=[status_data], is_ok=lambda: True)
+
+
+async def test_async_refresh_from_api_takes_every_reading_at_zero_as_no_reading():
+    api_client = AsyncMock()
+    device = _elite_200_v2(api_client)
+
+    # What an Elite 200 V2's cloud sent around a reconnection: online, with
+    # every reading at 0 (a switch keeps its value).
+    api_client.get_device_status.return_value = _status(
+        "1", SOC="0", DsgFullTime="0", DCLoadAllTotalPower="0.0", SetCtrlDc="1"
+    )
+    await device.async_refresh_from_api()
+
+    assert device.online is False
+    assert device.get_state("SOC").fn_value == "100"
+    assert device.get_state("DsgFullTime").fn_value == "5994"
+
+    api_client.get_device_status.return_value = _status(
+        "1", SOC="99", DsgFullTime="2133", DCLoadAllTotalPower="5", SetCtrlDc="1"
+    )
+    await device.async_refresh_from_api()
+
+    assert device.online is True
+    assert device.get_state("SOC").fn_value == "99"
+
+
+async def test_async_refresh_from_api_keeps_a_zero_battery_level_next_to_real_readings():
+    api_client = AsyncMock()
+    device = _elite_200_v2(api_client)
+
+    api_client.get_device_status.return_value = _status(
+        "1", SOC="0", DsgFullTime="0", DCLoadAllTotalPower="5"
+    )
+    await device.async_refresh_from_api()
+
+    assert device.online is True
+    assert device.get_state("SOC").fn_value == "0"
+
+
+async def test_async_refresh_from_api_keeps_zero_readings_of_a_unit_without_battery_level():
+    # A unit without a battery level (a charger, say) idles at 0 for real.
+    device = BluettiDevice(
+        device_id="SN1", on_line="1", name="Test", sn="SN1", model="Charger",
+        state_list=[{"fnCode": "PVAllTotalPower", "fnName": "PV", "fnValue": "40", "fnType": "SENSOR"}],
+    )
+    device._api_client = AsyncMock()
+    device._api_client.get_device_status.return_value = _status("1", PVAllTotalPower="0")
+
+    await device.async_refresh_from_api()
+
+    assert device.online is True
+    assert device.get_state("PVAllTotalPower").fn_value == "0"
+
+
+async def test_async_refresh_from_api_reads_a_value_that_is_not_a_number_as_a_reading():
+    api_client = AsyncMock()
+    device = _elite_200_v2(api_client)
+
+    api_client.get_device_status.return_value = _status("1", SOC="0", DsgFullTime="--")
+    await device.async_refresh_from_api()
+
+    assert device.online is True
+    assert device.get_state("DsgFullTime").fn_value == "--"
+
+
 async def test_async_refresh_from_api_raises_on_failed_envelope():
     # Regression test: get_device_status() doesn't raise for a nonzero
     # msgCode (e.g. an expired token, code 805) - it returns a response
