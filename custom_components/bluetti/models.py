@@ -31,9 +31,9 @@ manufacturer = "BLUETTI"
 
 # How long, in seconds, a sign of life keeps a unit online while the cloud's
 # online flag says it is offline. A sign of life is a realtime push with
-# readings in it, or a poll whose readings differ from the poll before. The
-# cloud answers for a unit that really is offline with the last readings it
-# had, so those never differ.
+# readings in it, or a poll whose readings differ from the poll before. A unit
+# with no such push and no change in its readings goes offline when the window
+# runs out, whether it is switched off or only idle.
 ALIVE_WINDOW = 600
 
 class BluettiData:

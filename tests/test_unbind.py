@@ -116,6 +116,9 @@ async def test_web_socket_message_handler_does_not_count_a_push_without_readings
         '{"data": {"messageType": "DEVICE_REALTIME_STATUS", "deviceSn": "SN1"}}'
     )
     data.web_socket_message_handler(
+        '{"data": {"messageType": "DEVICE_REALTIME_STATUS", "deviceSn": "SN1", "payload": {}}}'
+    )
+    data.web_socket_message_handler(
         '{"data": {"messageType": "DEVICE_REALTIME_STATUS", "deviceSn": "SN1",'
         ' "payload": {"allFieldIsNull": true}}}'
     )
