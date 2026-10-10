@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components import persistent_notification
@@ -27,6 +28,13 @@ if TYPE_CHECKING:
 __LOGGER__ = logging.getLogger(__name__)
 
 manufacturer = "BLUETTI"
+
+# How long, in seconds, a sign of life keeps a unit online while the cloud's
+# online flag says it is offline. A sign of life is a realtime push with
+# readings in it, or a poll whose readings differ from the poll before. A unit
+# with no such push and no change in its readings goes offline when the window
+# runs out, whether it is switched off or only idle.
+ALIVE_WINDOW = 600
 
 class BluettiData:
     """Data for the BLUETTI integration."""
@@ -72,11 +80,13 @@ class BluettiData:
             return
         data = res.get("data") if isinstance(res, dict) else None
         sn = _device_sn(data)
-        if not sn:
+        if not sn or not isinstance(data, dict):
             __LOGGER__.debug("Ignoring a websocket message without a deviceSn")
             return
 
         device = self.get_device_by_sn(sn)
+        if device and _is_realtime_status(data):
+            device.last_alive = time.monotonic()
         if device and device.coordinator:
             # This runs on the websocket thread, not the event loop, so a
             # thread-safe scheduling call is required here.
@@ -107,6 +117,23 @@ def _is_zero(value: Any) -> bool:
         return float(value) == 0
     except (TypeError, ValueError):
         return False
+
+
+def _is_realtime_status(data: dict[str, Any]) -> bool:
+    """
+    Whether a device notification carries readings from the unit itself.
+
+    Follows the same two spellings as _device_sn. A push whose payload is
+    all null says nothing about the unit being alive, so it does not count.
+    """
+    message = data.get("message")
+    body = message if isinstance(message, dict) else data
+    payload = body.get("payload")
+    return (
+        body.get("messageType") == "DEVICE_REALTIME_STATUS"
+        and isinstance(payload, dict)
+        and payload.get("allFieldIsNull") is False
+    )
 
 
 class BluettiState:
@@ -165,6 +192,8 @@ class BluettiDevice:
     ) -> None:
         self.device_id = device_id
         self.on_line = on_line
+        self.last_alive: float | None = None
+        self._last_readings: dict[str, Any] | None = None
         self.name = name
         self.sn = sn
         self.model = model
@@ -234,7 +263,14 @@ class BluettiDevice:
 
     @property
     def online(self) -> bool:
-        return self.on_line == "1" and not self._no_readings
+        if self._no_readings:
+            return False
+        if self.on_line == "1":
+            return True
+        return (
+            self.last_alive is not None
+            and time.monotonic() - self.last_alive < ALIVE_WINDOW
+        )
 
     @property
     def battery_level(self) -> int:
@@ -286,18 +322,31 @@ class BluettiDevice:
         if self._no_readings:
             return
 
+        # Only readings are compared: a switch or mode changed from the app
+        # can come back for a unit that is offline. They are compared with
+        # the previous poll, not with the states, which start out with the
+        # listing's values.
+        readings = self._readings(values)
+        if self._last_readings is not None and readings != self._last_readings:
+            self.last_alive = time.monotonic()
+        self._last_readings = readings
+
         for s in data.stateList:
             state_obj = self.get_state(s["fnCode"])
             if state_obj:
                 state_obj.fn_value = s["fnValue"]
 
-    def _is_empty_snapshot(self, values: dict[str, Any]) -> bool:
-        """Whether a status reply carries the battery level and every reading at 0."""
-        readings = [
-            value
+    def _readings(self, values: dict[str, Any]) -> dict[str, Any]:
+        """The SENSOR values of a status reply."""
+        return {
+            fn_code: value
             for fn_code, value in values.items()
             if (state := self.get_state(fn_code)) and state.fn_type == "SENSOR"
-        ]
+        }
+
+    def _is_empty_snapshot(self, values: dict[str, Any]) -> bool:
+        """Whether a status reply carries the battery level and every reading at 0."""
+        readings = self._readings(values).values()
         return "SOC" in values and bool(readings) and all(_is_zero(v) for v in readings)
 
     async def _handle_unbind(self) -> None:
