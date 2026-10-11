@@ -42,9 +42,12 @@ AUTH_ERROR_CODES = {401, 805}
 # and the one retry inside a poll does not always outlast it. Failing at
 # that point sent every entity to unavailable for a whole interval, so
 # owners were guarding their automations with "for:" delays instead. Two
-# tolerated failures keep the last values for at most 90 s; after that the
-# entities do go unavailable, because by then it is not a blip. An auth
-# failure is never ridden out - it needs the sign-in path immediately.
+# tolerated failures keep the last values for about 90 s; after that the
+# entities do go unavailable, because by then it is not a blip. A cloud that
+# does not answer at all stretches this to 150 s at most: each failed poll
+# then waits out pybluetti's 10 s request timeout twice (the call and its
+# one retry) before the next interval starts. An auth failure is never
+# ridden out - it needs the sign-in path immediately.
 POLL_FAILURES_TOLERATED = 2
 
 
