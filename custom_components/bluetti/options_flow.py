@@ -153,7 +153,12 @@ class BluettiOptionsFlowHandler(OptionsFlow):
             }
         )
 
-        return self.async_show_form(step_id="add_devices", data_schema=schema)
+        # Home Assistant 2026.10 types data_schema as probatio.Schema; inside
+        # Home Assistant, voluptuous's Schema is that same class.
+        return self.async_show_form(
+            step_id="add_devices",
+            data_schema=schema,  # type: ignore[arg-type,unused-ignore]
+        )
 
     async def async_step_configure_modbus(
         self, user_input: dict[str, Any] | None = None
@@ -228,7 +233,7 @@ class BluettiOptionsFlowHandler(OptionsFlow):
 
         return self.async_show_form(
             step_id="configure_modbus",
-            data_schema=schema,
+            data_schema=schema,  # type: ignore[arg-type,unused-ignore]
             errors=errors,
             description_placeholders=description_placeholders,
         )

@@ -255,7 +255,7 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
 
         return self.async_show_form(
             step_id="select_devices",
-            data_schema=schema,
+            data_schema=schema,  # type: ignore[arg-type,unused-ignore]
         )
 
     async def async_step_reconfigure(
