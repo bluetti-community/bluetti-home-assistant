@@ -323,6 +323,37 @@ async def test_one_device_failing_first_refresh_does_not_orphan_the_others(hass,
     assert sn1_refresh_completed.is_set()
 
 
+async def test_a_failed_first_refresh_closes_the_websocket(hass, enable_custom_integrations):
+    # A setup that fails is never unloaded, so async_unload_entry does not
+    # run: without this, every retry while the cloud does not answer left
+    # one more websocket connected, delivering each push to dead
+    # coordinators.
+    entry = _entry(
+        hass,
+        products=[{"sn": "SN1", "name": "Device 1", "stateList": [], "online": "1"}],
+        devices=["SN1"],
+    )
+
+    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
+         patch(
+             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+             AsyncMock(return_value=MagicMock()),
+         ), \
+         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
+         patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
+         patch("custom_components.bluetti.ProductClient") as mock_product_cls:
+        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
+        mock_stomp_cls.return_value.connect = AsyncMock()
+        mock_stomp_cls.return_value.disconnect = AsyncMock()
+        mock_product_cls.return_value.get_device_status = AsyncMock(side_effect=TimeoutError())
+
+        assert not await hass.config_entries.async_setup(entry.entry_id)
+
+    assert entry.state is ConfigEntryState.SETUP_RETRY
+    mock_stomp_cls.return_value.disconnect.assert_awaited_once()
+
+
 async def test_async_setup_entry_reimports_missing_oauth_credential(hass, enable_custom_integrations):
     # If the Application Credential backing the OAuth2 implementation was
     # ever lost (e.g. a partial backup restore), async_get_config_entry_
