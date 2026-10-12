@@ -255,8 +255,20 @@ class BluettiDevice:
         # control_device() returns a plain str for a non-JSON server
         # response - not expected in practice, but unlike UnifyResponse it
         # has no .msgCode, so it must be ruled out before checking success.
-        if isinstance(result, UnifyResponse) and result.msgCode == 0:
-            state.set_value(value)
+        # A command the cloud did not accept raises, so the switch shows an
+        # error instead of flipping back with nothing said.
+        if not isinstance(result, UnifyResponse) or result.msgCode != 0:
+            error = (
+                f"code {result.msgCode}"
+                if isinstance(result, UnifyResponse)
+                else "unexpected answer"
+            )
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key="command_failed",
+                translation_placeholders={"device_id": self.device_id, "error": error},
+            )
+        state.set_value(value)
 
         if self.coordinator:
             self.coordinator.async_set_updated_data(self)

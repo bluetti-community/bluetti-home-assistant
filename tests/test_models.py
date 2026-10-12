@@ -368,7 +368,9 @@ async def test_set_state_value_applies_optimistic_update_and_notifies_coordinato
     device.coordinator.async_set_updated_data.assert_called_once_with(device)
 
 
-async def test_set_state_value_does_not_apply_on_server_error_code():
+async def test_set_state_value_raises_on_server_error_code():
+    # A command the cloud refuses must not fail silently: the switch would
+    # flip back with nothing said.
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
         state_list=[{"fnCode": "SetCtrlAc", "fnName": "AC", "fnValue": "0", "fnType": "SWITCH"}],
@@ -377,9 +379,12 @@ async def test_set_state_value_does_not_apply_on_server_error_code():
     device._api_client.control_device.return_value = UnifyResponse(msgId="1", msgCode=1)
     device.coordinator = MagicMock()
 
-    await device.set_state_value("SetCtrlAc", "1")
+    with pytest.raises(HomeAssistantError) as err:
+        await device.set_state_value("SetCtrlAc", "1")
 
+    assert err.value.translation_placeholders["error"] == "code 1"
     assert device.get_state("SetCtrlAc").fn_value == "0"
+    device.coordinator.async_set_updated_data.assert_not_called()
 
 
 async def test_set_state_value_does_not_apply_on_non_json_response():
@@ -387,7 +392,7 @@ async def test_set_state_value_does_not_apply_on_non_json_response():
     control_device() returns a plain str for a non-JSON server response.
 
     Regression test: accessing .msgCode on that str used to crash with an
-    unhandled AttributeError instead of just not applying the update.
+    unhandled AttributeError instead of the command error a user can see.
     """
     device = BluettiDevice(
         device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L",
@@ -397,8 +402,10 @@ async def test_set_state_value_does_not_apply_on_non_json_response():
     device._api_client.control_device.return_value = "not json"
     device.coordinator = MagicMock()
 
-    await device.set_state_value("SetCtrlAc", "1")  # must not raise
+    with pytest.raises(HomeAssistantError) as err:
+        await device.set_state_value("SetCtrlAc", "1")
 
+    assert err.value.translation_placeholders["error"] == "unexpected answer"
     assert device.get_state("SetCtrlAc").fn_value == "0"
 
 

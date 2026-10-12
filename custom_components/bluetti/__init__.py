@@ -252,6 +252,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     )
     for result in results:
         if isinstance(result, BaseException):
+            # A failed setup is never unloaded, so async_unload_entry would not
+            # close this websocket: every retry would leave one more connected.
+            await stomp_client.disconnect()
             raise result
 
     modbus_coordinators: dict[str, BluettiModbusCoordinator] = {}
