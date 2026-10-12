@@ -14,6 +14,13 @@ A build put in front of one account or one region before everyone else is a
 prerelease, `MAJOR.MINOR.PATCH.bN` — the dot before the phase is what this
 repository's release workflow accepts.
 
+A version's betas come before it, on `main`: each `X.Y.Z.bN` is tagged on the
+commit of `main` that carries the change under test, and `X.Y.Z` is tagged on a
+later commit of `main`, never on the commit of one of its betas or an older
+one. Every beta is then an ancestor of its version, and its release comes after
+them in the list. If `main` has not moved since the last beta, tag the final on
+the next commit that lands there.
+
 The tag is the version, and the release workflow writes it into
 `custom_components/bluetti/manifest.json` itself: that version travels to
 BLUETTI's servers as `x-app-ver`, so it is never edited by hand.
