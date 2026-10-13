@@ -473,7 +473,7 @@ class AuthTokenRefresh:
             )
         return None
 
-    # check token is in 7 day if in 7day refesh token
+    # check token is in 7 day if in 7day refresh token
     async def async_check_token_expiry(self, now: datetime | None = None) -> None:
         """
         Check whether the token needs a refresh, and refresh it if so.
@@ -499,9 +499,9 @@ class AuthTokenRefresh:
             try:
                 __LOGGER__.info("start refresh token")
                 last_refesh = self.entry.data.get("last_token_refresh", 0.0)
-                # 1 hour only one time ,when server is 500 do not always refesh token
+                # 1 hour only one time ,when server is 500 do not always refresh token
                 if current_timestamp - last_refesh < 3600 :
-                    __LOGGER__.info("last refesh token in 1 hour,this do not refesh return")
+                    __LOGGER__.info("last refresh token in 1 hour,this do not refresh return")
                     if remain_timestamp < 0:
                         self.send_expired_notification()
                     return
