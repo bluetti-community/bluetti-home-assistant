@@ -337,7 +337,7 @@ async def test_async_refresh_from_api_raises_on_empty_data():
         await device.async_refresh_from_api()
 
 
-async def test_async_refresh_from_api_ignores_mismatched_sn():
+async def test_async_refresh_from_api_ignores_mismatched_sn(caplog):
     device = BluettiDevice(
         device_id="SN1", on_line="0", name="Test", sn="SN1", model="AC200L",
         state_list=[{"fnCode": "SOC", "fnName": "Battery", "fnValue": "10", "fnType": "SENSOR"}],
@@ -346,11 +346,15 @@ async def test_async_refresh_from_api_ignores_mismatched_sn():
     device._api_client = AsyncMock()
     device._api_client.get_device_status.return_value = SimpleNamespace(data=[status_data], is_ok=lambda: True)
 
-    await device.async_refresh_from_api()
+    with caplog.at_level(logging.DEBUG, logger="custom_components.bluetti.models"):
+        await device.async_refresh_from_api()
 
     # Nothing should have changed since the response was for a different device.
     assert device.on_line == "0"
     assert device.get_state("SOC").fn_value == "10"
+    # The skipped answer is logged, without the other device's serial number.
+    assert "Cloud status for SN1 answered for another device (1 entries in the answer); ignored" in caplog.text
+    assert "OTHER-SN" not in caplog.text
 
 
 async def test_set_state_value_applies_optimistic_update_and_notifies_coordinator():
