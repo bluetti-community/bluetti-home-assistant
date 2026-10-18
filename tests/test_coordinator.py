@@ -213,6 +213,28 @@ async def test_a_timeout_or_connection_error_is_retried_once(hass, err):
     assert device.async_refresh_from_api.await_count == 2
 
 
+@pytest.mark.parametrize(
+    ("err", "described"),
+    [
+        (TimeoutError(), "no answer in time"),
+        (aiohttp.ClientConnectionError(), "ClientConnectionError"),
+        (aiohttp.ClientConnectionError("reset"), "reset"),
+    ],
+)
+async def test_a_failure_with_no_text_still_says_what_happened(hass, err, described):
+    # A bare TimeoutError has no text: the message used to end on "cloud: ".
+    device = _make_device()
+    device.async_refresh_from_api = AsyncMock(side_effect=err)
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+
+    coordinator = BluettiDeviceCoordinator(hass, entry, device)
+    with pytest.raises(UpdateFailed) as raised:
+        await coordinator._async_update_data()
+
+    assert str(raised.value) == f"Error communicating with BLUETTI cloud: {described}"
+
+
 async def test_a_non_transient_http_error_is_not_retried(hass):
     # A 404 (or any 4xx but the auth codes) is not a gateway hiccup.
     device = _make_device()
