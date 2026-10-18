@@ -310,6 +310,14 @@ class BluettiDevice:
         data = device_status.data[0]
 
         if data.sn != self.device_id:
+            # The other device's serial number is left out: debug logs get
+            # posted in public issues.
+            __LOGGER__.debug(
+                "Cloud status for %s answered for another device "
+                "(%d entries in the answer); ignored",
+                self.device_id,
+                len(device_status.data),
+            )
             return
 
         if data.isBindByCurUser == "0" and not self._unbind_processed:
