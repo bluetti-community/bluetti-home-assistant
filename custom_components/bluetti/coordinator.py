@@ -51,6 +51,20 @@ AUTH_ERROR_CODES = {401, 805}
 POLL_FAILURES_TOLERATED = 2
 
 
+def _describe(err: Exception) -> str:
+    """
+    The error's own text, or what it means when it has none.
+
+    A request pybluetti gives up on raises a bare TimeoutError, whose text is
+    empty: the message then ended on "BLUETTI cloud: " with nothing after it.
+    """
+    if text := str(err):
+        return text
+    if isinstance(err, TimeoutError):
+        return "no answer in time"
+    return type(err).__name__
+
+
 class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
     """Coordinate REST polling and websocket-triggered refreshes for one device."""
 
@@ -101,7 +115,9 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         except Exception as err:
             if (kept := self._ride_out(err)) is not None:
                 return kept
-            raise UpdateFailed(f"Error communicating with BLUETTI cloud: {err}") from err
+            raise UpdateFailed(
+                f"Error communicating with BLUETTI cloud: {_describe(err)}"
+            ) from err
         self._failed_polls = 0
         if self.config_entry is not None:
             end_episode(self.config_entry.entry_id)
