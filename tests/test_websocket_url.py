@@ -1,8 +1,9 @@
-"""The websocket endpoint follows the data center the cloud names in the token."""
+"""The websocket endpoint follows the data center: the token's host, else the recorded one."""
 
 import pytest
 
 from custom_components.bluetti import _websocket_url
+from custom_components.bluetti.gateway import websocket_base_url
 
 DEFAULT = "wss://gw.bluettipower.com/api/edgeiotgw/ws-coordination"
 
@@ -26,3 +27,22 @@ def test_token_host_becomes_the_websocket_endpoint(host, expected):
 @pytest.mark.parametrize("token", [{}, {"host": None}, {"host": ""}, {"host": "   "}, {"host": 42}, {"host": "https://"}])
 def test_without_a_usable_host_the_profile_url_is_used(token):
     assert _websocket_url({"access_token": "tok", **token}, DEFAULT) == DEFAULT
+
+
+@pytest.mark.parametrize(
+    ("region", "expected"),
+    [
+        ("global", DEFAULT),
+        ("eu", "wss://gwde.bluettipower.com/api/edgeiotgw/ws-coordination"),
+        ("us", "wss://gwpry.bluettipower.com/api/edgeiotgw/ws-coordination"),
+    ],
+)
+def test_the_websocket_follows_the_recorded_data_center(region, expected):
+    assert websocket_base_url(region, DEFAULT) == expected
+
+
+def test_a_token_host_still_wins_over_the_recorded_data_center():
+    base = websocket_base_url("eu", DEFAULT)
+    assert _websocket_url({"host": "https://gw-eu.bluettipower.com"}, base) == (
+        "wss://gw-eu.bluettipower.com/api/edgeiotgw/ws-coordination"
+    )

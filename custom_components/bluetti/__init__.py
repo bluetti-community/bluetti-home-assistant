@@ -28,7 +28,7 @@ from pybluetti import (
 from .application_credentials import async_ensure_default_credential
 from .const import BLUETTI_APP_KEY, DOMAIN, EVENT_TOKEN_EXPIRED
 from .coordinator import BluettiDeviceCoordinator
-from .gateway import entry_gateway, gateway_url
+from .gateway import entry_gateway, gateway_url, websocket_base_url
 from .modbus_coordinator import BluettiModbusCoordinator
 from .modbus_support import modbus_dev_type_for_model
 from .models import BluettiData
@@ -195,7 +195,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     integration = await async_get_integration(hass, DOMAIN)
 
     # Register WebSocket
-    ws_url = _websocket_url(oAuth2Session.token, APPLICATION_PROFILE.config["server"]["wss"])
+    ws_url = _websocket_url(
+        oAuth2Session.token,
+        websocket_base_url(region, APPLICATION_PROFILE.config["server"]["wss"]),
+    )
     # Key names only, never values: enough to tell whether the cloud named a
     # data center ("host") for this account, without leaking the token.
     __LOGGER__.debug(

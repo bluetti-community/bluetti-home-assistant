@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any
+from urllib.parse import urlsplit
 
 from pybluetti import UnifyResponse, UserProduct
 
@@ -48,6 +49,21 @@ def gateway_url(region: str) -> str:
     if region == GATEWAY_GLOBAL:
         return str(APPLICATION_PROFILE.config["server"]["gateway"])
     return GATEWAY_URLS[region]
+
+
+def websocket_base_url(region: str, profile_wss: str) -> str:
+    """
+    The live-update websocket URL for a data center key.
+
+    The profile names one websocket, on the default gateway. An account held
+    by another data center is not recognised there: its CONNECTED frame comes
+    back without a user name, so nothing can be subscribed (#63). That data
+    center's own gateway host is used instead, with the profile URL's path.
+    """
+    if region == GATEWAY_GLOBAL:
+        return profile_wss
+    host = urlsplit(gateway_url(region)).netloc
+    return f"wss://{host}{urlsplit(profile_wss).path}"
 
 
 def entry_gateway(data: Mapping[str, Any]) -> str:
