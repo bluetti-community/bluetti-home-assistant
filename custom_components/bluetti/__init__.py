@@ -219,6 +219,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     )
     await stomp_client.connect()
 
+    async def _async_close_websocket() -> None:
+        try:
+            await stomp_client.disconnect()
+        except Exception as e:
+            __LOGGER__.warning("Error while disconnecting websocket: %s", e)
+
+    # Home Assistant runs the on_unload callbacks after any setup that does
+    # not return True, a cancelled one included, as well as on unload. A
+    # setup cancelled while the cloud does not answer (a reload behind a
+    # proxy that drops the request) skips any except clause here, so this is
+    # the one place that closes the websocket on every path.
+    entry.async_on_unload(_async_close_websocket)
+
     coordinators: dict[str, BluettiDeviceCoordinator] = {}
     for device in bluetti_devices.devices:
         device._api_client = product_client
@@ -255,9 +268,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
     )
     for result in results:
         if isinstance(result, BaseException):
-            # A failed setup is never unloaded, so async_unload_entry would not
-            # close this websocket: every retry would leave one more connected.
-            await stomp_client.disconnect()
             raise result
 
     modbus_coordinators: dict[str, BluettiModbusCoordinator] = {}
@@ -339,19 +349,12 @@ async def _async_update_listener(hass: HomeAssistant, entry: BluettiConfigEntry)
 
 async def async_unload_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> bool:
     """Unload a config entry."""
-    unloaded = await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)
-    runtime_data = getattr(entry, "runtime_data", None)
-    if unloaded and runtime_data:
-        try:
-            await runtime_data.stomp_client.disconnect()
-        except Exception as e:
-            __LOGGER__.warning("Error while disconnecting websocket: %s", e)
-        # No explicit modbus_coordinators shutdown here: DataUpdateCoordinator
-        # (constructed with config_entry=entry) already registers its own
-        # async_shutdown via config_entry.async_on_unload - calling it again
-        # here would run BluettiModbusCoordinator.async_shutdown()'s
-        # connection-closing side effect twice.
-    return unloaded
+    # No explicit websocket or modbus_coordinators shutdown here: setup
+    # registers the websocket's close, and DataUpdateCoordinator (constructed
+    # with config_entry=entry) its own async_shutdown, via
+    # config_entry.async_on_unload - calling them again here would run their
+    # connection-closing side effects twice.
+    return await hass.config_entries.async_unload_platforms(entry, _PLATFORMS)
 
 async def async_remove_config_entry_device(
     hass: HomeAssistant, entry: BluettiConfigEntry, device_entry: dr.DeviceEntry

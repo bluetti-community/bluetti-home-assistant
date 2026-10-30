@@ -1,6 +1,7 @@
 """Tests for async_setup_entry() in __init__.py."""
 
 import asyncio
+import contextlib
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -352,6 +353,111 @@ async def test_a_failed_first_refresh_closes_the_websocket(hass, enable_custom_i
 
     assert entry.state is ConfigEntryState.SETUP_RETRY
     mock_stomp_cls.return_value.disconnect.assert_awaited_once()
+
+
+def _patch_setup():
+    """Patch everything async_setup_entry() reaches outside Home Assistant."""
+    patches = (
+        patch("custom_components.bluetti.async_get_clientsession", MagicMock()),
+        patch(
+            "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
+            AsyncMock(return_value=MagicMock()),
+        ),
+        patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session"),
+        patch("custom_components.bluetti.StompClient"),
+        patch("custom_components.bluetti.ProductClient"),
+    )
+    mocks = [p.start() for p in patches]
+    mock_session_cls, mock_stomp_cls, mock_product_cls = mocks[2:]
+    mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
+    mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
+    mock_stomp_cls.return_value.connect = AsyncMock()
+    mock_stomp_cls.return_value.disconnect = AsyncMock()
+    return patches, mock_stomp_cls.return_value, mock_product_cls.return_value
+
+
+async def test_a_cancelled_first_refresh_closes_the_websocket(hass, enable_custom_integrations):
+    # A reload started from the UI behind a proxy with a short timeout is
+    # cancelled while the cloud does not answer: CancelledError skips every
+    # except clause in async_setup_entry, so without the on_unload hook the
+    # websocket stayed connected after each such reload.
+    entry = _entry(
+        hass,
+        products=[{"sn": "SN1", "name": "Device 1", "stateList": [], "online": "1"}],
+        devices=["SN1"],
+    )
+    patches, stomp_client, product_client = _patch_setup()
+    refresh_started = asyncio.Event()
+
+    async def never_answers(*args, **kwargs):
+        refresh_started.set()
+        await asyncio.Event().wait()
+
+    product_client.get_device_status = AsyncMock(side_effect=never_answers)
+    try:
+        setup = hass.async_create_task(hass.config_entries.async_setup(entry.entry_id))
+        await refresh_started.wait()
+        setup.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await setup
+        await hass.async_block_till_done()
+    finally:
+        for p in patches:
+            p.stop()
+
+    assert entry.state is ConfigEntryState.SETUP_ERROR
+    stomp_client.disconnect.assert_awaited_once()
+
+
+async def test_unloading_the_entry_closes_the_websocket_once(hass, enable_custom_integrations):
+    entry = _entry(
+        hass,
+        products=[{"sn": "SN1", "name": "Device", "stateList": [], "online": "1"}],
+        devices=["SN1"],
+    )
+    patches, stomp_client, product_client = _patch_setup()
+    product_client.get_device_status = AsyncMock(
+        return_value=MagicMock(data=[MagicMock(sn="SN1", isBindByCurUser="1", online="1", stateList=[])])
+    )
+    try:
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        stomp_client.disconnect.assert_not_awaited()
+
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+    finally:
+        for p in patches:
+            p.stop()
+
+    assert entry.state is ConfigEntryState.NOT_LOADED
+    stomp_client.disconnect.assert_awaited_once()
+
+
+async def test_a_websocket_that_fails_to_close_does_not_fail_the_unload(
+    hass, enable_custom_integrations, caplog
+):
+    entry = _entry(
+        hass,
+        products=[{"sn": "SN1", "name": "Device", "stateList": [], "online": "1"}],
+        devices=["SN1"],
+    )
+    patches, stomp_client, product_client = _patch_setup()
+    stomp_client.disconnect.side_effect = RuntimeError("socket already closed")
+    product_client.get_device_status = AsyncMock(
+        return_value=MagicMock(data=[MagicMock(sn="SN1", isBindByCurUser="1", online="1", stateList=[])])
+    )
+    try:
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+    finally:
+        for p in patches:
+            p.stop()
+
+    assert entry.state is ConfigEntryState.NOT_LOADED
+    assert "Error while disconnecting websocket: socket already closed" in caplog.text
 
 
 async def test_async_setup_entry_reimports_missing_oauth_credential(hass, enable_custom_integrations):
