@@ -47,6 +47,21 @@ def end_episode(entry_id: str) -> None:
         _WARNED_IN_EPISODE.discard(key)
 
 
+def describe_error(err: BaseException) -> str:
+    """
+    The error's own text, or what it means when it has none.
+
+    A request pybluetti gives up on raises a bare TimeoutError, whose text is
+    empty: a message logged with it then ended on a colon with nothing after
+    it, as in "Failed to fetch BLUETTI products: " (#92).
+    """
+    if text := str(err):
+        return text
+    if isinstance(err, TimeoutError):
+        return "no answer in time"
+    return type(err).__name__
+
+
 def is_transient_failure(err: BaseException) -> bool:
     """
     Whether a failed cloud call leaves the credentials unjudged.
@@ -83,5 +98,7 @@ async def async_call_retrying_once[T](call: Callable[[], Awaitable[T]]) -> T:
     except (HttpStatusException, TimeoutError, aiohttp.ClientError) as err:
         if isinstance(err, HttpStatusException) and not err.is_transient:
             raise
-        _LOGGER.debug("BLUETTI cloud request failed (%s), retrying once", err)
+        _LOGGER.debug(
+            "BLUETTI cloud request failed (%s), retrying once", describe_error(err)
+        )
         return await call()

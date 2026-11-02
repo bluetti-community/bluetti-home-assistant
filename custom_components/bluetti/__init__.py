@@ -26,6 +26,7 @@ from pybluetti import (
 )
 
 from .application_credentials import async_ensure_default_credential
+from .cloud_retry import describe_error
 from .const import BLUETTI_APP_KEY, DOMAIN, EVENT_TOKEN_EXPIRED
 from .coordinator import BluettiDeviceCoordinator
 from .gateway import entry_gateway, gateway_url, websocket_base_url
@@ -161,7 +162,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
             on_auth_expired=lambda: hass.bus.fire(EVENT_TOKEN_EXPIRED),
         )
     except Exception as err:
-        raise ConfigEntryNotReady(f"BLUETTI setup failed: {err}") from err
+        raise ConfigEntryNotReady(f"BLUETTI setup failed: {describe_error(err)}") from err
 
     selected_products = [p for p in all_products if p.sn in enabled_devices]
 

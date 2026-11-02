@@ -215,6 +215,21 @@ async def test_get_user_products_failure_aborts_cannot_connect(hass):
     assert result["reason"] == "cannot_connect"
 
 
+async def test_get_user_products_timeout_says_so_in_the_log(hass, caplog):
+    # A cloud that never answers raises a bare TimeoutError, whose text is
+    # empty: the log used to end on "Failed to fetch BLUETTI products: " (#92).
+    flow = _make_flow(hass)
+
+    with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
+         patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products = AsyncMock(side_effect=TimeoutError())
+        result = await flow.async_step_select_devices(user_input=None)
+
+    assert result["reason"] == "cannot_connect"
+    assert mock_client_cls.return_value.get_user_products.await_count == 2
+    assert "Failed to fetch BLUETTI products: no answer in time" in caplog.text
+
+
 async def test_get_user_products_retries_once_on_a_transient_gateway_error(hass):
     # A lone 504 on this call aborted a real reauthentication the user then
     # had to redo (2026-09-19); one immediate retry absorbs it.

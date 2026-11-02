@@ -20,6 +20,7 @@ from .cloud_retry import (
     CloudUnreachableError,
     RefreshDeferredError,
     async_call_retrying_once,
+    describe_error,
     first_in_episode,
     is_transient_failure,
 )
@@ -107,7 +108,7 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
             try:
                 result = await self._product_client.bind_devices({"bindSnList": user_input["devices"]})
             except Exception as err:
-                __LOGGER__.error("Failed to bind BLUETTI devices: %s", err)
+                __LOGGER__.error("Failed to bind BLUETTI devices: %s", describe_error(err))
                 return self.async_abort(reason="cannot_connect")
 
             # bind_devices() doesn't raise on a rejected bind - check msgCode.
@@ -183,7 +184,7 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
         try:
             self._region, products = await async_probe_gateway(_fetch_products, preferred)
         except Exception as err:
-            __LOGGER__.error("Failed to fetch BLUETTI products: %s", err)
+            __LOGGER__.error("Failed to fetch BLUETTI products: %s", describe_error(err))
             return self.async_abort(reason="cannot_connect")
         product_client = ProductClient(
             httpSession,
@@ -411,9 +412,9 @@ class AuthTokenRefresh:
             )
         except Exception as e:
             if is_transient_failure(e):
-                __LOGGER__.warning("could not reach the cloud to refresh the token: %s", e)
-                raise CloudUnreachableError(f"the cloud could not be reached: {e}") from e
-            __LOGGER__.error("refresh token failed: %s", e)
+                __LOGGER__.warning("could not reach the cloud to refresh the token: %s", describe_error(e))
+                raise CloudUnreachableError(f"the cloud could not be reached: {describe_error(e)}") from e
+            __LOGGER__.error("refresh token failed: %s", describe_error(e))
             return False
         self.hass.config_entries.async_update_entry(
             self.entry,
@@ -450,7 +451,7 @@ class AuthTokenRefresh:
         try:
             region, response = await async_probe_gateway(_fetch_products, current)
         except Exception as err:
-            __LOGGER__.debug("Could not ask the other data centers: %s", err)
+            __LOGGER__.debug("Could not ask the other data centers: %s", describe_error(err))
             return None
         if region != current:
             __LOGGER__.warning(
@@ -515,7 +516,7 @@ class AuthTokenRefresh:
                 )
                 __LOGGER__.info("refresh token ok")
             except Exception as e:
-                __LOGGER__.error("refresh token failed: %s", e)
+                __LOGGER__.error("refresh token failed: %s", describe_error(e))
                 # An unreachable cloud says nothing about the token: the
                 # next daily check, or the first poll the cloud answers,
                 # settles it. Only a grant the SSO actually refused sends
