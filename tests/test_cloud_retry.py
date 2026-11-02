@@ -6,7 +6,7 @@ import aiohttp
 import pytest
 from pybluetti import HttpStatusException
 
-from custom_components.bluetti.cloud_retry import is_transient_failure
+from custom_components.bluetti.cloud_retry import describe_error, is_transient_failure
 
 
 def _response_error(status: int) -> aiohttp.ClientResponseError:
@@ -43,3 +43,15 @@ def test_gateway_statuses_follow_the_exception_s_own_verdict(status, expected):
 
 def test_anything_else_is_not_transient():
     assert is_transient_failure(RuntimeError("boom")) is False
+
+
+@pytest.mark.parametrize(
+    ("err", "described"),
+    [
+        (TimeoutError(), "no answer in time"),
+        (aiohttp.ClientConnectionError(), "ClientConnectionError"),
+        (aiohttp.ClientConnectionError("reset"), "reset"),
+    ],
+)
+def test_an_error_with_no_text_still_says_what_happened(err, described):
+    assert describe_error(err) == described

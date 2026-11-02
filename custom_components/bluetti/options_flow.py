@@ -26,6 +26,7 @@ from homeassistant.helpers.selector import (
 from modbus_connection.exceptions import ModbusError
 from pybluetti import ProductClient, UnifyResponse, UserProduct
 
+from .cloud_retry import describe_error
 from .const import EVENT_TOKEN_EXPIRED
 from .gateway import entry_gateway, gateway_url
 from .modbus_support import modbus_dev_type_for_model
@@ -72,7 +73,7 @@ class BluettiOptionsFlowHandler(OptionsFlow):
             try:
                 result = await self._product_client.bind_devices({"bindSnList": selected})
             except Exception as err:
-                __LOGGER__.error("Failed to bind BLUETTI devices: %s", err)
+                __LOGGER__.error("Failed to bind BLUETTI devices: %s", describe_error(err))
                 return self.async_abort(reason="cannot_connect")
 
             # bind_devices() doesn't raise on a rejected bind - check msgCode.
@@ -115,7 +116,7 @@ class BluettiOptionsFlowHandler(OptionsFlow):
         try:
             products = await product_client.get_user_products()
         except Exception as err:
-            __LOGGER__.error("Failed to fetch BLUETTI products: %s", err)
+            __LOGGER__.error("Failed to fetch BLUETTI products: %s", describe_error(err))
             return self.async_abort(reason="cannot_connect")
 
         # A failed application-level response (nonzero msgCode) doesn't

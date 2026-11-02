@@ -16,6 +16,7 @@ from pybluetti import ApplicationRuntimeException
 from .cloud_retry import (
     RefreshNotJudged,
     async_call_retrying_once,
+    describe_error,
     end_episode,
     first_in_episode,
 )
@@ -50,19 +51,6 @@ AUTH_ERROR_CODES = {401, 805}
 # ridden out - it needs the sign-in path immediately.
 POLL_FAILURES_TOLERATED = 2
 
-
-def _describe(err: Exception) -> str:
-    """
-    The error's own text, or what it means when it has none.
-
-    A request pybluetti gives up on raises a bare TimeoutError, whose text is
-    empty: the message then ended on "BLUETTI cloud: " with nothing after it.
-    """
-    if text := str(err):
-        return text
-    if isinstance(err, TimeoutError):
-        return "no answer in time"
-    return type(err).__name__
 
 
 class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
@@ -116,7 +104,7 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
             if (kept := self._ride_out(err)) is not None:
                 return kept
             raise UpdateFailed(
-                f"Error communicating with BLUETTI cloud: {_describe(err)}"
+                f"Error communicating with BLUETTI cloud: {describe_error(err)}"
             ) from err
         self._failed_polls = 0
         if self.config_entry is not None:
