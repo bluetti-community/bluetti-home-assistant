@@ -438,17 +438,13 @@ class BluettiDevice:
             try:
                 current_options = dict(entry.options)
                 current_devices = current_options.get("devices", [])
-                current_modbus = current_options.get("modbus", {})
-                new_modbus = {
-                    sn: cfg for sn, cfg in current_modbus.items() if sn != self.device_id
-                }
 
                 if self.device_id in current_devices:
                     new_devices = [d for d in current_devices if d != self.device_id]
 
                     hass.config_entries.async_update_entry(
                         entry,
-                        options={**current_options, "devices": new_devices, "modbus": new_modbus}
+                        options={**current_options, "devices": new_devices}
                     )
                     __LOGGER__.debug("Removed device from configuration entry: %s", self.device_id)
                 else:
@@ -463,9 +459,9 @@ class BluettiDevice:
                 __LOGGER__.error("Error updating configuration entry: %s", e, exc_info=True)
                 # Even if the update fails, continue to display the notification
 
-            # 5. Remove the device (and its coordinators) from the runtime
+            # 5. Remove the device (and its coordinator) from the runtime
             # data - only once persistence above actually succeeded, so a
-            # failed attempt leaves the coordinators running to retry.
+            # failed attempt leaves the coordinator running to retry.
             if persistence_ok:
                 try:
                     runtime_data = getattr(entry, "runtime_data", None)
@@ -475,9 +471,6 @@ class BluettiDevice:
                             if d.device_id != self.device_id
                         ]
                         runtime_data.coordinators.pop(self.device_id, None)
-                        modbus_coordinator = runtime_data.modbus_coordinators.pop(self.device_id, None)
-                        if modbus_coordinator:
-                            await modbus_coordinator.async_shutdown()
                         __LOGGER__.debug("Removed device from runtime data: %s", self.device_id)
                 except Exception as e:
                     __LOGGER__.warning("Error removing device from runtime data: %s", e)

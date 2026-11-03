@@ -16,6 +16,9 @@ from .profile.application_profile import APPLICATION_PROFILE
 class BluettiConfigFlow(OAuth2FlowHandler, domain=DOMAIN):
     """BLUETTI Custom Integration config flow."""
 
+    # 2: no local Modbus options any more (see async_migrate_entry).
+    MINOR_VERSION = 2
+
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the initial step."""
         await APPLICATION_PROFILE.load_config(self.hass)

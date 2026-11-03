@@ -12,8 +12,8 @@ rules:
   config-flow-test-coverage: done
   config-flow: done
   dependency-transparency: done
-  # ^ pybluetti and bluetti-modbus (bluetti-community/bluetti-modbus) are
-  #   both properly published, versioned PyPI packages - no vendored code.
+  # ^ pybluetti is a properly published, versioned PyPI package - no
+  #   vendored code.
   docs-actions:
     status: exempt
     comment: No custom service actions are provided by this integration.
@@ -46,16 +46,13 @@ rules:
   discovery-update-info:
     status: exempt
     comment: >-
-      Devices are added via the BLUETTI cloud account; the optional local
-      Modbus connection (host/port) must still be entered manually - there is
-      no discovery protocol for BLUETTI's Modbus TCP interface either.
+      Devices are added via the BLUETTI cloud account, which lists them;
+      there is nothing on the local network to discover.
   discovery:
     status: exempt
     comment: >-
-      Devices are added via the BLUETTI cloud account (OAuth2); the optional
-      local Modbus connection (host/port) must still be entered manually,
-      since there is no discovery protocol (mDNS/SSDP/etc.) for BLUETTI's
-      Modbus TCP interface.
+      Devices are added via the BLUETTI cloud account (OAuth2), which lists
+      them; there is nothing on the local network to discover.
   docs-data-update: done
   docs-examples: done
   docs-known-limitations: done
@@ -72,14 +69,12 @@ rules:
       The entity set is small and deliberate; every entity is a primary
       measurement or control, not diagnostic noise, so none warrant being
       disabled by default.
-  entity-translations: done
-  # ^ Cloud-sourced entities remain untranslated by necessity: their names
-  #   are provided dynamically by the BLUETTI cloud API per device/firmware
-  #   (fnName), not static strings known at development time (see entity.py).
-  #   Modbus-sourced entities (modbus_entity.py) use field names from
-  #   bluetti_modbus_lib, which ARE known at development time, and do carry
-  #   real translation_key/strings.json entries - satisfying this rule for
-  #   the portion of the integration where it's actually possible.
+  entity-translations:
+    status: exempt
+    comment: >-
+      Entity names come from the BLUETTI cloud per device and firmware
+      (fnName), already in the account's language; they are not strings
+      known at development time (see entity.py).
   exception-translations: done
   icon-translations: done
   reconfiguration-flow: done

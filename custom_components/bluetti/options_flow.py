@@ -3,8 +3,7 @@ Options flow for the BLUETTI integration.
 
 Lets the user add devices bound to their BLUETTI account after the initial
 setup, without going through the OAuth2 login flow again (the stored token
-is reused), and lets the user configure an optional local Modbus connection
-for any enabled device that supports it (Balco260, EP2000).
+is reused).
 """
 
 from __future__ import annotations
@@ -13,54 +12,27 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from bluetti_modbus_lib.modbus.client import BluettiModbusClient
 from homeassistant.config_entries import ConfigEntry, ConfigFlowResult, OptionsFlow
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.selector import (
-    NumberSelector,
-    NumberSelectorConfig,
-    NumberSelectorMode,
-    TextSelector,
-)
-from modbus_connection.exceptions import ModbusError
 from pybluetti import ProductClient, UnifyResponse, UserProduct
 
 from .cloud_retry import describe_error
 from .const import EVENT_TOKEN_EXPIRED
 from .gateway import entry_gateway, gateway_url
-from .modbus_support import modbus_dev_type_for_model
 
 __LOGGER__ = logging.getLogger(__name__)
 
 
-def _parse_products(entry: ConfigEntry) -> list[UserProduct]:
-    return [
-        UserProduct.model_validate(p) if isinstance(p, dict) else p
-        for p in entry.data.get("products", [])
-    ]
-
-
 class BluettiOptionsFlowHandler(OptionsFlow):
-    """Handle an options flow to add/configure BLUETTI devices on an existing entry."""
+    """Handle an options flow to add BLUETTI devices to an existing entry."""
 
     _product_client: ProductClient
     _products: list[UserProduct]
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """
-        Route to the add-devices form, or a menu if a local Modbus connection exists.
-
-        Local Modbus inside this integration is deprecated (see
-        ISSUE_ID_MODBUS_DEPRECATED in __init__.py): the menu entry only shows
-        for an entry that already has a connection configured, so it can
-        still be adjusted or pointed elsewhere, and nobody sets up a new one.
-        """
-        entry: ConfigEntry = self.config_entry
-        if not entry.options.get("modbus"):
-            return await self.async_step_add_devices(user_input)
-
-        return self.async_show_menu(step_id="init", menu_options=["add_devices", "configure_modbus"])
+        """Go straight to the add-devices form, the only option there is."""
+        return await self.async_step_add_devices(user_input)
 
     async def async_step_add_devices(
         self, user_input: dict[str, Any] | None = None
@@ -97,13 +69,9 @@ class BluettiOptionsFlowHandler(OptionsFlow):
             )
 
             # async_create_entry's data REPLACES entry.options wholesale (see
-            # OptionsFlowManager.async_finish_flow) - carry the existing
-            # "modbus" key forward explicitly, or configuring a device's
-            # local Modbus connection would get silently wiped the next
-            # time more devices are added here.
-            return self.async_create_entry(
-                data={"devices": merged_devices, "modbus": entry.options.get("modbus", {})}
-            )
+            # OptionsFlowManager.async_finish_flow) - carry every other key
+            # forward explicitly.
+            return self.async_create_entry(data={**entry.options, "devices": merged_devices})
 
         access_token = entry.data["token"]["access_token"]
         http_session = async_get_clientsession(self.hass)
@@ -159,82 +127,4 @@ class BluettiOptionsFlowHandler(OptionsFlow):
         return self.async_show_form(
             step_id="add_devices",
             data_schema=schema,  # type: ignore[arg-type,unused-ignore]
-        )
-
-    async def async_step_configure_modbus(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Let the user configure an optional local Modbus connection for one device."""
-        entry: ConfigEntry = self.config_entry
-        enabled_devices = set(entry.options.get("devices", []))
-        modbus_capable = {
-            product.sn: product
-            for product in _parse_products(entry)
-            if product.sn in enabled_devices and modbus_dev_type_for_model(product.model)
-        }
-
-        errors: dict[str, str] = {}
-        description_placeholders: dict[str, str] = {}
-
-        if user_input is not None:
-            sn = user_input["device_sn"]
-            host = user_input["host"]
-            port = user_input["port"]
-            dev_type = modbus_dev_type_for_model(modbus_capable[sn].model)
-            assert dev_type is not None, (  # noqa: S101 - a real invariant, not test-only theater
-                "device_sn is only offered from modbus_capable, which is already filtered by dev_type"
-            )
-
-            client = BluettiModbusClient(host, port, dev_type)
-            try:
-                await client.read()
-            except (ModbusError, TimeoutError) as err:
-                errors["base"] = "cannot_connect"
-                description_placeholders["error"] = str(err)
-            finally:
-                await client.aclose()
-
-            if not errors:
-                modbus_options = {
-                    **entry.options.get("modbus", {}),
-                    sn: {"host": host, "port": port},
-                }
-                # async_create_entry's data REPLACES entry.options wholesale
-                # (see OptionsFlowManager.async_finish_flow) - a bare
-                # async_update_entry() call here, followed by
-                # async_create_entry(data={}), would have the second call
-                # immediately wipe out what the first one just set (including
-                # "devices"). Pass the full merged options as this single
-                # call's data instead.
-                return self.async_create_entry(data={**entry.options, "modbus": modbus_options})
-
-        # Pre-fill with whatever the user just typed (re-showing the form
-        # after a failed connectivity check), else the currently saved
-        # connection for the default (first) device - reopening this step
-        # to tweak an existing connection should not start from blank.
-        default_sn = (user_input or {}).get("device_sn") or next(iter(modbus_capable), None)
-        existing = entry.options.get("modbus", {}).get(default_sn, {}) if default_sn else {}
-        default_host = (user_input or {}).get("host", existing.get("host", ""))
-        default_port = (user_input or {}).get("port", existing.get("port", 502))
-
-        schema = vol.Schema(
-            {
-                vol.Required("device_sn", default=default_sn): vol.In(
-                    {sn: f"{product.name} ({sn})" for sn, product in modbus_capable.items()}
-                ),
-                vol.Required("host", default=default_host): TextSelector(),
-                vol.Required("port", default=default_port): vol.All(
-                    NumberSelector(
-                        NumberSelectorConfig(mode=NumberSelectorMode.BOX, min=1, max=65535)
-                    ),
-                    vol.Coerce(int),
-                ),
-            }
-        )
-
-        return self.async_show_form(
-            step_id="configure_modbus",
-            data_schema=schema,  # type: ignore[arg-type,unused-ignore]
-            errors=errors,
-            description_placeholders=description_placeholders,
         )

@@ -8,12 +8,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
-from modbus_connection.exceptions import ModbusConnectionError
 from pybluetti import ApplicationRuntimeException
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti import (
-    ISSUE_ID_MODBUS_DEPRECATED,
     ISSUE_ID_WEBSOCKET_ERROR,
 )
 from custom_components.bluetti.const import DOMAIN
@@ -55,7 +53,6 @@ async def test_async_setup_entry_with_no_devices(hass, enable_custom_integration
     assert entry.state is ConfigEntryState.LOADED
     assert entry.runtime_data.bluetti_devices.devices == []
     assert entry.runtime_data.coordinators == {}
-    assert entry.runtime_data.modbus_coordinators == {}
     mock_stomp_cls.return_value.connect.assert_awaited_once()
 
 
@@ -527,172 +524,6 @@ async def test_async_setup_entry_retries_when_credential_stays_missing(hass, ena
 
     assert entry.state is ConfigEntryState.SETUP_RETRY
     mock_ensure_credential.assert_awaited_once_with(hass)
-
-
-async def test_async_setup_entry_wires_up_modbus_coordinator_for_capable_device(
-    hass, enable_custom_integrations
-):
-    entry = _entry(
-        hass,
-        products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
-        devices=["SN1"],
-        modbus={"SN1": {"host": "10.2.1.60", "port": 502}},
-    )
-    status_data = MagicMock(sn="SN1", isBindByCurUser="1", online="1", stateList=[])
-
-    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
-         patch(
-             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
-             AsyncMock(return_value=MagicMock()),
-         ), \
-         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
-         patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
-         patch("custom_components.bluetti.ProductClient") as mock_product_cls, \
-         patch("custom_components.bluetti.modbus_coordinator.BluettiModbusClient") as client_cls:
-        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
-        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
-        mock_stomp_cls.return_value.connect = AsyncMock()
-        mock_product_cls.return_value.get_device_status = AsyncMock(
-            return_value=MagicMock(data=[status_data])
-        )
-        client_cls.return_value.read = AsyncMock(return_value=[])
-        client_cls.return_value.aclose = AsyncMock()
-
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
-
-    assert entry.state is ConfigEntryState.LOADED
-    client_cls.assert_called_once_with("10.2.1.60", 502, "balco260")
-    assert "SN1" in entry.runtime_data.modbus_coordinators
-    assert entry.runtime_data.modbus_coordinators["SN1"].last_update_success
-
-    # Deprecated: still works, but says so in Repairs and points at the replacement.
-    issue = ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_ID_MODBUS_DEPRECATED)
-    assert issue is not None
-    assert issue.severity == ir.IssueSeverity.WARNING
-    assert issue.is_fixable is False
-    assert issue.translation_placeholders == {"devices": "Balco"}
-    assert issue.learn_more_url == "https://github.com/bluetti-community/hassio-bluetti-modbus"
-
-
-async def test_no_modbus_deprecation_notice_without_a_modbus_connection(hass, enable_custom_integrations):
-    entry = _entry(hass)
-    # Left behind by an earlier run that still had one configured.
-    ir.async_create_issue(
-        hass, DOMAIN, ISSUE_ID_MODBUS_DEPRECATED, is_fixable=False,
-        severity=ir.IssueSeverity.WARNING, translation_key="modbus_deprecated",
-    )
-
-    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
-         patch(
-             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
-             AsyncMock(return_value=MagicMock()),
-         ), \
-         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
-         patch("custom_components.bluetti.StompClient") as mock_stomp_cls:
-        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
-        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
-        mock_stomp_cls.return_value.connect = AsyncMock()
-
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
-
-    assert ir.async_get(hass).async_get_issue(DOMAIN, ISSUE_ID_MODBUS_DEPRECATED) is None
-
-
-async def test_async_setup_entry_removes_retired_modbus_identity_sensors(
-    hass, enable_custom_integrations
-):
-    """
-    d_serial/d_ver_arm/d_ver_dsp used to be plain Modbus sensors; they now
-    feed DeviceInfo instead (see modbus_entity.py/sensor.py). An entity from
-    before that change doesn't disappear on its own just because the code
-    stops creating it - setup must remove it explicitly.
-    """
-    entry = _entry(
-        hass,
-        products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
-        devices=["SN1"],
-        modbus={"SN1": {"host": "10.2.1.60", "port": 502}},
-    )
-    status_data = MagicMock(sn="SN1", isBindByCurUser="1", online="1", stateList=[])
-
-    entity_registry = er.async_get(hass)
-    stale = entity_registry.async_get_or_create(
-        "sensor", DOMAIN, "SN1_modbus_d_serial", config_entry=entry
-    )
-    # A live entity (not one of the three retired ones) must survive the
-    # same cleanup pass untouched.
-    kept = entity_registry.async_get_or_create(
-        "sensor", DOMAIN, "SN1_modbus_b_soc", config_entry=entry
-    )
-
-    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
-         patch(
-             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
-             AsyncMock(return_value=MagicMock()),
-         ), \
-         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
-         patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
-         patch("custom_components.bluetti.ProductClient") as mock_product_cls, \
-         patch("custom_components.bluetti.modbus_coordinator.BluettiModbusClient") as client_cls:
-        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
-        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
-        mock_stomp_cls.return_value.connect = AsyncMock()
-        mock_product_cls.return_value.get_device_status = AsyncMock(
-            return_value=MagicMock(data=[status_data])
-        )
-        client_cls.return_value.read = AsyncMock(return_value=[])
-        client_cls.return_value.aclose = AsyncMock()
-
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
-
-    assert entity_registry.async_get(stale.entity_id) is None
-    assert entity_registry.async_get(kept.entity_id) is not None
-
-
-async def test_modbus_first_refresh_failure_does_not_prevent_cloud_entities_from_loading(
-    hass, enable_custom_integrations
-):
-    # Local Modbus is opt-in/supplementary - a hiccup here at startup must
-    # not fail the whole config entry (and take the cloud entities down
-    # with it). A failed first refresh should just leave that device's
-    # Modbus entities unavailable until the coordinator's own next poll
-    # succeeds, same as the cloud path already promises.
-    entry = _entry(
-        hass,
-        products=[{"sn": "SN1", "name": "Balco", "stateList": [], "online": "1", "model": "Balco260"}],
-        devices=["SN1"],
-        modbus={"SN1": {"host": "10.2.1.60", "port": 502}},
-    )
-    status_data = MagicMock(sn="SN1", isBindByCurUser="1", online="1", stateList=[])
-
-    with patch("custom_components.bluetti.async_get_clientsession", MagicMock()), \
-         patch(
-             "custom_components.bluetti.config_entry_oauth2_flow.async_get_config_entry_implementation",
-             AsyncMock(return_value=MagicMock()),
-         ), \
-         patch("custom_components.bluetti.config_entry_oauth2_flow.OAuth2Session") as mock_session_cls, \
-         patch("custom_components.bluetti.StompClient") as mock_stomp_cls, \
-         patch("custom_components.bluetti.ProductClient") as mock_product_cls, \
-         patch("custom_components.bluetti.modbus_coordinator.BluettiModbusClient") as client_cls:
-        mock_session_cls.return_value.token = {"access_token": "tok", "expires_at": time.time() + 10000}
-        mock_session_cls.return_value.async_ensure_token_valid = AsyncMock()
-        mock_stomp_cls.return_value.connect = AsyncMock()
-        mock_product_cls.return_value.get_device_status = AsyncMock(
-            return_value=MagicMock(data=[status_data])
-        )
-        client_cls.return_value.read = AsyncMock(side_effect=ModbusConnectionError("no route to host"))
-        client_cls.return_value.aclose = AsyncMock()
-
-        assert await hass.config_entries.async_setup(entry.entry_id)
-        await hass.async_block_till_done()
-
-    assert entry.state is ConfigEntryState.LOADED
-    assert "SN1" in entry.runtime_data.coordinators
-    assert entry.runtime_data.coordinators["SN1"].last_update_success
-    assert not entry.runtime_data.modbus_coordinators["SN1"].last_update_success
 
 
 async def test_setup_uses_the_data_center_the_entry_recorded(hass, enable_custom_integrations):
