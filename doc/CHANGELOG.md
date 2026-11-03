@@ -1,3 +1,7 @@
+# Unreleased
+Removed:
+- Local Modbus inside this integration, deprecated since 1.4.0. [BLUETTI Modbus](https://github.com/bluetti-community/hassio-bluetti-modbus) reads the same devices locally. On update, an entry that still had a connection configured loses its settings and its Modbus entities (sensors and the battery SoC limit numbers), its device loses the firmware version and the local web page link Modbus had put there, and a Repairs notice names the devices concerned. The integration no longer depends on `bluetti-modbus`. Going back to 1.5.x keeps working, without the Modbus connection.
+
 # 1.5.0 (unreleased)
 Fixes:
 - Accounts held on another BLUETTI data center (European accounts in particular) could sign in and then be rejected on every cloud request with code 805, "token have expired", by the default gateway `gw.bluettipower.com` - the same accounts work on `gwde.bluettipower.com`, BLUETTI's own recommendation for them (bluetti-official/bluetti-home-assistant#72, #172). The token response names no data center (checked on French and German accounts), so the sign-in flow now finds it by asking: the default gateway first, then the European and US ones if it rejects the token the sign-in just issued. The answering data center is recorded in the config entry and used for every cloud request after that; an entry created before this keeps the default until its next sign-in.

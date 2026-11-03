@@ -177,10 +177,9 @@ confirmations handled, automatic discovery of Balco 260 and S Meter. It
 supports Balco 260, S Meter, AC500, AC200L, EP500Pro and FridgePower, and its
 readings show up on their own device, next to this integration's cloud-sourced one.
 
-The local Modbus connection this integration used to offer under **Configure ->
-Configure local Modbus** is **deprecated**: a connection already configured
-keeps working for now and raises a Repairs notice pointing at the replacement,
-no new one can be set up, and the code will be removed in a later release.
+This integration no longer has a local Modbus connection of its own. An entry
+that still had one configured loses it on update, along with its entities, and
+gets a Repairs notice pointing at BLUETTI Modbus.
 
 ## 🧩 Example Automations
 
