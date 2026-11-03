@@ -166,6 +166,36 @@ service, not directly to your power station over the local network.
   authorization expires, affected entities are marked `unavailable` in Home
   Assistant rather than showing stale data.
 
+### Cloud health entities
+
+Each device also has four diagnostic entities that show how the BLUETTI cloud
+answered its polls. They are **disabled by default**. To enable one, open the
+device page (**Settings -> Devices & services -> BLUETTI -> your device**),
+click **+4 entities not shown** under **Diagnostic**, open the entity, and turn
+on **Enabled** in its settings. They stay available while the cloud fails,
+which is when they matter.
+
+| Entity | Shows |
+|---|---|
+| Cloud API | On when the latest poll got real readings; off for every failure and for an answer with no readings. |
+| Cloud Response Time | How long the latest poll took, in ms, its one retry included; unknown after a timeout. |
+| Cloud Last Result | How the latest poll ended (below), with `attempts`, `msg_code` and `http_status` as attributes. |
+| Websocket Last Message | When the websocket last brought readings from the device; unknown until the first one. |
+
+Cloud Last Result:
+
+- `ok` - the cloud answered with readings.
+- `no_readings` - the cloud answered "online" with every reading at 0.
+- `empty_response` - the cloud answered, but with nothing for this device.
+- `auth_rejected` - the cloud refused the sign-in token (`msg_code` 401 or 805).
+- `api_error` - the cloud answered with another error code (`msg_code`).
+- `http_error` - the gateway answered with an HTTP error status (`http_status`).
+- `timeout` - no complete answer in time.
+- `dns_error` - the gateway's name could not be resolved.
+- `connect_error` - no connection to the gateway.
+- `network_error` - the connection failed during the request.
+- `error` - anything else.
+
 ### Local Modbus
 
 Local Modbus TCP is handled by the companion integration
@@ -259,6 +289,17 @@ updates go through the same data center. An entry
 set up before this existed keeps the default until its next sign-in: if it
 starts asking you to sign in again after every restart, do so once and the
 right data center is recorded.
+
+### Entities going unavailable now and then, or showing no readings?
+
+That is usually the BLUETTI cloud, not your setup. **Settings -> Devices &
+services -> BLUETTI -> Download diagnostics** lists, per device, how each of
+the last polls ended - answered, timed out, an HTTP status or a cloud error
+code - with how long it took, and merges the polls that went wrong in a row
+into failure windows. Polls that answered "online" with no readings count as
+failures there. A failure the integration rode out on the last values is
+listed too. Times are UTC; the history covers at least the last 24 hours and
+starts again empty when Home Assistant restarts. Attach that file to a cloud outage report.
 
 ### How to update the integration?
 

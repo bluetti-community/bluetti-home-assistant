@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import time
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components import persistent_notification
@@ -11,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 from pybluetti import (
     ApplicationRuntimeException,
     ProductClient,
@@ -19,6 +21,7 @@ from pybluetti import (
 )
 
 from .const import DOMAIN
+from .poll_history import PollOutcome
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -35,6 +38,11 @@ manufacturer = "BLUETTI"
 # with no such push and no change in its readings goes offline when the window
 # runs out, whether it is switched off or only idle.
 ALIVE_WINDOW = 600
+
+
+class EmptyStatusResponse(RuntimeError):
+    """The cloud answered a status request with msgCode 0 and no data."""
+
 
 class BluettiData:
     """Data for the BLUETTI integration."""
@@ -87,6 +95,7 @@ class BluettiData:
         device = self.get_device_by_sn(sn)
         if device and _is_realtime_status(data):
             device.last_alive = time.monotonic()
+            device.last_realtime_message = dt_util.utcnow()
         if device and device.coordinator:
             # This runs on the websocket thread, not the event loop, so a
             # thread-safe scheduling call is required here.
@@ -193,6 +202,9 @@ class BluettiDevice:
         self.device_id = device_id
         self.on_line = on_line
         self.last_alive: float | None = None
+        # The same moment as a wall-clock time, for display: last_alive is a
+        # monotonic clock value, and set by a changed poll as well.
+        self.last_realtime_message: datetime | None = None
         self._last_readings: dict[str, Any] | None = None
         self.name = name
         self.sn = sn
@@ -217,6 +229,9 @@ class BluettiDevice:
 
         self._api_client: ProductClient | None = None
         self._no_readings = False
+        # What the last status answer amounted to, for the coordinator's
+        # poll history. Only read after async_refresh_from_api returned.
+        self.last_answer = PollOutcome.OK
         self._unbind_processed = False
         self._hass: HomeAssistant | None = None
         self._entry: ConfigEntry | None = None
@@ -306,7 +321,7 @@ class BluettiDevice:
             # coordinator's existing msgCode classification.
             raise ApplicationRuntimeException(msgCode=device_status.msgCode)
         if not device_status.data:
-            raise RuntimeError(f"Empty status response for device {self.device_id}")
+            raise EmptyStatusResponse(f"Empty status response for device {self.device_id}")
         data = device_status.data[0]
 
         if data.sn != self.device_id:
@@ -318,9 +333,14 @@ class BluettiDevice:
                 self.device_id,
                 len(device_status.data),
             )
+            # Nothing for this device came back: to whoever reads the poll
+            # history, the same as an answer with no data at all.
+            self.last_answer = PollOutcome.EMPTY_RESPONSE
             return
 
         if data.isBindByCurUser == "0" and not self._unbind_processed:
+            # The cloud answered, and correctly: the unit left the account.
+            self.last_answer = PollOutcome.OK
             await self._handle_unbind()
             return
 
@@ -340,7 +360,9 @@ class BluettiDevice:
         # shut down, and the cloud reports it offline.
         self._no_readings = self._is_empty_snapshot(values)
         if self._no_readings:
+            self.last_answer = PollOutcome.NO_READINGS
             return
+        self.last_answer = PollOutcome.OK
 
         # Only readings are compared: a switch or mode changed from the app
         # can come back for a unit that is offline. They are compared with

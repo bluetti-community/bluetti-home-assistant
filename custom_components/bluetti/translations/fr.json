@@ -66,5 +66,36 @@
       "title": "Le Modbus local a été retiré de cette intégration",
       "description": "Cette intégration ne lit plus les appareils en Modbus local. Une connexion était configurée pour : {devices}. Ses réglages et ses entités ont été supprimés.\n\nPour continuer à lire ces appareils sur votre réseau, installez l'intégration dédiée **BLUETTI Modbus**. Vous pouvez ignorer cet avis."
     }
+  },
+  "entity": {
+    "binary_sensor": {
+      "cloud_health_api": {
+        "name": "API cloud"
+      }
+    },
+    "sensor": {
+      "cloud_health_response_time": {
+        "name": "Temps de réponse du cloud"
+      },
+      "cloud_health_last_result": {
+        "name": "Dernier résultat du cloud",
+        "state": {
+          "ok": "OK",
+          "no_readings": "Aucune mesure",
+          "empty_response": "Réponse vide",
+          "auth_rejected": "Authentification refusée",
+          "api_error": "Erreur d'API",
+          "http_error": "Erreur HTTP",
+          "timeout": "Délai dépassé",
+          "dns_error": "Erreur DNS",
+          "connect_error": "Erreur de connexion",
+          "network_error": "Erreur réseau",
+          "error": "Autre erreur"
+        }
+      },
+      "cloud_health_websocket_last_message": {
+        "name": "Dernier message websocket"
+      }
+    }
   }
 }

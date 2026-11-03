@@ -17,10 +17,8 @@ from custom_components.bluetti import (
 from custom_components.bluetti.const import DOMAIN
 
 
-def _entry(hass, *, products=None, devices=None, modbus=None, gateway=None) -> MockConfigEntry:
+def _entry(hass, *, products=None, devices=None, gateway=None) -> MockConfigEntry:
     options = {"devices": devices or []}
-    if modbus is not None:
-        options["modbus"] = modbus
     data = {
         "auth_implementation": DOMAIN,
         "token": {"access_token": "tok", "expires_at": time.time() + 10000},

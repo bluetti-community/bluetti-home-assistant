@@ -8,10 +8,12 @@ from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from homeassistant.core import HomeAssistant
+import aiohttp
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from pybluetti import ApplicationRuntimeException
+from homeassistant.util import dt as dt_util
+from pybluetti import ApplicationRuntimeException, HttpStatusException
 
 from .cloud_retry import (
     RefreshNotJudged,
@@ -20,7 +22,8 @@ from .cloud_retry import (
     end_episode,
     first_in_episode,
 )
-from .models import BluettiDevice
+from .models import BluettiDevice, EmptyStatusResponse
+from .poll_history import PollHistory, PollOutcome, PollRecord
 
 if TYPE_CHECKING:
     # Deliberately not a runtime import: __init__.py imports this module to
@@ -52,6 +55,33 @@ AUTH_ERROR_CODES = {401, 805}
 POLL_FAILURES_TOLERATED = 2
 
 
+def classify_failure(err: Exception) -> tuple[PollOutcome, int | None, int | None]:
+    """
+    A failed poll's outcome, msgCode and HTTP status.
+
+    Subclasses come before their bases: HttpStatusException is an
+    ApplicationRuntimeException, ClientConnectorDNSError a
+    ClientConnectorError, and aiohttp's ServerTimeoutError is both a
+    ClientError and a TimeoutError - a timeout all the same.
+    """
+    if isinstance(err, HttpStatusException):
+        return PollOutcome.HTTP_ERROR, None, err.status
+    if isinstance(err, ApplicationRuntimeException):
+        if err.msgCode in AUTH_ERROR_CODES:
+            return PollOutcome.AUTH_REJECTED, err.msgCode, None
+        return PollOutcome.API_ERROR, err.msgCode, None
+    if isinstance(err, TimeoutError):
+        return PollOutcome.TIMEOUT, None, None
+    if isinstance(err, aiohttp.ClientConnectorDNSError):
+        return PollOutcome.DNS_ERROR, None, None
+    if isinstance(err, aiohttp.ClientConnectorError):
+        return PollOutcome.CONNECT_ERROR, None, None
+    if isinstance(err, aiohttp.ClientError):
+        return PollOutcome.NETWORK_ERROR, None, None
+    if isinstance(err, EmptyStatusResponse):
+        return PollOutcome.EMPTY_RESPONSE, None, None
+    return PollOutcome.ERROR, None, None
+
 
 class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
     """Coordinate REST polling and websocket-triggered refreshes for one device."""
@@ -80,7 +110,31 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         self.device = device
         self._on_auth_rejected = on_auth_rejected
         self._failed_polls = 0
+        self._poll_history = PollHistory()
+        self._poll_listeners: list[CALLBACK_TYPE] = []
         device.coordinator = self
+
+    @property
+    def last_poll(self) -> PollRecord | None:
+        """The latest poll, as the cloud answered it, or None before the first."""
+        return self._poll_history.latest
+
+    def poll_history(self) -> tuple[PollRecord, ...]:
+        """Every poll kept, oldest first, ridden-out failures included."""
+        return self._poll_history.snapshot()
+
+    @callback
+    def async_add_poll_listener(self, update_callback: CALLBACK_TYPE) -> CALLBACK_TYPE:
+        """
+        Call update_callback after every poll, failed ones included.
+
+        The coordinator's own listeners hear of a failed poll only when it
+        flips last_update_success: Home Assistant skips them for the second
+        failure in a row, which is the middle of an outage. Returns the
+        function that removes the listener.
+        """
+        self._poll_listeners.append(update_callback)
+        return lambda: self._poll_listeners.remove(update_callback)
 
     async def _async_update_data(self) -> BluettiDevice:
         """
@@ -89,10 +143,37 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         The error message names the cause - "HTTP 504 Gateway Timeout" rather
         than the client's generic text - so a user can tell BLUETTI's side
         from their own setup.
+
+        Every poll goes into the poll history first, whatever triggered it
+        and whatever the ride-out then makes of it.
         """
+        started = dt_util.utcnow()
+        start = time.monotonic()
+        attempts = 0
+
+        async def attempt() -> None:
+            nonlocal attempts
+            attempts += 1
+            await self.device.async_refresh_from_api()
+
+        def record(
+            outcome: PollOutcome, msg_code: int | None = None, http_status: int | None = None
+        ) -> None:
+            self._poll_history.add(PollRecord(
+                started=started,
+                duration_ms=round((time.monotonic() - start) * 1000),
+                outcome=outcome,
+                attempts=attempts,
+                msg_code=msg_code,
+                http_status=http_status,
+            ))
+            for update_callback in list(self._poll_listeners):
+                update_callback()
+
         try:
-            await async_call_retrying_once(self.device.async_refresh_from_api)
+            await async_call_retrying_once(attempt)
         except ApplicationRuntimeException as err:
+            record(*classify_failure(err))
             message = f"BLUETTI cloud answered {err.message} (code {err.msgCode})"
             if err.msgCode in AUTH_ERROR_CODES:
                 await self._async_handle_auth_rejected(err)
@@ -101,11 +182,13 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
                 return kept
             raise UpdateFailed(message) from err
         except Exception as err:
+            record(*classify_failure(err))
             if (kept := self._ride_out(err)) is not None:
                 return kept
             raise UpdateFailed(
                 f"Error communicating with BLUETTI cloud: {describe_error(err)}"
             ) from err
+        record(self.device.last_answer)
         self._failed_polls = 0
         if self.config_entry is not None:
             end_episode(self.config_entry.entry_id)

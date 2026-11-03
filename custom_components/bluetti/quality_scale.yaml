@@ -64,17 +64,15 @@ rules:
   entity-category: done
   entity-device-class: done
   entity-disabled-by-default:
-    status: exempt
+    status: done
     comment: >-
-      The entity set is small and deliberate; every entity is a primary
-      measurement or control, not diagnostic noise, so none warrant being
-      disabled by default.
-  entity-translations:
-    status: exempt
-    comment: >-
-      Entity names come from the BLUETTI cloud per device and firmware
-      (fnName), already in the account's language; they are not strings
-      known at development time (see entity.py).
+      The cloud health diagnostic entities (Cloud API, Cloud Response Time,
+      Cloud Last Result, Websocket Last Message) are disabled by default.
+  entity-translations: done
+  # ^ The cloud health entities carry translation keys and strings.json
+  #   entries. The other entities are named by the BLUETTI cloud per device
+  #   and firmware (fnName), already in the account's language - not strings
+  #   known at development time (see entity.py).
   exception-translations: done
   icon-translations: done
   reconfiguration-flow: done
