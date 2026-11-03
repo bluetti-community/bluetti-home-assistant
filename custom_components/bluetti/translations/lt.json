@@ -418,6 +418,28 @@
       },
       "pv_i_p_local": {
         "name": "PV Power Input (This Inverter)"
+      },
+      "cloud_health_response_time": {
+        "name": "Debesies atsako laikas"
+      },
+      "cloud_health_last_result": {
+        "name": "Paskutinis debesies rezultatas",
+        "state": {
+          "ok": "Gerai",
+          "no_readings": "Nėra rodmenų",
+          "empty_response": "Tuščias atsakymas",
+          "auth_rejected": "Autentifikacija atmesta",
+          "api_error": "API klaida",
+          "http_error": "HTTP klaida",
+          "timeout": "Baigėsi laukimo laikas",
+          "dns_error": "DNS klaida",
+          "connect_error": "Ryšio klaida",
+          "network_error": "Tinklo klaida",
+          "error": "Kita klaida"
+        }
+      },
+      "cloud_health_websocket_last_message": {
+        "name": "Paskutinis websocket pranešimas"
       }
     },
     "number": {
@@ -426,6 +448,11 @@
       },
       "b_soc_high": {
         "name": "Max Charge Limit (SoC High)"
+      }
+    },
+    "binary_sensor": {
+      "cloud_health_api": {
+        "name": "Debesies API"
       }
     }
   }

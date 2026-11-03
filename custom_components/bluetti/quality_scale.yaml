@@ -67,11 +67,10 @@ rules:
   entity-category: done
   entity-device-class: done
   entity-disabled-by-default:
-    status: exempt
+    status: done
     comment: >-
-      The entity set is small and deliberate; every entity is a primary
-      measurement or control, not diagnostic noise, so none warrant being
-      disabled by default.
+      The cloud health diagnostic entities (Cloud API, Cloud Response Time,
+      Cloud Last Result, Websocket Last Message) are disabled by default.
   entity-translations: done
   # ^ Cloud-sourced entities remain untranslated by necessity: their names
   #   are provided dynamically by the BLUETTI cloud API per device/firmware

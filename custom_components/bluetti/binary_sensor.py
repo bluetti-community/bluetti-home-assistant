@@ -10,8 +10,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import BluettiConfigEntry
-from .entity import BluettiEntity
+from .entity import BluettiCloudHealthEntity, BluettiEntity
 from .models import BluettiData, BluettiDevice, BluettiState
+from .poll_history import PollOutcome
 
 # Entities only read from the coordinator and never poll or call the API
 # themselves, so there is no need to limit concurrent updates.
@@ -32,7 +33,7 @@ async def async_setup_entry(
 ) -> bool:
     """Set up BLUETTI binary sensors from config entry."""
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
-    entities: list[BluettiBinarySensor] = []
+    entities: list[BinarySensorEntity] = []
 
     for device in bluetti_devices.devices:
         entities.extend(
@@ -40,6 +41,7 @@ async def async_setup_entry(
             for state in device.states
             if state.fn_type == "SENSOR" and state.fn_code in BINARY_SENSOR_MAP
         )
+        entities.append(BluettiCloudApiBinarySensor(device))
 
     if entities:
         async_add_entities(entities)
@@ -63,3 +65,22 @@ class BluettiBinarySensor(BluettiEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         return self._state_obj.fn_value == "1"
+
+
+class BluettiCloudApiBinarySensor(BluettiCloudHealthEntity, BinarySensorEntity):
+    """
+    Whether the device's latest poll got real readings from the cloud.
+
+    Off for every failure, and for an answer with no readings in it: the
+    cloud gave nothing usable.
+    """
+
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+    def __init__(self, device: BluettiDevice) -> None:
+        super().__init__(device, "cloud_health_api")
+
+    @property
+    def is_on(self) -> bool | None:
+        last_poll = self._coordinator.last_poll
+        return last_poll.outcome is PollOutcome.OK if last_poll is not None else None

@@ -418,6 +418,28 @@
       },
       "pv_i_p_local": {
         "name": "PV Power Input (This Inverter)"
+      },
+      "cloud_health_response_time": {
+        "name": "Temps de réponse du cloud"
+      },
+      "cloud_health_last_result": {
+        "name": "Dernier résultat du cloud",
+        "state": {
+          "ok": "OK",
+          "no_readings": "Aucune mesure",
+          "empty_response": "Réponse vide",
+          "auth_rejected": "Authentification refusée",
+          "api_error": "Erreur d'API",
+          "http_error": "Erreur HTTP",
+          "timeout": "Délai dépassé",
+          "dns_error": "Erreur DNS",
+          "connect_error": "Erreur de connexion",
+          "network_error": "Erreur réseau",
+          "error": "Autre erreur"
+        }
+      },
+      "cloud_health_websocket_last_message": {
+        "name": "Dernier message websocket"
       }
     },
     "number": {
@@ -426,6 +448,11 @@
       },
       "b_soc_high": {
         "name": "Max Charge Limit (SoC High)"
+      }
+    },
+    "binary_sensor": {
+      "cloud_health_api": {
+        "name": "API cloud"
       }
     }
   }

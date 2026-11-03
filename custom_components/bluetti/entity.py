@@ -2,12 +2,25 @@
 
 from __future__ import annotations
 
+from homeassistant.const import EntityCategory
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import BluettiDeviceCoordinator
 from .models import BluettiDevice, BluettiState
+
+
+def device_info(device: BluettiDevice) -> DeviceInfo:
+    """The device registry entry every entity of a BLUETTI device attaches to."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, device.device_id)},
+        name=device.name,
+        manufacturer=device.manufacturer,
+        model=device.model,
+        serial_number=device.sn,
+    )
 
 
 class BluettiEntity(CoordinatorEntity[BluettiDeviceCoordinator]):
@@ -37,13 +50,7 @@ class BluettiEntity(CoordinatorEntity[BluettiDeviceCoordinator]):
         # (e.g. "SOC", "SetCtrlAc") - icons.json's keys are lowercased to
         # match.
         self._attr_translation_key = state.fn_code.lower()
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device.device_id)},
-            name=device.name,
-            manufacturer=device.manufacturer,
-            model=device.model,
-            serial_number=device.sn,
-        )
+        self._attr_device_info = device_info(device)
 
     @property
     def available(self) -> bool:
@@ -54,3 +61,42 @@ class BluettiEntity(CoordinatorEntity[BluettiDeviceCoordinator]):
         if self._state_obj.fn_code == "SetCtrlPowerOn":
             return True
         return self._device.online
+
+
+class BluettiCloudHealthEntity(Entity):
+    """
+    How the cloud answered a device's polls, on that device.
+
+    Not a BluettiEntity: there is no cloud state behind it, and it has to
+    stay available exactly when the cloud fails - unavailable only before
+    the first poll. Updated after every poll through the coordinator's poll
+    listener, failed ones included. Disabled by default: it is for
+    troubleshooting, and would otherwise fill every recorder.
+    """
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, device: BluettiDevice, key: str) -> None:
+        assert device.coordinator is not None, (  # noqa: S101 - a real invariant, not test-only theater
+            "entities must be created after the device's coordinator is wired up"
+        )
+        self._device = device
+        self._coordinator = device.coordinator
+        # The prefix keeps it clear of every cloud fn_code (see
+        # BluettiEntity's unique_id).
+        self._attr_unique_id = f"{device.device_id}_{key}"
+        self._attr_translation_key = key
+        self._attr_device_info = device_info(device)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self._coordinator.async_add_poll_listener(self.async_write_ha_state)
+        )
+
+    @property
+    def available(self) -> bool:
+        return self._coordinator.last_poll is not None

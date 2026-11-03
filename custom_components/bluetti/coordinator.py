@@ -9,7 +9,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import aiohttp
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
@@ -111,6 +111,7 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         self._on_auth_rejected = on_auth_rejected
         self._failed_polls = 0
         self._poll_history = PollHistory()
+        self._poll_listeners: list[CALLBACK_TYPE] = []
         device.coordinator = self
 
     @property
@@ -121,6 +122,19 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
     def poll_history(self) -> tuple[PollRecord, ...]:
         """Every poll kept, oldest first, ridden-out failures included."""
         return self._poll_history.snapshot()
+
+    @callback
+    def async_add_poll_listener(self, update_callback: CALLBACK_TYPE) -> CALLBACK_TYPE:
+        """
+        Call update_callback after every poll, failed ones included.
+
+        The coordinator's own listeners hear of a failed poll only when it
+        flips last_update_success: Home Assistant skips them for the second
+        failure in a row, which is the middle of an outage. Returns the
+        function that removes the listener.
+        """
+        self._poll_listeners.append(update_callback)
+        return lambda: self._poll_listeners.remove(update_callback)
 
     async def _async_update_data(self) -> BluettiDevice:
         """
@@ -153,6 +167,8 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
                 msg_code=msg_code,
                 http_status=http_status,
             ))
+            for update_callback in list(self._poll_listeners):
+                update_callback()
 
         try:
             await async_call_retrying_once(attempt)

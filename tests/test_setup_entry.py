@@ -13,6 +13,7 @@ from custom_components.bluetti.binary_sensor import (
     async_setup_entry as binary_sensor_setup_entry,
 )
 from custom_components.bluetti.const import DOMAIN
+from custom_components.bluetti.entity import BluettiCloudHealthEntity
 from custom_components.bluetti.models import BluettiData, BluettiDevice
 from custom_components.bluetti.number import BluettiModbusNumber
 from custom_components.bluetti.number import async_setup_entry as number_setup_entry
@@ -29,6 +30,12 @@ from custom_components.bluetti.sensor import (
 )
 from custom_components.bluetti.switch import BluettiSwitch
 from custom_components.bluetti.switch import async_setup_entry as switch_setup_entry
+
+
+def _split_health(added: list) -> tuple[list, list]:
+    """The entities from the device's states, and its cloud health ones."""
+    health = [e for e in added if isinstance(e, BluettiCloudHealthEntity)]
+    return [e for e in added if not isinstance(e, BluettiCloudHealthEntity)], health
 
 
 def _entry_with_devices(hass, devices: list[BluettiDevice], modbus_coordinators=None) -> MockConfigEntry:
@@ -75,6 +82,9 @@ async def test_sensor_setup_entry_creates_expected_entities(hass):
 
     # SOC + InvWorkState sensors; onLine is a binary_sensor entity, set up by
     # the binary_sensor platform instead (see test_binary_sensor_setup_entry_*).
+    # Plus the device's three cloud health sensors.
+    added, health = _split_health(added)
+    assert len(health) == 3
     assert len(added) == 2
     sensors = [e for e in added if isinstance(e, BluettiSensor)]
     assert len(sensors) == 2
@@ -101,6 +111,8 @@ async def test_binary_sensor_setup_entry_creates_expected_entities(hass):
 
     await binary_sensor_setup_entry(hass, entry, added.extend)
 
+    added, health = _split_health(added)
+    assert len(health) == 1
     assert len(added) == 1
     binary_sensor = added[0]
     assert isinstance(binary_sensor, BluettiBinarySensor)
@@ -117,12 +129,15 @@ async def test_binary_sensor_setup_entry_with_no_matching_states_adds_nothing(ha
         state_list=[{"fnCode": "SetCtrlAc", "fnName": "AC", "fnValue": "0", "fnType": "SWITCH"}],
     )
     entry = _entry_with_devices(hass, [device])
-    async_add_entities = MagicMock()
+    added = []
 
-    result = await binary_sensor_setup_entry(hass, entry, async_add_entities)
+    result = await binary_sensor_setup_entry(hass, entry, added.extend)
 
     assert result is True
-    async_add_entities.assert_not_called()
+    # Only the device's cloud health binary sensor.
+    added, health = _split_health(added)
+    assert added == []
+    assert len(health) == 1
 
 
 async def test_sensor_setup_entry_survives_sensor_info_missing_unit_key(hass):
@@ -174,6 +189,7 @@ async def test_sensor_setup_entry_creates_energy_sensor_for_power_sensors(hass):
     await sensor_setup_entry(hass, entry, added.extend)
 
     # Power sensor + its energy companion + the plain (non-power) battery sensor.
+    added, _ = _split_health(added)
     assert len(added) == 3
     energy_sensors = [e for e in added if isinstance(e, BluettiEnergySensor)]
     assert len(energy_sensors) == 1
@@ -305,12 +321,15 @@ async def test_sensor_setup_entry_with_no_matching_states_adds_nothing(hass):
         state_list=[{"fnCode": "SetCtrlAc", "fnName": "AC", "fnValue": "0", "fnType": "SWITCH"}],
     )
     entry = _entry_with_devices(hass, [device])
-    async_add_entities = MagicMock()
+    added = []
 
-    result = await sensor_setup_entry(hass, entry, async_add_entities)
+    result = await sensor_setup_entry(hass, entry, added.extend)
 
     assert result is True
-    async_add_entities.assert_not_called()
+    # Only the device's three cloud health sensors.
+    added, health = _split_health(added)
+    assert added == []
+    assert len(health) == 3
 
 
 async def test_switch_setup_entry_creates_switch_and_controls_it(hass):
@@ -456,6 +475,7 @@ async def test_sensor_setup_entry_excludes_writable_soc_thresholds(hass):
 
     await sensor_setup_entry(hass, entry, added.extend)
 
+    added, _ = _split_health(added)
     assert added == []
 
 
