@@ -4,7 +4,7 @@
 import asyncio
 import logging
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -30,8 +30,6 @@ from .cloud_retry import describe_error
 from .const import BLUETTI_APP_KEY, DOMAIN, EVENT_TOKEN_EXPIRED
 from .coordinator import BluettiDeviceCoordinator
 from .gateway import entry_gateway, gateway_url, websocket_base_url
-from .modbus_coordinator import BluettiModbusCoordinator
-from .modbus_support import modbus_dev_type_for_model
 from .models import BluettiData
 from .oauth import AsyncConfigEntryAuth, AuthTokenRefresh
 from .profile.application_profile import APPLICATION_PROFILE
@@ -41,11 +39,11 @@ from .profile.application_profile import APPLICATION_PROFILE
 # here knows what specifically the cloud wants fixed - see the linked
 # reports at github.com/bluetti-official/bluetti-home-assistant/issues/145.
 ISSUE_ID_WEBSOCKET_ERROR = "websocket_error"
-# Local Modbus inside this integration is deprecated in favour of
-# bluetti-community/hassio-bluetti-modbus, which reads the same registers
-# and has caught up with what real hardware taught us (pack summary at the
-# aggregate unit id, registers that never report, write confirmations).
-# Raised while an entry still has a local Modbus connection configured.
+# Local Modbus left this integration for bluetti-community/hassio-bluetti-modbus.
+# Raised once, by the migration, for an entry that still had a connection
+# configured; persistent, so it stays until the owner dismisses it.
+ISSUE_ID_MODBUS_REMOVED = "modbus_removed"
+# What the deprecation release raised while a connection was configured.
 ISSUE_ID_MODBUS_DEPRECATED = "modbus_deprecated"
 MODBUS_INTEGRATION_URL = "https://github.com/bluetti-community/hassio-bluetti-modbus"
 
@@ -56,7 +54,6 @@ _PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
     Platform.SWITCH,
     Platform.SELECT,
-    Platform.NUMBER,
 ]
 
 
@@ -68,10 +65,6 @@ class BluettiRuntimeData:
     bluetti_devices: BluettiData
     stomp_client: StompClient
     coordinators: dict[str, BluettiDeviceCoordinator]
-    # Defaults empty: local Modbus is optional/opt-in per device, so most
-    # entries (and every existing test's BluettiRuntimeData construction)
-    # never populate this.
-    modbus_coordinators: dict[str, BluettiModbusCoordinator] = field(default_factory=dict)
 
 
 type BluettiConfigEntry = ConfigEntry[BluettiRuntimeData]
@@ -101,6 +94,57 @@ def _websocket_url(token: Mapping[str, Any], default_url: str) -> str:
         return default_url
     ws_scheme = "ws" if scheme in ("http", "ws") else "wss"
     return f"{ws_scheme}://{netloc}{urlsplit(default_url).path}"
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> bool:
+    """
+    Bring an entry from an older release up to this one.
+
+    Minor version 2: local Modbus is gone. Its connection settings leave the
+    options, its entities leave the registry - otherwise they would stay
+    there as "no longer provided" - and so do the firmware version and the
+    local web page link it put on the device. An owner who had a connection
+    gets a notice pointing at BLUETTI Modbus.
+    """
+    if entry.version > 1:
+        return False
+    if entry.minor_version < 2:
+        modbus = entry.options.get("modbus") or {}
+        entity_registry = er.async_get(hass)
+        for reg_entry in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
+            # <serial>_modbus_<field>; a cloud fn_code never starts so.
+            if reg_entry.unique_id.partition("_")[2].startswith("modbus_"):
+                entity_registry.async_remove(reg_entry.entity_id)
+        device_registry = dr.async_get(hass)
+        for sn in modbus:
+            if device := device_registry.async_get_device(identifiers={(DOMAIN, sn)}):
+                device_registry.async_update_device(
+                    device.id, configuration_url=None, sw_version=None
+                )
+        ir.async_delete_issue(hass, DOMAIN, ISSUE_ID_MODBUS_DEPRECATED)
+        if modbus:
+            names = {
+                product.get("sn"): product.get("name") or product.get("sn")
+                for product in entry.data.get("products", [])
+                if isinstance(product, dict)
+            }
+            ir.async_create_issue(
+                hass,
+                DOMAIN,
+                ISSUE_ID_MODBUS_REMOVED,
+                is_fixable=False,
+                is_persistent=True,
+                severity=ir.IssueSeverity.WARNING,
+                learn_more_url=MODBUS_INTEGRATION_URL,
+                translation_key="modbus_removed",
+                translation_placeholders={
+                    "devices": ", ".join(str(names.get(sn) or sn) for sn in modbus),
+                },
+            )
+        options = {key: value for key, value in entry.options.items() if key != "modbus"}
+        hass.config_entries.async_update_entry(entry, options=options, minor_version=2)
+        __LOGGER__.debug("Migrated BLUETTI entry to minor version 2")
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> bool:
@@ -271,68 +315,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> b
         if isinstance(result, BaseException):
             raise result
 
-    modbus_coordinators: dict[str, BluettiModbusCoordinator] = {}
-    for device in bluetti_devices.devices:
-        modbus_config = entry.options.get("modbus", {}).get(device.device_id)
-        dev_type = modbus_dev_type_for_model(device.model)
-        if modbus_config and dev_type:
-            modbus_coordinators[device.device_id] = BluettiModbusCoordinator(
-                hass,
-                entry,
-                device.device_id,
-                modbus_config["host"],
-                modbus_config["port"],
-                dev_type,
-            )
-
-    if modbus_coordinators:
-        ir.async_create_issue(
-            hass,
-            DOMAIN,
-            ISSUE_ID_MODBUS_DEPRECATED,
-            is_fixable=False,
-            severity=ir.IssueSeverity.WARNING,
-            learn_more_url=MODBUS_INTEGRATION_URL,
-            translation_key="modbus_deprecated",
-            translation_placeholders={
-                "devices": ", ".join(
-                    product.name or product.sn
-                    for product in selected_products
-                    if product.sn in modbus_coordinators
-                ),
-            },
-        )
-    else:
-        ir.async_delete_issue(hass, DOMAIN, ISSUE_ID_MODBUS_DEPRECATED)
-
-    # d_serial/d_ver_arm/d_ver_dsp are no longer sensors - they feed
-    # DeviceInfo instead (see modbus_entity.py), matching home-assistant/core's
-    # bluetti_modbus integration. Entities from before this change don't
-    # disappear on their own just because the code stops creating them, so
-    # remove them explicitly, once - a no-op on every run after the first.
-    entity_registry = er.async_get(hass)
-    _RETIRED_MODBUS_SUFFIXES = ("_modbus_d_serial", "_modbus_d_ver_arm", "_modbus_d_ver_dsp")
-    for reg_entry in er.async_entries_for_config_entry(entity_registry, entry.entry_id):
-        if reg_entry.unique_id.endswith(_RETIRED_MODBUS_SUFFIXES):
-            entity_registry.async_remove(reg_entry.entity_id)
-
-    # Local Modbus is optional/supplementary - async_refresh() (not
-    # async_config_entry_first_refresh()) never raises ConfigEntryNotReady,
-    # so a device that doesn't answer just leaves that device's Modbus
-    # entities unavailable until the coordinator's own next poll succeeds,
-    # instead of failing the whole entry (and its cloud entities) too.
-    # Matches home-assistant/core's fronius integration, which uses the same
-    # async_refresh()-not-first_refresh() pattern for its own optional
-    # secondary Modbus coordinators.
-    await asyncio.gather(
-        *(coordinator.async_refresh() for coordinator in modbus_coordinators.values())
-    )
-
-    # runtime_data was already assigned before the cloud first-refresh above
-    # (see the comment there) - just add the Modbus coordinators to it now
-    # that they exist.
-    entry.runtime_data.modbus_coordinators = modbus_coordinators
-
     await hass.config_entries.async_forward_entry_setups(entry, _PLATFORMS)
 
     # Reload the entry when the options flow adds more devices.
@@ -350,8 +332,8 @@ async def _async_update_listener(hass: HomeAssistant, entry: BluettiConfigEntry)
 
 async def async_unload_entry(hass: HomeAssistant, entry: BluettiConfigEntry) -> bool:
     """Unload a config entry."""
-    # No explicit websocket or modbus_coordinators shutdown here: setup
-    # registers the websocket's close, and DataUpdateCoordinator (constructed
+    # No explicit websocket or coordinator shutdown here: setup registers
+    # the websocket's close, and DataUpdateCoordinator (constructed
     # with config_entry=entry) its own async_shutdown, via
     # config_entry.async_on_unload - calling them again here would run their
     # connection-closing side effects twice.
@@ -386,17 +368,12 @@ async def async_remove_config_entry_device(
             coordinator = runtime_data.coordinators.pop(device_id, None)
             if coordinator:
                 await coordinator.async_shutdown()
-            modbus_coordinator = runtime_data.modbus_coordinators.pop(device_id, None)
-            if modbus_coordinator:
-                await modbus_coordinator.async_shutdown()
 
     current_devices = entry.options.get("devices", [])
     new_devices = [d for d in current_devices if d not in device_ids]
-    current_modbus = entry.options.get("modbus", {})
-    new_modbus = {sn: cfg for sn, cfg in current_modbus.items() if sn not in device_ids}
-    if new_devices != current_devices or new_modbus != current_modbus:
+    if new_devices != current_devices:
         hass.config_entries.async_update_entry(
-            entry, options={**entry.options, "devices": new_devices, "modbus": new_modbus}
+            entry, options={**entry.options, "devices": new_devices}
         )
 
     return True
