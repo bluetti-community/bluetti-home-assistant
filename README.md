@@ -261,6 +261,17 @@ set up before this existed keeps the default until its next sign-in: if it
 starts asking you to sign in again after every restart, do so once and the
 right data center is recorded.
 
+### Entities going unavailable now and then, or showing no readings?
+
+That is usually the BLUETTI cloud, not your setup. **Settings -> Devices &
+services -> BLUETTI -> Download diagnostics** lists, per device, how each of
+the last polls ended - answered, timed out, an HTTP status or a cloud error
+code - with how long it took, and merges the polls that went wrong in a row
+into failure windows. Polls that answered "online" with no readings count as
+failures there. A failure the integration rode out on the last values is
+listed too. Times are UTC; the history covers at least the last 24 hours and
+starts again empty when Home Assistant restarts. Attach that file to a cloud outage report.
+
 ### How to update the integration?
 
 Through HACS, like any other HACS integration: it shows the new version as an

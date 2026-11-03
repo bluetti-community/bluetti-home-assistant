@@ -19,6 +19,7 @@ from pybluetti import (
 )
 
 from .const import DOMAIN
+from .poll_history import PollOutcome
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -35,6 +36,11 @@ manufacturer = "BLUETTI"
 # with no such push and no change in its readings goes offline when the window
 # runs out, whether it is switched off or only idle.
 ALIVE_WINDOW = 600
+
+
+class EmptyStatusResponse(RuntimeError):
+    """The cloud answered a status request with msgCode 0 and no data."""
+
 
 class BluettiData:
     """Data for the BLUETTI integration."""
@@ -217,6 +223,9 @@ class BluettiDevice:
 
         self._api_client: ProductClient | None = None
         self._no_readings = False
+        # What the last status answer amounted to, for the coordinator's
+        # poll history. Only read after async_refresh_from_api returned.
+        self.last_answer = PollOutcome.OK
         self._unbind_processed = False
         self._hass: HomeAssistant | None = None
         self._entry: ConfigEntry | None = None
@@ -306,7 +315,7 @@ class BluettiDevice:
             # coordinator's existing msgCode classification.
             raise ApplicationRuntimeException(msgCode=device_status.msgCode)
         if not device_status.data:
-            raise RuntimeError(f"Empty status response for device {self.device_id}")
+            raise EmptyStatusResponse(f"Empty status response for device {self.device_id}")
         data = device_status.data[0]
 
         if data.sn != self.device_id:
@@ -318,9 +327,14 @@ class BluettiDevice:
                 self.device_id,
                 len(device_status.data),
             )
+            # Nothing for this device came back: to whoever reads the poll
+            # history, the same as an answer with no data at all.
+            self.last_answer = PollOutcome.EMPTY_RESPONSE
             return
 
         if data.isBindByCurUser == "0" and not self._unbind_processed:
+            # The cloud answered, and correctly: the unit left the account.
+            self.last_answer = PollOutcome.OK
             await self._handle_unbind()
             return
 
@@ -340,7 +354,9 @@ class BluettiDevice:
         # shut down, and the cloud reports it offline.
         self._no_readings = self._is_empty_snapshot(values)
         if self._no_readings:
+            self.last_answer = PollOutcome.NO_READINGS
             return
+        self.last_answer = PollOutcome.OK
 
         # Only readings are compared: a switch or mode changed from the app
         # can come back for a unit that is offline. They are compared with

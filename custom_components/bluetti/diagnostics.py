@@ -8,8 +8,13 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import BluettiConfigEntry
+from .coordinator import BluettiDeviceCoordinator
+from .poll_history import failure_windows
 
 TO_REDACT = {"token", "access_token", "refresh_token", "products"}
+
+# Polls listed one by one; the failure windows still cover the whole history.
+RECENT_POLLS = 200
 
 
 async def async_get_config_entry_diagnostics(
@@ -54,6 +59,7 @@ async def async_get_config_entry_diagnostics(
         aliases.get(device_id, device_id): {
             "last_update_success": coordinator.last_update_success,
             "update_interval": str(coordinator.update_interval),
+            **_poll_diagnostics(coordinator),
         }
         for device_id, coordinator in runtime_data.coordinators.items()
     }
@@ -71,4 +77,21 @@ async def async_get_config_entry_diagnostics(
         "entry_options": entry_options,
         "devices": devices,
         "coordinators": coordinators,
+    }
+
+
+def _poll_diagnostics(coordinator: BluettiDeviceCoordinator) -> dict[str, Any]:
+    """
+    What the cloud answered each poll, before any ride-out, in UTC.
+
+    The records carry no device id: the coordinator they sit under is
+    already keyed by its alias.
+    """
+    history = coordinator.poll_history()
+    last_poll = coordinator.last_poll
+    return {
+        "history_since": history[0].started.isoformat() if history else None,
+        "last_poll": last_poll.as_dict() if last_poll is not None else None,
+        "recent_polls": [record.as_dict() for record in history[-RECENT_POLLS:]],
+        "failure_windows": failure_windows(history),
     }

@@ -1,12 +1,19 @@
 """Tests for diagnostics.py."""
 
-from unittest.mock import MagicMock
+import contextlib
+from unittest.mock import AsyncMock, MagicMock
 
+from homeassistant.helpers.update_coordinator import UpdateFailed
+from pybluetti import ApplicationRuntimeException
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bluetti import BluettiRuntimeData
 from custom_components.bluetti.const import DOMAIN
-from custom_components.bluetti.diagnostics import async_get_config_entry_diagnostics
+from custom_components.bluetti.coordinator import BluettiDeviceCoordinator
+from custom_components.bluetti.diagnostics import (
+    RECENT_POLLS,
+    async_get_config_entry_diagnostics,
+)
 from custom_components.bluetti.models import BluettiDevice
 
 
@@ -97,3 +104,83 @@ async def test_diagnostics_aliases_are_stable_and_correlate_across_multiple_devi
     assert diagnostics["coordinators"]["device_2"]["last_update_success"] is False
     assert "SN1" not in str(diagnostics)
     assert "SN2" not in str(diagnostics)
+
+
+async def test_diagnostics_show_each_poll_and_the_failure_windows(hass, freezer):
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"auth_implementation": DOMAIN, "token": {}, "products": []},
+        options={"devices": ["SN1"]},
+    )
+    entry.add_to_hass(hass)
+    device = BluettiDevice(device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L")
+    coordinator = BluettiDeviceCoordinator(hass, entry, device)
+    coordinator.data = device
+    entry.runtime_data = BluettiRuntimeData(
+        auth=MagicMock(),
+        bluetti_devices=MagicMock(devices=[device]),
+        stomp_client=MagicMock(),
+        coordinators={"SN1": coordinator},
+    )
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    polls = diagnostics["coordinators"]["device_1"]
+    assert polls["history_since"] is None
+    assert polls["last_poll"] is None
+    assert polls["recent_polls"] == []
+    assert polls["failure_windows"] == []
+
+    freezer.move_to("2026-11-03T15:04:00+00:00")
+    device.async_refresh_from_api = AsyncMock()
+    await coordinator._async_update_data()
+    freezer.move_to("2026-11-03T15:05:00+00:00")
+    # The message names the serial, as the real one does; nothing of it may
+    # reach the dump.
+    device.async_refresh_from_api = AsyncMock(side_effect=ApplicationRuntimeException(
+        msgCode=500, errMessage="no status for SN1"
+    ))
+    await coordinator._async_update_data()
+
+    diagnostics = await async_get_config_entry_diagnostics(hass, entry)
+    polls = diagnostics["coordinators"]["device_1"]
+    assert polls["history_since"] == "2026-11-03T15:04:00+00:00"
+    assert polls["last_poll"] == {
+        "started": "2026-11-03T15:05:00+00:00",
+        "duration_ms": 0,
+        "outcome": "api_error",
+        "attempts": 1,
+        "msg_code": 500,
+        "http_status": None,
+    }
+    assert [p["outcome"] for p in polls["recent_polls"]] == ["ok", "api_error"]
+    assert polls["failure_windows"] == [{
+        "start": "2026-11-03T15:05:00+00:00",
+        "end": "2026-11-03T15:05:00+00:00",
+        "count": 1,
+        "outcomes": ["api_error"],
+        "ongoing": True,
+    }]
+    assert "SN1" not in str(diagnostics)
+
+
+async def test_diagnostics_list_only_the_most_recent_polls(hass):
+    entry = MockConfigEntry(domain=DOMAIN, data={"auth_implementation": DOMAIN})
+    entry.add_to_hass(hass)
+    device = BluettiDevice(device_id="SN1", on_line="1", name="Test", sn="SN1", model="AC200L")
+    coordinator = BluettiDeviceCoordinator(hass, entry, device)
+    device.async_refresh_from_api = AsyncMock(side_effect=TimeoutError())
+    for _ in range(RECENT_POLLS + 5):
+        with contextlib.suppress(UpdateFailed):
+            await coordinator._async_update_data()
+    entry.runtime_data = BluettiRuntimeData(
+        auth=MagicMock(),
+        bluetti_devices=MagicMock(devices=[device]),
+        stomp_client=MagicMock(),
+        coordinators={"SN1": coordinator},
+    )
+
+    polls = (await async_get_config_entry_diagnostics(hass, entry))["coordinators"]["device_1"]
+
+    assert len(polls["recent_polls"]) == RECENT_POLLS
+    # The windows still cover the whole history.
+    assert polls["failure_windows"][0]["count"] == RECENT_POLLS + 5

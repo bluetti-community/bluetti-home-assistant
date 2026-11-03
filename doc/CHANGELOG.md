@@ -1,3 +1,7 @@
+# Unreleased
+New:
+- **Download diagnostics** shows, for each device, how its recent cloud polls ended (answered, no readings, timed out, HTTP status, cloud error code, DNS or connection failure), how long each took and how many attempts it needed, and merges failed polls in a row into failure windows with their start and end in UTC. Failures that were ridden out on the last values are listed too, so a short cloud outage that never reached the entities shows up there. The history is kept in memory only, at least the last 24 hours per device. No extra request is made to the cloud: only the existing polls are recorded.
+
 # 1.5.0 (unreleased)
 Fixes:
 - Accounts held on another BLUETTI data center (European accounts in particular) could sign in and then be rejected on every cloud request with code 805, "token have expired", by the default gateway `gw.bluettipower.com` - the same accounts work on `gwde.bluettipower.com`, BLUETTI's own recommendation for them (bluetti-official/bluetti-home-assistant#72, #172). The token response names no data center (checked on French and German accounts), so the sign-in flow now finds it by asking: the default gateway first, then the European and US ones if it rejects the token the sign-in just issued. The answering data center is recorded in the config entry and used for every cloud request after that; an entry created before this keeps the default until its next sign-in.
