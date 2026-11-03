@@ -1,6 +1,6 @@
 # Unreleased
 New:
-- **Download diagnostics** shows, for each device, how its recent cloud polls ended (answered, no readings, timed out, HTTP status, cloud error code, DNS or connection failure), how long each took and how many attempts it needed, and merges failed polls in a row into failure windows with their start and end in UTC. Failures that were ridden out on the last values are listed too, so a short cloud outage that never reached the entities shows up there. The history is kept in memory only, up to 24 hours per device. No extra request is made to the cloud: only the existing polls are recorded.
+- **Download diagnostics** shows, for each device, how its recent cloud polls ended (answered, no readings, timed out, HTTP status, cloud error code, DNS or connection failure), how long each took and how many attempts it needed, and merges failed polls in a row into failure windows with their start and end in UTC. Failures that were ridden out on the last values are listed too, so a short cloud outage that never reached the entities shows up there. The history is kept in memory only, at least the last 24 hours per device. No extra request is made to the cloud: only the existing polls are recorded.
 
 # 1.5.0 (unreleased)
 Fixes:

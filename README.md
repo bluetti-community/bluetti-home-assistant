@@ -269,8 +269,8 @@ the last polls ended - answered, timed out, an HTTP status or a cloud error
 code - with how long it took, and merges the polls that went wrong in a row
 into failure windows. Polls that answered "online" with no readings count as
 failures there. A failure the integration rode out on the last values is
-listed too. Times are UTC; the history covers up to 24 hours and starts again
-empty when Home Assistant restarts. Attach that file to a cloud outage report.
+listed too. Times are UTC; the history covers at least the last 24 hours and
+starts again empty when Home Assistant restarts. Attach that file to a cloud outage report.
 
 ### How to update the integration?
 
