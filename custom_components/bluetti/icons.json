@@ -18,6 +18,15 @@
       },
       "gridalltotalpower": {
         "default": "mdi:transmission-tower"
+      },
+      "cloud_health_response_time": {
+        "default": "mdi:timer-outline"
+      },
+      "cloud_health_last_result": {
+        "default": "mdi:cloud-outline"
+      },
+      "cloud_health_websocket_last_message": {
+        "default": "mdi:lan-connect"
       }
     },
     "switch": {
@@ -49,6 +58,14 @@
       },
       "invworkstate": {
         "default": "mdi:solar-power"
+      }
+    },
+    "binary_sensor": {
+      "cloud_health_api": {
+        "default": "mdi:cloud-check-outline",
+        "state": {
+          "off": "mdi:cloud-off-outline"
+        }
       }
     }
   }

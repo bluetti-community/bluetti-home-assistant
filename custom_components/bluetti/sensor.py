@@ -5,7 +5,7 @@ from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from bluetti_modbus_lib.modbus.client import ClientReturnValue
 from homeassistant.components.sensor import (
@@ -14,18 +14,19 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfEnergy
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfEnergy, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import BluettiConfigEntry
-from .entity import BluettiEntity
+from .entity import BluettiCloudHealthEntity, BluettiEntity
 from .modbus_coordinator import BluettiModbusCoordinator
 from .modbus_entity import BluettiModbusEntity
 from .modbus_field_metadata import modbus_metadata_for, suggested_precision_for_scale
 from .models import BluettiData, BluettiDevice, BluettiState
 from .number import MODBUS_FIELDS_SHOWN_VIA_NUMBER
+from .poll_history import PollOutcome
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -105,9 +106,14 @@ async def async_setup_entry(
 ) -> bool:
     """Set up BLUETTI sensors from config entry."""
     bluetti_devices: BluettiData = config_entry.runtime_data.bluetti_devices
-    entities: list[BluettiEntity | BluettiModbusEntity] = []
+    entities: list[BluettiEntity | BluettiModbusEntity | BluettiCloudHealthEntity] = []
 
     for device in bluetti_devices.devices:
+        entities.extend((
+            BluettiCloudResponseTimeSensor(device),
+            BluettiCloudLastResultSensor(device),
+            BluettiWebsocketLastMessageSensor(device),
+        ))
         for state in device.states:
             if state.fn_type == "SENSOR" and state.sensor_info:
                 sensor_type = state.sensor_info.get("sensorType") or ""
@@ -386,3 +392,71 @@ class BluettiModbusSensor(BluettiModbusEntity, SensorEntity):
             return None
         value = field.value
         return value.name if isinstance(value, Enum) else value
+
+
+class BluettiCloudResponseTimeSensor(BluettiCloudHealthEntity, SensorEntity):
+    """
+    How long the device's latest poll took, its one retry included.
+
+    Unknown after a timeout: the time then is the client's limit, not the
+    cloud's, and plotting it would flatten every real answer on the graph.
+    """
+
+    _attr_device_class = SensorDeviceClass.DURATION
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfTime.MILLISECONDS
+    _attr_suggested_display_precision = 0
+
+    def __init__(self, device: BluettiDevice) -> None:
+        super().__init__(device, "cloud_health_response_time")
+
+    @property
+    def native_value(self) -> int | None:
+        last_poll = self._coordinator.last_poll
+        if last_poll is None or last_poll.outcome is PollOutcome.TIMEOUT:
+            return None
+        return last_poll.duration_ms
+
+
+class BluettiCloudLastResultSensor(BluettiCloudHealthEntity, SensorEntity):
+    """How the device's latest poll ended."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = [outcome.value for outcome in PollOutcome]
+
+    def __init__(self, device: BluettiDevice) -> None:
+        super().__init__(device, "cloud_health_last_result")
+
+    @property
+    def native_value(self) -> str | None:
+        last_poll = self._coordinator.last_poll
+        return last_poll.outcome.value if last_poll is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        last_poll = self._coordinator.last_poll
+        if last_poll is None:
+            return None
+        return {
+            "attempts": last_poll.attempts,
+            "msg_code": last_poll.msg_code,
+            "http_status": last_poll.http_status,
+        }
+
+
+class BluettiWebsocketLastMessageSensor(BluettiCloudHealthEntity, SensorEntity):
+    """
+    When the websocket last brought readings from the device.
+
+    Unknown until the first one. Refreshed with the poll each such message
+    asks for, so within Home Assistant's 10 s refresh cooldown.
+    """
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, device: BluettiDevice) -> None:
+        super().__init__(device, "cloud_health_websocket_last_message")
+
+    @property
+    def native_value(self) -> datetime | None:
+        return self._device.last_realtime_message

@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import time
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components import persistent_notification
@@ -11,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 from pybluetti import (
     ApplicationRuntimeException,
     ProductClient,
@@ -93,6 +95,7 @@ class BluettiData:
         device = self.get_device_by_sn(sn)
         if device and _is_realtime_status(data):
             device.last_alive = time.monotonic()
+            device.last_realtime_message = dt_util.utcnow()
         if device and device.coordinator:
             # This runs on the websocket thread, not the event loop, so a
             # thread-safe scheduling call is required here.
@@ -199,6 +202,9 @@ class BluettiDevice:
         self.device_id = device_id
         self.on_line = on_line
         self.last_alive: float | None = None
+        # The same moment as a wall-clock time, for display: last_alive is a
+        # monotonic clock value, and set by a changed poll as well.
+        self.last_realtime_message: datetime | None = None
         self._last_readings: dict[str, Any] | None = None
         self.name = name
         self.sn = sn

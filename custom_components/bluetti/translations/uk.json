@@ -418,6 +418,28 @@
       },
       "pv_i_p_local": {
         "name": "PV Power Input (This Inverter)"
+      },
+      "cloud_health_response_time": {
+        "name": "Час відповіді хмари"
+      },
+      "cloud_health_last_result": {
+        "name": "Останній результат хмари",
+        "state": {
+          "ok": "OK",
+          "no_readings": "Немає показників",
+          "empty_response": "Порожня відповідь",
+          "auth_rejected": "Автентифікацію відхилено",
+          "api_error": "Помилка API",
+          "http_error": "Помилка HTTP",
+          "timeout": "Час очікування вичерпано",
+          "dns_error": "Помилка DNS",
+          "connect_error": "Помилка з'єднання",
+          "network_error": "Помилка мережі",
+          "error": "Інша помилка"
+        }
+      },
+      "cloud_health_websocket_last_message": {
+        "name": "Останнє повідомлення websocket"
       }
     },
     "number": {
@@ -426,6 +448,11 @@
       },
       "b_soc_high": {
         "name": "Max Charge Limit (SoC High)"
+      }
+    },
+    "binary_sensor": {
+      "cloud_health_api": {
+        "name": "Хмарний API"
       }
     }
   }

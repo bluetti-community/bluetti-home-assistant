@@ -1,5 +1,6 @@
 # Unreleased
 New:
+- Four diagnostic entities per device, disabled by default: **Cloud API** (connectivity), **Cloud Response Time** (ms), **Cloud Last Result** (how the latest poll ended) and **Websocket Last Message** (when the websocket last brought readings). They are updated after every poll, failed ones included, and stay available while the cloud fails. No extra request is made to the cloud.
 - **Download diagnostics** shows, for each device, how its recent cloud polls ended (answered, no readings, timed out, HTTP status, cloud error code, DNS or connection failure), how long each took and how many attempts it needed, and merges failed polls in a row into failure windows with their start and end in UTC. Failures that were ridden out on the last values are listed too, so a short cloud outage that never reached the entities shows up there. The history is kept in memory only, at least the last 24 hours per device. No extra request is made to the cloud: only the existing polls are recorded.
 
 # 1.5.0 (unreleased)
