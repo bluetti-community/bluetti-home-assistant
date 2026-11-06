@@ -448,7 +448,7 @@ async def test_select_devices_shows_form_with_available_devices(hass):
 
     with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
          patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             return_value=MagicMock(data=[product])
         )
         result = await flow.async_step_select_devices(user_input=None)

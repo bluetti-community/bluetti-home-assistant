@@ -1,6 +1,7 @@
 """Tests for the OAuth2 device-selection config flow step (oauth.py)."""
 
 import json
+import logging
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -208,7 +209,7 @@ async def test_get_user_products_failure_aborts_cannot_connect(hass):
 
     with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
          patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(side_effect=RuntimeError("boom"))
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(side_effect=RuntimeError("boom"))
         result = await flow.async_step_select_devices(user_input=None)
 
     assert result["type"] == "abort"
@@ -222,11 +223,11 @@ async def test_get_user_products_timeout_says_so_in_the_log(hass, caplog):
 
     with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
          patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(side_effect=TimeoutError())
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(side_effect=TimeoutError())
         result = await flow.async_step_select_devices(user_input=None)
 
     assert result["reason"] == "cannot_connect"
-    assert mock_client_cls.return_value.get_user_products.await_count == 2
+    assert mock_client_cls.return_value.get_user_products_v2.await_count == 2
     assert "Failed to fetch BLUETTI products: no answer in time" in caplog.text
 
 
@@ -241,13 +242,13 @@ async def test_get_user_products_retries_once_on_a_transient_gateway_error(hass)
 
     with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
          patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             side_effect=[HttpStatusException(504, "Gateway Timeout"), products]
         )
         result = await flow.async_step_select_devices(user_input=None)
 
     assert result["type"] == "form"
-    assert mock_client_cls.return_value.get_user_products.await_count == 2
+    assert mock_client_cls.return_value.get_user_products_v2.await_count == 2
 
 
 async def test_get_user_products_failed_envelope_aborts_cannot_connect(hass):
@@ -255,7 +256,7 @@ async def test_get_user_products_failed_envelope_aborts_cannot_connect(hass):
 
     with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
          patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             return_value=SimpleNamespace(data=None, is_ok=lambda: False)
         )
         result = await flow.async_step_select_devices(user_input=None)
@@ -269,7 +270,7 @@ async def test_no_devices_available_aborts(hass):
 
     with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
          patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             return_value=SimpleNamespace(data=[], is_ok=lambda: True)
         )
         result = await flow.async_step_select_devices(user_input=None)
@@ -293,7 +294,7 @@ async def test_all_devices_exists_aborts(hass):
 
     with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
          patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             return_value=SimpleNamespace(data=[product], is_ok=lambda: True)
         )
         result = await flow.async_step_select_devices(user_input=None)
@@ -319,7 +320,7 @@ async def test_reconfigure_token_updates_existing_entry(hass):
 
     with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
          patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             return_value=SimpleNamespace(data=[product], is_ok=lambda: True)
         )
         result = await flow.async_step_select_devices(user_input=None)
@@ -340,7 +341,7 @@ async def test_reconfigure_token_missing_entry_aborts(hass):
 
     with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
          patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             return_value=SimpleNamespace(data=[product], is_ok=lambda: True)
         )
         result = await flow.async_step_select_devices(user_input=None)
@@ -365,7 +366,7 @@ async def test_a_token_rejected_by_the_global_gateway_is_served_from_the_eu_one(
     def _client(session, url, token, on_auth_expired=None):
         urls.append(url)
         client = AsyncMock()
-        client.get_user_products = AsyncMock(return_value=rejected if "gwde" not in url else served)
+        client.get_user_products_v2 = AsyncMock(return_value=rejected if "gwde" not in url else served)
         client.bind_devices = AsyncMock(return_value=UnifyResponse(msgId="1", msgCode=0))
         return client
 
@@ -391,7 +392,7 @@ async def test_an_account_the_global_gateway_serves_records_global(hass):
 
     with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
          patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(return_value=served)
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(return_value=served)
         mock_client_cls.return_value.bind_devices = AsyncMock(
             return_value=UnifyResponse(msgId="1", msgCode=0)
         )
@@ -401,5 +402,82 @@ async def test_an_account_the_global_gateway_serves_records_global(hass):
     assert result["type"] == "create_entry"
     assert result["data"]["gateway"] == "global"
     # One fetch only: the global gateway answered, nothing else was asked.
-    assert mock_client_cls.return_value.get_user_products.await_count == 1
+    assert mock_client_cls.return_value.get_user_products_v2.await_count == 1
 
+
+
+def _listing(*products):
+    return UnifyResponse[list[UserProduct]](msgId="1", msgCode=0, data=list(products))
+
+
+def _device(sn, model, support_network):
+    return UserProduct(
+        sn=sn, name=sn, model=model, stateList=[], online="1", supportNetwork=support_network
+    )
+
+
+async def test_device_without_cloud_access_is_not_offered(hass, caplog):
+    flow = _make_flow(hass)
+    caplog.set_level(logging.INFO, "custom_components.bluetti.gateway")
+
+    with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
+         patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
+            return_value=_listing(
+                _device("SN1", "AC240P", "1"),
+                _device("SN2", "EB3A", "0"),
+                _device("SN3", "Balco260", None),
+            )
+        )
+        result = await flow.async_step_select_devices(user_input=None)
+
+    assert result["type"] == "form"
+    offered = result["data_schema"].schema["devices"].options
+    assert set(offered) == {"SN1", "SN3"}
+    assert "['EB3A']" in caplog.text
+    assert "SN2" not in caplog.text
+
+
+async def test_only_devices_without_cloud_access_aborts_and_logs_the_models(hass, caplog):
+    flow = _make_flow(hass)
+
+    with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
+         patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
+            return_value=_listing(_device("SN2", "EB3A", "0"))
+        )
+        result = await flow.async_step_select_devices(user_input=None)
+
+    assert result["reason"] == "no_devices_available"
+    assert "The global data center lists 1 device(s)" in caplog.text
+    assert "['EB3A']" in caplog.text
+    assert "SN2" not in caplog.text
+
+
+async def test_empty_list_logs_the_data_center(hass, caplog):
+    flow = _make_flow(hass)
+
+    with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
+         patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(return_value=_listing())
+        result = await flow.async_step_select_devices(user_input=None)
+
+    assert result["reason"] == "no_devices_available"
+    assert "The global data center lists 0 device(s)" in caplog.text
+
+
+async def test_reconfigure_keeps_working_when_no_device_has_cloud_access(hass):
+    entry = MockConfigEntry(domain=DOMAIN, data={"token": {"access_token": "old"}})
+    entry.add_to_hass(hass)
+    flow = _make_flow(hass)
+    flow.context = {"entry_id": entry.entry_id}
+
+    with patch("custom_components.bluetti.oauth.async_get_clientsession"), \
+         patch("custom_components.bluetti.oauth.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
+            return_value=_listing(_device("SN2", "EB3A", "0"))
+        )
+        result = await flow.async_step_select_devices(user_input=None)
+
+    assert result["reason"] == "success"
+    assert entry.data["token"] == flow._oauth_data["token"]

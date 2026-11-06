@@ -12,7 +12,7 @@
       "oauth_unauthorized": "Erreur d'autorisation OAuth lors de l'obtention du jeton d'accès.",
       "user_rejected_authorize": "Liaison du compte rejetée : {error}",
       "all_devices_exists": "Tous les appareils et éléments physiques associés à ce compte ont déjà été inclus dans le package intégré BLUETTI.",
-      "no_devices_available": "Le compte actuel ne possède aucun appareil disponible.",
+      "no_devices_available": "Aucun appareil de ce compte ne peut être ajouté. Le cloud BLUETTI ne donne à cette intégration que les modèles pris en charge, parfois moins que ce qu'affiche l'application BLUETTI.",
       "cannot_connect": "Échec de la connexion au serveur BLUETTI. Veuillez réessayer.",
       "reconfigure_failed": "L'entrée de configuration à reconfigurer est introuvable.",
       "success": "Vos appareils BLUETTI ont été ajoutés avec succès."
@@ -37,7 +37,7 @@
       }
     },
     "abort": {
-      "no_devices_available": "Le compte actuel ne possède aucun appareil disponible.",
+      "no_devices_available": "Aucun appareil de ce compte ne peut être ajouté. Le cloud BLUETTI ne donne à cette intégration que les modèles pris en charge, parfois moins que ce qu'affiche l'application BLUETTI.",
       "all_devices_exists": "Tous les appareils et éléments physiques associés à ce compte ont déjà été inclus dans le package intégré BLUETTI.",
       "cannot_connect": "Échec de la connexion au serveur BLUETTI. Veuillez réessayer."
     }
