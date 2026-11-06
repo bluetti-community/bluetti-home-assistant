@@ -181,7 +181,12 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
             record(*classify_failure(err))
             message = f"BLUETTI cloud answered {err.message} (code {err.msgCode})"
             if err.msgCode in AUTH_ERROR_CODES:
-                await self._async_handle_auth_rejected(err)
+                if await self._async_handle_auth_rejected(err) and self.data is not None:
+                    # A new token is stored and the entry reloads on its own:
+                    # failing this poll would only log an ERROR right after
+                    # the refresh that healed it. Not counted as a ridden-out
+                    # failure; without a new token it still fails at once.
+                    return self.data
                 raise UpdateFailed(message) from err
             if (kept := self._ride_out(err)) is not None:
                 return kept
@@ -218,7 +223,7 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         )
         return self.data
 
-    async def _async_handle_auth_rejected(self, err: ApplicationRuntimeException) -> None:
+    async def _async_handle_auth_rejected(self, err: ApplicationRuntimeException) -> bool:
         """
         Try to refresh a rejected access token before asking for a sign-in.
 
@@ -228,15 +233,16 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         Assistant's own expiry-driven refresh never fired. A refresh-token
         grant is tried first; only when that fails too is the user sent
         through reauthentication. Raises ConfigEntryAuthFailed in that
-        case; returns when a new token was stored (the entry reloads on its
-        own, this poll's UpdateFailed is moot).
+        case; returns True when a new token was stored (the entry reloads on
+        its own, so the poll keeps the values already shown).
 
         A grant that never reached the cloud also returns, and so does one the
         floor declined to make: neither says anything about the credentials,
         and reporting either as expired authentication sent owners through a
         sign-in that fixed nothing - once while their DNS was failing, once
         while the cloud was dropping a token that still had 30 days to run
-        (#65). The poll still fails, so Home Assistant retries on its own.
+        (#65). Both return False: no new token, so the poll still fails and
+        Home Assistant retries on its own.
         """
         # config_entry is always set here (passed to __init__), but typed
         # Optional on the base class.
@@ -261,8 +267,8 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
                     "The rejected token was not refreshed (%s), keeping the sign-in and retrying",
                     refresh_err,
                 )
-                return
+                return False
             if refreshed:
                 _LOGGER.info("BLUETTI access token refreshed after the cloud rejected it")
-                return
+                return True
         raise ConfigEntryAuthFailed("BLUETTI authentication expired") from err
