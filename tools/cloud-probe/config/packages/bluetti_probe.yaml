@@ -1,0 +1,81 @@
+# BLUETTI cloud API probe, run inside the Home Assistant container.
+# Expected files:
+#   /config/bluetti-probe/bluetti-probe.sh
+#   /config/bluetti-probe/bluetti-probe.conf
+# Enable packages in configuration.yaml:
+#   homeassistant:
+#     packages: !include_dir_named packages
+
+command_line:
+  - sensor:
+      name: "BLUETTI cloud deviceStates"
+      unique_id: bluetti_probe_device_states
+      # No template in the command: HA would run it in restricted mode.
+      command: "bash /config/bluetti-probe/bluetti-probe.sh summary"
+      # One pass takes at most ~45 s (MAX_TIME=40 + DNS); past the timeout,
+      # HA records nothing for that minute.
+      command_timeout: 90
+      scan_interval: 60
+      # ok / slow / empty / no_first_byte / no_tls / no_tcp / auth_error / http_XXX / msgcode_XX
+      value_template: "{{ value_json.state }}"
+      json_attributes:
+        - ts
+        - gateway
+        - integration_gateway
+        - http_code
+        - msg_code
+        - remote_ip
+        - t_tcp_ms
+        - t_tls_ms
+        - t_first_byte_ms
+        - t_total_ms
+        - request_id
+        - noauth
+        - devices_endpoint
+        - websocket
+        - per_ip
+        - other_gateways
+        - other_gateways_auth
+        - dns_status
+        - dns_answer
+
+template:
+  - sensor:
+      - name: "BLUETTI cloud deviceStates response time"
+        unique_id: bluetti_probe_device_states_latency
+        unit_of_measurement: "ms"
+        state_class: measurement
+        state: "{{ state_attr('sensor.bluetti_cloud_devicestates', 't_total_ms') }}"
+        availability: "{{ state_attr('sensor.bluetti_cloud_devicestates', 't_total_ms') is number }}"
+  - binary_sensor:
+      - name: "BLUETTI cloud deviceStates problem"
+        unique_id: bluetti_probe_device_states_problem
+        device_class: problem
+        state: "{{ states('sensor.bluetti_cloud_devicestates') not in ['ok', 'unknown', 'unavailable'] }}"
+
+shell_command:
+  # Diagnostics: Developer tools > Actions > shell_command.bluetti_probe_check,
+  # tick "Return response" to see stdout.
+  bluetti_probe_check: "bash /config/bluetti-probe/bluetti-probe.sh check"
+  bluetti_probe_report: "bash /config/bluetti-probe/bluetti-probe.sh report 1"
+  bluetti_probe_report_week: "bash /config/bluetti-probe/bluetti-probe.sh report 7"
+
+script:
+  bluetti_probe_report_24h:
+    alias: "BLUETTI probe report (24 h)"
+    icon: mdi:lan-check
+    sequence:
+      - action: shell_command.bluetti_probe_report
+        response_variable: report
+      - action: persistent_notification.create
+        data:
+          notification_id: bluetti_probe_report
+          title: "BLUETTI probe: last 24 h"
+          message: >-
+            {{ report.stdout if report.returncode == 0
+               else 'Error: ' ~ report.stderr }}
+
+
+            To copy into GitHub, open the raw file
+            /config/bluetti-probe/logs/report-last-1d.md
+            (File editor, Studio Code Server or Samba).
