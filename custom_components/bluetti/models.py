@@ -39,6 +39,21 @@ manufacturer = "BLUETTI"
 # runs out, whether it is switched off or only idle.
 ALIVE_WINDOW = 600
 
+# DEVICE_REALTIME_STATUS payload keys that carry what a deviceStates fnCode
+# carries, in the same form. Checked against the deviceStates answers of the
+# same minutes on a PR30V2 (2026-11-06). Left out on purpose: chgFullTime,
+# which on that unit held the value deviceStates calls DsgFullTime while
+# ChgFullTime was 0 - not safe to map either way without a charging unit to
+# compare - and dcSwitch, null in every push seen.
+REALTIME_PAYLOAD_FN_CODES: dict[str, str] = {
+    "batterySoc": "SOC",
+    "powerPvIn": "PVAllTotalPower",
+    "powerGridIn": "GridAllTotalPower",
+    "powerAcOut": "ACLoadAllTotalPower",
+    "powerDcOut": "DCLoadAllTotalPower",
+    "acSwitch": "SetCtrlAc",
+}
+
 
 class EmptyStatusResponse(RuntimeError):
     """The cloud answered a status request with msgCode 0 and no data."""
@@ -93,12 +108,22 @@ class BluettiData:
             return
 
         device = self.get_device_by_sn(sn)
-        if device and _is_realtime_status(data):
+        if device is None:
+            return
+        payload = _realtime_payload(data)
+        if payload is not None:
             device.last_alive = time.monotonic()
             device.last_realtime_message = dt_util.utcnow()
-        if device and device.coordinator:
-            # This runs on the websocket thread, not the event loop, so a
-            # thread-safe scheduling call is required here.
+            # A realtime push needs no REST round trip: its readings go to
+            # the entities now, and what it does not carry waits for the next
+            # scheduled poll. pybluetti's websocket is aiohttp on the event
+            # loop (no thread of its own), so this runs on the loop already.
+            device.apply_realtime_readings(payload)
+            return
+        if device.coordinator:
+            # Any other device notification may be about something no push
+            # carries (a setting changed from the app): ask the cloud. A plain
+            # callback cannot await, so the refresh is scheduled.
             asyncio.run_coroutine_threadsafe(
                 device.coordinator.async_request_refresh(), self.loop
             )
@@ -128,9 +153,9 @@ def _is_zero(value: Any) -> bool:
         return False
 
 
-def _is_realtime_status(data: dict[str, Any]) -> bool:
+def _realtime_payload(data: dict[str, Any]) -> dict[str, Any] | None:
     """
-    Whether a device notification carries readings from the unit itself.
+    The readings of a device notification from the unit itself, or None.
 
     Follows the same two spellings as _device_sn. A push whose payload is
     all null says nothing about the unit being alive, so it does not count.
@@ -138,11 +163,13 @@ def _is_realtime_status(data: dict[str, Any]) -> bool:
     message = data.get("message")
     body = message if isinstance(message, dict) else data
     payload = body.get("payload")
-    return (
+    if (
         body.get("messageType") == "DEVICE_REALTIME_STATUS"
         and isinstance(payload, dict)
         and payload.get("allFieldIsNull") is False
-    )
+    ):
+        return payload
+    return None
 
 
 class BluettiState:
@@ -246,6 +273,38 @@ class BluettiDevice:
             if s.fn_code == fn_code:
                 return s
         return None
+
+    def apply_realtime_readings(self, payload: dict[str, Any]) -> None:
+        """
+        Take the readings a realtime push carries, then tell the entities.
+
+        Only keys with a deviceStates counterpart are taken, and only for a
+        state this device has: a null key is not in this frame, not "off". A
+        push whose readings are all 0 is kept out whole, with or without the
+        battery level in it: a poll's empty snapshot needs SOC
+        (_is_empty_snapshot), but a push often carries no batterySoc, and
+        readings falling to 0 around a reconnection is what #73 was. A real 0
+        comes back with the next poll, at most 30 s later; a false one never
+        reaches the entities. The entities are told through
+        async_update_listeners, not async_set_updated_data: the latter
+        reschedules the next poll, and pushes come about every 30 s, so the
+        values only a poll brings (the working mode, the ECO switches) would
+        stop being fetched.
+        """
+        updates = {
+            state: str(value)
+            for key, fn_code in REALTIME_PAYLOAD_FN_CODES.items()
+            if (value := payload.get(key)) is not None
+            and (state := self.get_state(fn_code)) is not None
+        }
+        values = {state.fn_code: value for state, value in updates.items()}
+        readings = self._readings(values)
+        all_zero = bool(readings) and all(_is_zero(v) for v in readings.values())
+        if values and not all_zero:
+            for state, value in updates.items():
+                state.fn_value = value
+        if self.coordinator is not None:
+            self.coordinator.async_update_listeners()
 
     async def set_state_value(self, fn_code: str, value: str) -> None:
         """Send a control command to the device and notify the coordinator."""
