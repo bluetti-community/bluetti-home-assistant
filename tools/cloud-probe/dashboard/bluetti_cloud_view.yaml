@@ -6,7 +6,6 @@
 # very first (French) version of the package, replace:
 #   sensor.bluetti_cloud_devicestates_response_time -> sensor.bluetti_cloud_devicestates_temps_de_reponse
 #   binary_sensor.bluetti_cloud_devicestates_problem -> binary_sensor.bluetti_cloud_devicestates_en_panne
-#   script.bluetti_probe_report_24h                  -> script.bluetti_probe_rapport
 # (check them in Settings > Devices & services > Entities, search "bluetti cloud").
 
 title: BLUETTI cloud

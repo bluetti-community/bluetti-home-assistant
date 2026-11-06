@@ -8,7 +8,7 @@ Ce guide explique comment mesurer, minute par minute et couche par couche, la di
 
 Contexte : [bluetti-official/bluetti-home-assistant#183](https://github.com/bluetti-official/bluetti-home-assistant/issues/183), les fils [bluetti-community#81](https://github.com/bluetti-community/bluetti-home-assistant/issues/81) et [bluetti-community#65](https://github.com/bluetti-community/bluetti-home-assistant/issues/65), et la discussion [bluetti-community#95](https://github.com/bluetti-community/bluetti-home-assistant/discussions/95).
 
-Version de la sonde et du kit : **1.5.2** (affichée par `check` et en tête de chaque rapport). Le kit comprend une vue de tableau de bord prête à l'emploi (section 5.1). Le script, les entités et les rapports sont en anglais, pour que les relevés de tous les utilisateurs soient comparables ; seuls ce guide et la vue de tableau de bord existent aussi en français.
+Version de la sonde et du kit : **1.5.3** (affichée par `check` et en tête de chaque rapport). Le kit comprend une vue de tableau de bord prête à l'emploi (section 5.1). Le script, les entités et les rapports sont en anglais, pour que les relevés de tous les utilisateurs soient comparables ; seuls ce guide et la vue de tableau de bord existent aussi en français.
 
 ---
 
@@ -159,7 +159,7 @@ Elle affiche :
 
 Pour l'installer : ouvre un tableau de bord → ✏️ → ⋮ → **Éditeur de configuration brute**, et colle le contenu du fichier sous `views:`. Ou ajoute une vue vide, ⋮ → **Modifier en YAML**, et remplace son contenu par le fichier.
 
-La vue utilise les identifiants d'entités d'une installation neuve. Si tu as installé la toute première version du paquet, en français, l'en-tête du fichier liste les trois identifiants à remplacer (`…_temps_de_reponse`, `…_en_panne`, `script.bluetti_probe_rapport`).
+La vue utilise les identifiants d'entités d'une installation neuve. Si tu as installé la toute première version du paquet, en français, l'en-tête du fichier liste les deux identifiants à remplacer (`…_temps_de_reponse`, `…_en_panne`).
 
 ---
 

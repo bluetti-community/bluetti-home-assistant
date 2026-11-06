@@ -8,7 +8,7 @@ This kit measures, every minute and layer by layer, the availability of the BLUE
 
 Context: [bluetti-official/bluetti-home-assistant#183](https://github.com/bluetti-official/bluetti-home-assistant/issues/183), [bluetti-community#81](https://github.com/bluetti-community/bluetti-home-assistant/issues/81), [bluetti-community#65](https://github.com/bluetti-community/bluetti-home-assistant/issues/65), and the discussion [bluetti-community#95](https://github.com/bluetti-community/bluetti-home-assistant/discussions/95).
 
-Probe and kit version: **1.5.2** (shown by `check` and at the top of every report). The kit includes a ready-made dashboard view (section 5.1).
+Probe and kit version: **1.5.3** (shown by `check` and at the top of every report). The kit includes a ready-made dashboard view (section 5.1).
 
 ---
 
@@ -159,7 +159,7 @@ It shows:
 
 To install it: open a dashboard → ✏️ → ⋮ → **Raw configuration editor**, and paste the file's content under `views:`. Or add an empty view, ⋮ → **Edit in YAML**, and replace its content with the file.
 
-The view uses the entity IDs of a fresh install. If you installed the very first, French version of the package, the file's header lists the three IDs to replace (`…_temps_de_reponse`, `…_en_panne`, `script.bluetti_probe_rapport`).
+The view uses the entity IDs of a fresh install. If you installed the very first, French version of the package, the file's header lists the two IDs to replace (`…_temps_de_reponse`, `…_en_panne`).
 
 ---
 
