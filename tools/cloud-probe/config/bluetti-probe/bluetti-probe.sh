@@ -21,7 +21,7 @@
 
 set -uo pipefail
 
-PROBE_VERSION="1.5.2"
+PROBE_VERSION="1.5.3"
 
 # Config: $BLUETTI_PROBE_CONF, else bluetti-probe.conf next to the script,
 # else /etc/bluetti-probe.conf.
@@ -55,11 +55,8 @@ PIN_ALL_IPS=1
 # byte for authenticated requests, while token-less ones took 0.14 s.
 SLOW_MS=5000
 LONG_PROBE_MAX_TIME=600                         # s, long request started on failure
-# At most one long request per this many seconds. Home Assistant's
-# command_line waits for the detached request to end, which halved the
-# sampling rate during the 3 Nov 2026 outage (one pass every 2 min instead of
-# every minute). Its answer is known by now: the gateway gives up with an
-# nginx 504 after 120 s.
+# At most one long request per this many seconds. Its answer is known by now:
+# the gateway gives up with an nginx 504 after 120 s.
 LONG_PROBE_MIN_INTERVAL=1800
 MTR_ON_FAILURE=1                                # 1 = TCP/443 mtr on failure (if installed)
 MTR_MIN_INTERVAL=600                            # s between two mtr runs
@@ -248,6 +245,13 @@ maybe_long_probe() {
   (( now - last < LONG_PROBE_MIN_INTERVAL )) && return 0
   echo "$now" >"$stamp"
   (
+    # Home Assistant waits until nothing holds its output pipe, and bash keeps
+    # a saved copy of it in a higher descriptor during cmd_run's redirection.
+    # Inherited here, that copy would hold the sensor for the whole request.
+    for fd in /proc/$BASHPID/fd/*; do
+      fd="${fd##*/}"
+      (( fd > 2 )) && eval "exec $fd>&-" 2>/dev/null
+    done
     exec 8>"$STATE_DIR/long_probe.lock"
     flock -n 8 || exit 0
     http_probe "$run" deviceStates_long "$url" 1 "$LONG_PROBE_MAX_TIME" | append

@@ -7,7 +7,6 @@
 # remplacez :
 #   sensor.bluetti_cloud_devicestates_response_time -> sensor.bluetti_cloud_devicestates_temps_de_reponse
 #   binary_sensor.bluetti_cloud_devicestates_problem -> binary_sensor.bluetti_cloud_devicestates_en_panne
-#   script.bluetti_probe_report_24h                  -> script.bluetti_probe_rapport
 # (vérifiez dans Paramètres > Appareils et services > Entités, recherche « bluetti cloud »).
 
 title: Cloud BLUETTI
