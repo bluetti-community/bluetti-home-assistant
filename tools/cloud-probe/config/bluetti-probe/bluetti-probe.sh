@@ -21,7 +21,7 @@
 
 set -uo pipefail
 
-PROBE_VERSION="1.5.3"
+PROBE_VERSION="1.5.4"
 
 # Config: $BLUETTI_PROBE_CONF, else bluetti-probe.conf next to the script,
 # else /etc/bluetti-probe.conf.
@@ -99,8 +99,12 @@ die() { echo "bluetti-probe: $*" >&2; exit 1; }
 
 # Atomically append one or more lines to today's log.
 append() {
-  local f; f="$(log_file)"
-  { flock -x 9; cat >>"$f"; } 9>>"$f.lock"
+  local f data; f="$(log_file)"
+  # Read first, then lock: the long request writes here through a pipe, and
+  # holding the lock while waiting for it would block the next pass.
+  data="$(cat)"
+  [[ -n "$data" ]] || return 0
+  { flock -x 9; printf '%s\n' "$data" >>"$f"; } 9>>"$f.lock"
 }
 
 # Mask a serial number: AC3000000000001234 -> AC30…1234
