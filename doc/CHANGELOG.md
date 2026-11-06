@@ -1,5 +1,6 @@
 # Unreleased
 Changed:
+- A realtime push from the websocket no longer triggers a cloud poll. Its readings (battery level, the input and output powers, the AC switch) go to the entities as it arrives, and the regular poll every 30 s, which pushes no longer delay, still brings everything else. A unit that pushes about twice a minute was polled about every 18 s instead of 30 s (measured on a PR30V2). In exchange, a change made in the BLUETTI app to something no push carries - the working mode, the ECO switches, the DC switch - now shows within 30 s, at the next poll, instead of after the next push. A push whose readings are all 0 is ignored, with or without the battery level in it, and the next poll decides. Other device notifications still ask the cloud.
 - Devices are now listed from the cloud's `v2` route at sign-in and in **Add devices**, the route BLUETTI's own integration uses. A device the cloud marks as having no network connection is not offered, since this integration only reaches devices through the cloud.
 - When no device can be added, the log names the data center and the models it listed, and the message says the cloud only gives this integration the models it supports.
 
