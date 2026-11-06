@@ -72,7 +72,10 @@ async def test_coordinator_raises_update_failed_on_non_auth_api_error(hass):
         await coordinator._async_update_data()
 
 
-@pytest.mark.parametrize("msg_code", [401, 805])
+# 801 (no token) and 803 (token fails verification) are what the gateways
+# answer, with HTTP 200, for a missing or a tampered token - checked on gw
+# and gwde on 2026-11-06. 805 is the expired / other-data-center one.
+@pytest.mark.parametrize("msg_code", [401, 801, 803, 805])
 async def test_coordinator_raises_auth_failed_on_auth_error_codes(hass, msg_code):
     # No refresh hook wired (the default): straight to reauthentication.
     device = _make_device()

@@ -1,4 +1,6 @@
 # Unreleased
+Fixes:
+- A token the gateway does not accept was only recognized as such when the answer was code 805. The gateways answer a token that fails verification with code 803 and a missing one with 801 - both with HTTP 200, checked on `gw` and `gwde` - and those went down the generic error path: the last values were kept, then the entities went unavailable and every poll retried the same token, with no refresh and no sign-in request. Codes 801 and 803 now go the same way as 805: a token refresh first, then a sign-in request if that fails too. The data center search still only reacts to 805, the one code that can mean the account is held elsewhere.
 Changed:
 - Devices are now listed from the cloud's `v2` route at sign-in and in **Add devices**, the route BLUETTI's own integration uses. A device the cloud marks as having no network connection is not offered, since this integration only reaches devices through the cloud.
 - When no device can be added, the log names the data center and the models it listed, and the message says the cloud only gives this integration the models it supports.
