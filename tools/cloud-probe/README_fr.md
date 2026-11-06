@@ -8,7 +8,7 @@ Ce guide explique comment mesurer, minute par minute et couche par couche, la di
 
 Contexte : [bluetti-official/bluetti-home-assistant#183](https://github.com/bluetti-official/bluetti-home-assistant/issues/183), les fils [bluetti-community#81](https://github.com/bluetti-community/bluetti-home-assistant/issues/81) et [bluetti-community#65](https://github.com/bluetti-community/bluetti-home-assistant/issues/65), et la discussion [bluetti-community#95](https://github.com/bluetti-community/bluetti-home-assistant/discussions/95).
 
-Version de la sonde et du kit : **1.5.3** (affichée par `check` et en tête de chaque rapport). Le kit comprend une vue de tableau de bord prête à l'emploi (section 5.1). Le script, les entités et les rapports sont en anglais, pour que les relevés de tous les utilisateurs soient comparables ; seuls ce guide et la vue de tableau de bord existent aussi en français.
+Version de la sonde et du kit : **1.5.4** (affichée par `check` et en tête de chaque rapport). Le kit comprend une vue de tableau de bord prête à l'emploi (section 5.1). Le script, les entités et les rapports sont en anglais, pour que les relevés de tous les utilisateurs soient comparables ; seuls ce guide et la vue de tableau de bord existent aussi en français.
 
 ---
 

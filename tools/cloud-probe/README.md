@@ -8,7 +8,7 @@ This kit measures, every minute and layer by layer, the availability of the BLUE
 
 Context: [bluetti-official/bluetti-home-assistant#183](https://github.com/bluetti-official/bluetti-home-assistant/issues/183), [bluetti-community#81](https://github.com/bluetti-community/bluetti-home-assistant/issues/81), [bluetti-community#65](https://github.com/bluetti-community/bluetti-home-assistant/issues/65), and the discussion [bluetti-community#95](https://github.com/bluetti-community/bluetti-home-assistant/discussions/95).
 
-Probe and kit version: **1.5.3** (shown by `check` and at the top of every report). The kit includes a ready-made dashboard view (section 5.1).
+Probe and kit version: **1.5.4** (shown by `check` and at the top of every report). The kit includes a ready-made dashboard view (section 5.1).
 
 ---
 
