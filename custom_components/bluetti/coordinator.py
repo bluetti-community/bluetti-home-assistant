@@ -37,8 +37,13 @@ _LOGGER = logging.getLogger(__name__)
 
 UPDATE_INTERVAL = timedelta(seconds=30)
 
-# msgCode values that mean the OAuth token is no longer valid.
-AUTH_ERROR_CODES = {401, 805}
+# msgCode values that mean the OAuth token is no longer valid. The gateways
+# answer these with HTTP 200, the verdict only in the body: 801 for no token,
+# 803 for a token that fails verification (a tampered one, on gw and gwde
+# alike), 805 for one not honoured - expired, or issued for an account another
+# data center holds (gateway.py). Only 805 says anything about the data center,
+# so gateway.TOKEN_REJECTED stays 805.
+AUTH_ERROR_CODES = {401, 801, 803, 805}
 
 # How many polls in a row may fail before the entities go unavailable. The
 # BLUETTI cloud drops out for a few seconds at a time - the official app

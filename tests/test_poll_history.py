@@ -68,6 +68,8 @@ async def _poll(coordinator: BluettiDeviceCoordinator) -> PollRecord:
         (HttpStatusException(401, "Unauthorized"), PollOutcome.HTTP_ERROR, None, 401),
         (ApplicationRuntimeException(msgCode=805), PollOutcome.AUTH_REJECTED, 805, None),
         (ApplicationRuntimeException(msgCode=401), PollOutcome.AUTH_REJECTED, 401, None),
+        (ApplicationRuntimeException(msgCode=801), PollOutcome.AUTH_REJECTED, 801, None),
+        (ApplicationRuntimeException(msgCode=803), PollOutcome.AUTH_REJECTED, 803, None),
         (ApplicationRuntimeException(msgCode=500), PollOutcome.API_ERROR, 500, None),
         (TimeoutError(), PollOutcome.TIMEOUT, None, None),
         # A ClientError and a TimeoutError at once: still a timeout.
