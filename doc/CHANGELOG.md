@@ -1,4 +1,6 @@
 # Unreleased
+Fixes:
+- A token the cloud rejected and the integration then refreshed no longer logs an error. The poll that met the rejection keeps the values already shown, since the entry reloads on its own with the new token; the log said "access token refreshed after the cloud rejected it" and then "Error fetching … (code 805)" for the same poll. A rejection that brings no new token still fails the poll at once.
 Changed:
 - Devices are now listed from the cloud's `v2` route at sign-in and in **Add devices**, the route BLUETTI's own integration uses. A device the cloud marks as having no network connection is not offered, since this integration only reaches devices through the cloud.
 - When no device can be added, the log names the data center and the models it listed, and the message says the cloud only gives this integration the models it supports.
