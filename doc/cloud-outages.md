@@ -21,6 +21,8 @@ Outages have been measured from Europe on the European node. They hit BLUETTI's 
 
 To report an outage, attach the diagnostics file and give the times in UTC. Responses carry no request id, so times are all BLUETTI can match with its logs.
 
+To measure an outage layer by layer, there is a temporary [probe](../tools/cloud-probe/README.md). You don't need it for a normal report.
+
 ## Data centers
 
 The cloud has several gateways. The integration finds the one that serves your account when you sign in, and again if the recorded one starts rejecting a fresh token. You should not need to choose one.

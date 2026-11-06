@@ -1,0 +1,281 @@
+# Sonde cloud BLUETTI - vue de tableau de bord (cartes natives uniquement)
+# Tableau de bord > ✏️ > ⋮ > « Éditeur de configuration brute » : collez ce
+# bloc sous `views:`. Ou : ajoutez une vue, ⋮ « Modifier en YAML », collez tout.
+#
+# Identifiants d'entités : ceux d'une installation du kit 1.1 ou suivant.
+# Si vous avez installé la toute première version (française) du paquet,
+# remplacez :
+#   sensor.bluetti_cloud_devicestates_response_time -> sensor.bluetti_cloud_devicestates_temps_de_reponse
+#   binary_sensor.bluetti_cloud_devicestates_problem -> binary_sensor.bluetti_cloud_devicestates_en_panne
+#   script.bluetti_probe_report_24h                  -> script.bluetti_probe_rapport
+# (vérifiez dans Paramètres > Appareils et services > Entités, recherche « bluetti cloud »).
+
+title: Cloud BLUETTI
+path: bluetti-cloud
+icon: mdi:cloud-sync-outline
+type: sections
+max_columns: 3
+badges:
+  - type: entity
+    entity: binary_sensor.bluetti_cloud_devicestates_problem
+    name: Cloud
+    show_name: true
+    show_state: true
+    show_icon: true
+    color: red
+  - type: entity
+    entity: sensor.bluetti_cloud_devicestates
+    name: Dernière mesure
+    show_name: true
+    state_content: last_changed
+  - type: entity
+    entity: sensor.bluetti_cloud_devicestates_response_time
+    name: Réponse
+    show_name: true
+sections:
+
+  # ── 1. État ───────────────────────────────────────────────────────────
+  - type: grid
+    cards:
+      - type: heading
+        heading: État du cloud
+        heading_style: title
+        icon: mdi:cloud-check-outline
+
+      # Alert banner, only while the probe sees a problem
+      - type: markdown
+        visibility:
+          - condition: state
+            entity: binary_sensor.bluetti_cloud_devicestates_problem
+            state: "on"
+        content: |
+          {%- set e = 'sensor.bluetti_cloud_devicestates' -%}
+          {%- set st = states(e) -%}
+          {%- set gw_ok = state_attr(e, 'noauth') == 'answered'
+                          and state_attr(e, 'websocket') in ['answered', 'ok'] -%}
+          {%- set alt = state_attr(e, 'other_gateways_auth') or {} -%}
+          <ha-alert alert-type="error" title="Panne en cours depuis {{ relative_time(states.binary_sensor.bluetti_cloud_devicestates_problem.last_changed) }}">
+          {%- if st in ['no_first_byte', 'slow'] and gw_ok %}
+          La passerelle BLUETTI répond, mais le service des données {{ 'ne répond plus' if st == 'no_first_byte' else 'répond très lentement' }}. La panne est côté BLUETTI, pas chez vous.
+          {%- elif st in ['no_tcp', 'no_tls'] %}
+          Impossible de joindre la passerelle BLUETTI ({{ st }}) : vérifiez d'abord votre connexion internet.
+          {%- elif st == 'auth_error' %}
+          {%- set gw = state_attr(e, 'gateway') or 'La passerelle' -%}
+          {%- set own = state_attr(e, 'integration_gateway') -%}
+          {%- if own and own != gw %}
+          {{ gw }} a refusé le jeton (msgCode 805), mais l'intégration utilise {{ own }}. Laissez GATEWAY vide dans bluetti-probe.conf pour que la sonde la suive.
+          {%- else %}
+          {{ gw }} a refusé le jeton (msgCode 805). L'intégration communautaire le renouvelle et change de centre de données toute seule : reconnectez-la seulement si elle le demande.
+          {%- endif %}
+          {%- else %}
+          État de la sonde : {{ st }}.
+          {%- endif %}
+          {%- for host, v in alt.items() if v == 'ok' %}
+          <br>👉 <b>{{ host }}</b> répond normalement au même moment.
+          {%- endfor %}
+          </ha-alert>
+
+      - type: tile
+        entity: binary_sensor.bluetti_cloud_devicestates_problem
+        name: Cloud BLUETTI
+        icon: mdi:cloud-alert-outline
+        color: red
+        state_content:
+          - state
+          - last_changed
+        grid_options:
+          columns: 6
+      - type: tile
+        entity: sensor.bluetti_cloud_devicestates
+        name: Résultat
+        icon: mdi:lan-check
+        state_content:
+          - state
+          - last_changed
+        grid_options:
+          columns: 6
+
+      - type: gauge
+        entity: sensor.bluetti_cloud_devicestates_response_time
+        name: Temps de réponse de deviceStates
+        unit: ms
+        min: 0
+        max: 10000
+        needle: true
+        severity:
+          green: 0
+          yellow: 1000
+          red: 5000
+
+      - type: markdown
+        content: |
+          {%- set e = 'sensor.bluetti_cloud_devicestates' -%}
+          {%- set st = states(e) -%}
+          {%- set legend = {
+            'ok': '🟢 Tout répond normalement.',
+            'slow': '🟠 Réponse complète, mais lente (plus de 5 s) : backend dégradé.',
+            'empty': '🟠 Réponse sans valeurs : appareil vu en ligne, mais sans données.',
+            'no_first_byte': '🔴 Connexion établie, aucune réponse : le symptôme de l\'issue #183.',
+            'no_tls': '🔴 Connexion établie, mais pas de chiffrement TLS.',
+            'no_tcp': '🔴 Passerelle injoignable.',
+            'body_incomplete': '🔴 Réponse commencée puis coupée.',
+            'auth_error': '🔴 Jeton refusé (805).',
+            'no_data': '⚫ Pas encore de mesure.',
+            'unknown': '⚫ Pas encore de mesure.',
+            'unavailable': '⚫ Capteur indisponible : redémarrage en cours, ou la commande de la sonde a échoué.'
+          } -%}
+          **{{ legend.get(st, '🟠 Réponse inattendue : ' ~ st) }}**
+
+  # ── 2. Dernière passe, couche par couche ──────────────────────────────
+  - type: grid
+    cards:
+      - type: heading
+        heading: Dernière passe, couche par couche
+        heading_style: title
+        icon: mdi:layers-outline
+      - type: markdown
+        content: |
+          {%- set e = 'sensor.bluetti_cloud_devicestates' -%}
+          {%- set a = states[e].attributes if states[e] else {} -%}
+          {%- macro ms(v) -%}
+            {%- if v is none -%}—
+            {%- elif v >= 1000 -%}{{ '%.1f' | format(v / 1000) | replace('.', ',') }} s
+            {%- else -%}{{ v | int }} ms
+            {%- endif -%}
+          {%- endmacro -%}
+          {%- set tcp = a.get('t_tcp_ms', 0) | int -%}
+          {%- set tls = a.get('t_tls_ms', 0) | int -%}
+          {%- set fb  = a.get('t_first_byte_ms', 0) | int -%}
+          {%- set tot = a.get('t_total_ms', 0) | int -%}
+          {%- if a.get('ts') -%}
+          Mesure du **{{ as_timestamp(a.ts) | timestamp_custom('%d/%m à %H:%M:%S') }}** (heure locale)
+          {%- endif %}
+
+
+          | Étape | Durée | État |
+          |:--|--:|:--|
+          | 🌐 DNS | — | {{ a.get('dns_status', '—') }} |
+          | 🔌 Connexion TCP | {{ ms(tcp) if tcp > 0 else '—' }} | {{ '✅' if tcp > 0 else '❌' }} |
+          | 🔒 Chiffrement TLS | {{ ms(tls - tcp) if tls > 0 else '—' }} | {{ '✅' if tls > 0 else '❌' }} |
+          | ⏳ Attente du premier octet | {{ ms(fb - tls) if fb > 0 else '—' }} | {{ '✅' if fb > 0 else '❌ aucune réponse' }} |
+          | **Σ Total** | **{{ ms(tot) if tot > 0 else '—' }}** | {{ states(e) }} |
+
+
+          | | |
+          |:--|:--|
+          | Code HTTP | `{{ a.get('http_code', '—') }}` |
+          | msgCode | `{{ a.get('msg_code') if a.get('msg_code') is not none else '—' }}` |
+          | Nœud BLUETTI | `{{ a.get('remote_ip') or '—' }}` |
+          | Réponse DNS | `{{ a.get('dns_answer') or '—' }}` |
+          | Identifiant de requête | `{{ a.get('request_id') or 'aucun (BLUETTI n\'en envoie pas)' }}` |
+
+  # ── 3. Comparaison : où est la panne ? ────────────────────────────────
+  - type: grid
+    cards:
+      - type: heading
+        heading: Où est la panne ?
+        heading_style: title
+        icon: mdi:compare-horizontal
+      - type: markdown
+        content: |
+          {%- set e = 'sensor.bluetti_cloud_devicestates' -%}
+          {%- macro badge(v) -%}
+            {%- if v in ['ok', 'answered'] -%}🟢 répond
+            {%- elif v == 'slow' -%}🟠 lent
+            {%- elif v == 'wrong_datacenter' -%}⚪ autre continent (refus normal)
+            {%- elif v in ['no_first_byte', 'no_tls', 'no_tcp', 'body_incomplete'] -%}🔴 {{ v }}
+            {%- elif v is none or v in ['', 'no_data', 'unknown', 'unavailable', 'skipped'] -%}⚫ —
+            {%- else -%}🟠 {{ v }}
+            {%- endif -%}
+          {%- endmacro -%}
+          **Même passe, mêmes secondes :**
+
+
+          | Requête | Résultat |
+          |:--|:--|
+          | deviceStates **avec** jeton (`{{ (state_attr(e, 'gateway') or 'gw').split('.')[0] }}`) | {{ badge(states(e)) }} |
+          | devices **avec** jeton | {{ badge(state_attr(e, 'devices_endpoint')) }} |
+          {%- for host, v in (state_attr(e, 'other_gateways_auth') or {}).items() %}
+          | deviceStates **avec** jeton (`{{ host.split('.')[0] }}`) | {{ badge(v) }} |
+          {%- endfor %}
+          | deviceStates **sans** jeton (passerelle seule) | {{ badge(state_attr(e, 'noauth')) }} |
+          | Websocket | {{ badge(state_attr(e, 'websocket')) }} |
+          {%- for host, v in (state_attr(e, 'other_gateways') or {}).items() %}
+          | Sans jeton sur `{{ host.split('.')[0] }}` | {{ badge(v) }} |
+          {%- endfor %}
+
+
+          **Par nœud (IP renvoyées par le DNS) :**
+
+
+          | Nœud | Résultat |
+          |:--|:--|
+          {%- for ip, v in (state_attr(e, 'per_ip') or {}).items() %}
+          | `{{ ip }}` {{ '🇪🇺' if ip == '47.254.169.86' else ('🇺🇸' if ip == '47.253.45.39' else '') }} | {{ badge(v) }} |
+          {%- endfor %}
+
+
+          <ha-alert alert-type="info">Si les requêtes <b>avec</b> jeton échouent alors que la passerelle <b>sans</b> jeton et le websocket répondent, la panne est dans le service des données de BLUETTI.</ha-alert>
+
+  # ── 4. Historique ─────────────────────────────────────────────────────
+  - type: grid
+    column_span: 3
+    cards:
+      - type: heading
+        heading: Historique
+        heading_style: title
+        icon: mdi:chart-timeline-variant
+      - type: history-graph
+        title: Dernières 24 h
+        hours_to_show: 24
+        grid_options:
+          columns: full
+        entities:
+          - entity: binary_sensor.bluetti_cloud_devicestates_problem
+            name: Panne
+          - entity: sensor.bluetti_cloud_devicestates
+            name: Résultat
+          - entity: sensor.bluetti_cloud_devicestates_response_time
+            name: Temps de réponse
+      - type: statistics-graph
+        title: Temps de réponse sur 7 jours (moyenne et maximum par heure)
+        days_to_show: 7
+        period: hour
+        chart_type: line
+        stat_types:
+          - mean
+          - max
+        grid_options:
+          columns: full
+        entities:
+          - entity: sensor.bluetti_cloud_devicestates_response_time
+            name: Temps de réponse
+
+  # ── 5. Outils ─────────────────────────────────────────────────────────
+  - type: grid
+    column_span: 3
+    cards:
+      - type: heading
+        heading: Outils
+        heading_style: subtitle
+        icon: mdi:tools
+      - type: tile
+        entity: script.bluetti_probe_report_24h
+        name: Générer le rapport 24 h
+        icon: mdi:file-document-outline
+        color: primary
+        tap_action:
+          action: perform-action
+          perform_action: script.bluetti_probe_report_24h
+        icon_tap_action:
+          action: perform-action
+          perform_action: script.bluetti_probe_report_24h
+        grid_options:
+          columns: 6
+      - type: markdown
+        grid_options:
+          columns: 6
+        content: |
+          Le rapport s'affiche dans les **notifications**. Pour le coller dans
+          GitHub, copiez le fichier brut
+          `/config/bluetti-probe/logs/report-last-1d.md`.
