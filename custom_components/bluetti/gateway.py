@@ -32,7 +32,8 @@ GATEWAY_GLOBAL = "global"
 # The other data centers known to serve accounts, keyed the way the entry
 # stores the choice. EU: BLUETTI's own recommendation for European accounts
 # (bluetti-official/bluetti-home-assistant#72), confirmed on a German account
-# (#172). US: reported working for a US account (#72).
+# (#172). US: not confirmed yet on an account it really holds; European accounts
+# get code 0 from it with placeholder values (#90), so an answer alone proves nothing.
 GATEWAY_URLS: dict[str, str] = {
     "eu": "https://gwde.bluettipower.com",
     "us": "https://gwpry.bluettipower.com",
