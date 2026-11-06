@@ -43,7 +43,7 @@ async def test_shows_form_with_available_devices(hass):
 
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             return_value=SimpleNamespace(data=products, is_ok=lambda: True)
         )
         result = await flow.async_step_init(user_input=None)
@@ -62,7 +62,7 @@ async def test_no_devices_available_aborts(hass):
 
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             return_value=SimpleNamespace(data=[], is_ok=lambda: True)
         )
         result = await flow.async_step_init(user_input=None)
@@ -78,7 +78,7 @@ async def test_all_devices_already_enabled_aborts(hass):
 
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             return_value=SimpleNamespace(data=products, is_ok=lambda: True)
         )
         result = await flow.async_step_init(user_input=None)
@@ -93,7 +93,7 @@ async def test_fetch_failure_aborts_cannot_connect(hass):
 
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(side_effect=RuntimeError("boom"))
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(side_effect=RuntimeError("boom"))
         result = await flow.async_step_init(user_input=None)
 
     assert result["type"] == "abort"
@@ -154,7 +154,7 @@ async def test_get_user_products_failed_envelope_aborts_cannot_connect(hass):
 
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             return_value=SimpleNamespace(data=None, is_ok=lambda: False)
         )
         result = await flow.async_step_init(user_input=None)
@@ -182,7 +182,7 @@ async def test_init_goes_straight_to_add_devices(hass):
 
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(return_value=SimpleNamespace(data=[], is_ok=lambda: True))
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(return_value=SimpleNamespace(data=[], is_ok=lambda: True))
         result = await flow.async_step_init(user_input=None)
 
     # No menu: the add-devices step itself, which aborts here since there
@@ -203,7 +203,7 @@ async def test_add_devices_through_real_flow_manager_keeps_the_enabled_devices(
 
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             return_value=SimpleNamespace(data=products, is_ok=lambda: True)
         )
         mock_client_cls.return_value.bind_devices = AsyncMock(
@@ -230,10 +230,46 @@ async def test_adding_devices_asks_the_data_center_the_entry_recorded(hass):
 
     with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
          patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
-        mock_client_cls.return_value.get_user_products = AsyncMock(
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(
             return_value=SimpleNamespace(data=[], is_ok=lambda: True)
         )
         await flow.async_step_init(user_input=None)
 
     assert mock_client_cls.call_args.args[1] == "https://gwde.bluettipower.com"
 
+
+
+async def test_add_devices_does_not_offer_a_device_without_cloud_access(hass):
+    entry = _entry(hass)
+    flow = _flow(hass, entry)
+    answer = SimpleNamespace(
+        data=[
+            UserProduct(sn="NEW", name="New", stateList=[], online="1", supportNetwork="1"),
+            UserProduct(sn="BLE", name="Ble", stateList=[], online="1", supportNetwork="0"),
+        ],
+        is_ok=lambda: True,
+    )
+
+    with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
+         patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(return_value=answer)
+        result = await flow.async_step_add_devices(user_input=None)
+
+    assert set(result["data_schema"].schema["devices"].options) == {"NEW"}
+
+
+async def test_add_devices_aborts_when_no_device_has_cloud_access(hass, caplog):
+    entry = _entry(hass)
+    flow = _flow(hass, entry)
+    answer = SimpleNamespace(
+        data=[UserProduct(sn="BLE", model="EB3A", stateList=[], online="1", supportNetwork="0")],
+        is_ok=lambda: True,
+    )
+
+    with patch("custom_components.bluetti.options_flow.async_get_clientsession"), \
+         patch("custom_components.bluetti.options_flow.ProductClient") as mock_client_cls:
+        mock_client_cls.return_value.get_user_products_v2 = AsyncMock(return_value=answer)
+        result = await flow.async_step_add_devices(user_input=None)
+
+    assert result["reason"] == "no_devices_available"
+    assert "['EB3A']" in caplog.text

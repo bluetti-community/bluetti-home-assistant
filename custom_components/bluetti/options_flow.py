@@ -19,7 +19,7 @@ from pybluetti import ProductClient, UnifyResponse, UserProduct
 
 from .cloud_retry import describe_error
 from .const import EVENT_TOKEN_EXPIRED
-from .gateway import entry_gateway, gateway_url
+from .gateway import cloud_products, entry_gateway, gateway_url, log_no_cloud_devices
 
 __LOGGER__ = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class BluettiOptionsFlowHandler(OptionsFlow):
             on_auth_expired=lambda: self.hass.bus.fire(EVENT_TOKEN_EXPIRED),
         )
         try:
-            products = await product_client.get_user_products()
+            products = await product_client.get_user_products_v2()
         except Exception as err:
             __LOGGER__.error("Failed to fetch BLUETTI products: %s", describe_error(err))
             return self.async_abort(reason="cannot_connect")
@@ -97,16 +97,18 @@ class BluettiOptionsFlowHandler(OptionsFlow):
         # the wire, and a cloud response that omits "data" entirely would
         # otherwise crash the dict comprehension with an unhandled
         # TypeError instead of aborting gracefully.
-        if not products.data:
+        usable_products = cloud_products(products.data or [])
+        if not usable_products:
+            log_no_cloud_devices(entry_gateway(entry.data), products.data or [])
             return self.async_abort(reason="no_devices_available")
 
         self._product_client = product_client
-        self._products = products.data
+        self._products = usable_products
 
         enabled_devices = set(entry.options.get("devices", []))
         available_devices = {
             product.sn: f"{product.name} - {product.sn}"
-            for product in products.data
+            for product in usable_products
             if product.sn not in enabled_devices
         }
 

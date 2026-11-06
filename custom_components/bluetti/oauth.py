@@ -36,8 +36,10 @@ from .gateway import (
     GATEWAY_GLOBAL,
     TOKEN_REJECTED,
     async_probe_gateway,
+    cloud_products,
     entry_gateway,
     gateway_url,
+    log_no_cloud_devices,
 )
 
 __LOGGER__ = logging.getLogger(__name__)
@@ -179,7 +181,7 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
             client = ProductClient(httpSession, url, access_token, on_auth_expired=None)
             # One immediate retry on a transient gateway error: a lone 504
             # here aborted a reauthentication the user then had to redo.
-            return async_call_retrying_once(client.get_user_products)
+            return async_call_retrying_once(client.get_user_products_v2)
 
         try:
             self._region, products = await async_probe_gateway(_fetch_products, preferred)
@@ -204,6 +206,7 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
         # otherwise crash the dict comprehension with an unhandled
         # TypeError instead of aborting gracefully.
         if not products.data:
+            log_no_cloud_devices(self._region, [])
             return self.async_abort(reason="no_devices_available")
 
         self._product_client = product_client
@@ -215,9 +218,10 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
             integrated_devices.update(entry.options.get("devices", []))
 
         # 过滤掉已经集成过的设备
+        usable_products = cloud_products(products.data)
         available_devices = {
             prod.sn: f"{prod.name} - {prod.sn}"
-            for prod in products.data
+            for prod in usable_products
             if prod.sn not in integrated_devices
         }
 
@@ -240,6 +244,10 @@ class OAuth2FlowHandler(config_entry_oauth2_flow.AbstractOAuth2FlowHandler, doma
             # update listener, which reloads it - no separate reload needed.
             self.hass.config_entries.async_update_entry(cur_entry, data=new_data)
             return self.async_abort(reason="success")
+
+        if not usable_products:
+            log_no_cloud_devices(self._region, products.data)
+            return self.async_abort(reason="no_devices_available")
 
         # 已全部集成
         if not available_devices:

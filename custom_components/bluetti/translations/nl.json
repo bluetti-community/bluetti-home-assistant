@@ -12,7 +12,7 @@
       "oauth_unauthorized": "OAuth-autorisatiefout bij het verkrijgen van toegangstoken.",
       "user_rejected_authorize": "Accountkoppeling geweigerd: {error}",
       "all_devices_exists": "Alle apparaten en fysieke items onder dit account zijn al opgenomen in het BLUETTI-integratiepakket.",
-      "no_devices_available": "Het huidige account heeft geen beschikbare apparaten.",
+      "no_devices_available": "Geen enkel apparaat van dit account kan worden toegevoegd. De BLUETTI-cloud geeft deze integratie alleen de ondersteunde modellen door, soms minder dan de BLUETTI-app toont.",
       "cannot_connect": "Verbinding met de BLUETTI-server is mislukt. Probeer het opnieuw.",
       "reconfigure_failed": "De te herconfigureren configuratie-invoer kon niet worden gevonden.",
       "success": "Uw BLUETTI-apparaten zijn succesvol toegevoegd."
@@ -37,7 +37,7 @@
       }
     },
     "abort": {
-      "no_devices_available": "Het huidige account heeft geen beschikbare apparaten.",
+      "no_devices_available": "Geen enkel apparaat van dit account kan worden toegevoegd. De BLUETTI-cloud geeft deze integratie alleen de ondersteunde modellen door, soms minder dan de BLUETTI-app toont.",
       "all_devices_exists": "Alle apparaten en fysieke items onder dit account zijn al opgenomen in het BLUETTI-integratiepakket.",
       "cannot_connect": "Verbinding met de BLUETTI-server is mislukt. Probeer het opnieuw."
     }

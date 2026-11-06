@@ -12,7 +12,7 @@
       "oauth_unauthorized": "OAuth authorization error while obtaining access token.",
       "user_rejected_authorize": "Account linking rejected: {error}",
       "all_devices_exists": "All the devices and physical items under this account have already been included in the BLUETTI integrated package.",
-      "no_devices_available": "The current account has no available devices.",
+      "no_devices_available": "No device on this account can be added. The BLUETTI cloud only gives this integration the models it supports, which can be fewer than the BLUETTI app shows.",
       "cannot_connect": "Failed to connect to the BLUETTI server. Please try again.",
       "success": "Successfully added your BLUETTI devices.",
       "reconfigure_failed": "The config entry to reconfigure could not be found."
@@ -37,7 +37,7 @@
       }
     },
     "abort": {
-      "no_devices_available": "The current account has no available devices.",
+      "no_devices_available": "No device on this account can be added. The BLUETTI cloud only gives this integration the models it supports, which can be fewer than the BLUETTI app shows.",
       "all_devices_exists": "All the devices and physical items under this account have already been included in the BLUETTI integrated package.",
       "cannot_connect": "Failed to connect to the BLUETTI server. Please try again."
     }

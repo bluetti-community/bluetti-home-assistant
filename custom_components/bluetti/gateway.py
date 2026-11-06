@@ -74,6 +74,32 @@ def entry_gateway(data: Mapping[str, Any]) -> str:
     return GATEWAY_GLOBAL
 
 
+def cloud_products(products: list[UserProduct]) -> list[UserProduct]:
+    """
+    The devices this integration can use, from a devices answer.
+
+    The cloud can list a device it has no connection to, marked by
+    ``supportNetwork``, and this integration has only the cloud to reach it
+    with. An answer without the field keeps the device.
+    """
+    usable = [p for p in products if p.supportNetwork in (None, "1")]
+    hidden = sorted({str(p.model) for p in products if p not in usable})
+    if hidden:
+        __LOGGER__.info("Not offering these models, they have no cloud access: %s", hidden)
+    return usable
+
+
+def log_no_cloud_devices(region: str, products: list[UserProduct]) -> None:
+    """Say why the flow is about to stop, which the abort message alone cannot."""
+    __LOGGER__.warning(
+        "The %s data center lists %d device(s) for this account, none usable over the cloud. "
+        "Models listed: %s",
+        region,
+        len(products),
+        sorted({str(p.model) for p in products}),
+    )
+
+
 async def async_probe_gateway(
     fetch_products: FetchProducts, preferred: str
 ) -> tuple[str, UnifyResponse[list[UserProduct]]]:
