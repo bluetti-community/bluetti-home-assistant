@@ -5,6 +5,7 @@ Fixes:
 Changed:
 - Devices are now listed from the cloud's `v2` route at sign-in and in **Add devices**, the route BLUETTI's own integration uses. A device the cloud marks as having no network connection is not offered, since this integration only reaches devices through the cloud.
 - When no device can be added, the log names the data center and the models it listed, and the message says the cloud only gives this integration the models it supports.
+- Battery level, PV input, grid input and AC output power (with their energy sensors), the estimated battery charge and discharge power, the AC and Standby switches and the Balco working mode now have names in every language this integration ships, worded as in the BLUETTI app. English names are unchanged, so English installs keep their entity IDs. The Balco working mode select, which showed its code (`SetCtrlWorkModeBalco`), is now named **Working Mode**. Every other entity keeps the name the cloud sends. An entity already set up keeps its entity ID; one added from now on in a language with native entity IDs (German, French, Dutch, Lithuanian, Portuguese) gets an ID in that language, as in other integrations.
 
 New:
 - Four diagnostic entities per device, disabled by default: **Cloud API** (connectivity), **Cloud Response Time** (ms), **Cloud Last Result** (how the latest poll ended) and **Websocket Last Message** (when the websocket last brought readings). They are updated after every poll, failed ones included, and stay available while the cloud fails. No extra request is made to the cloud.

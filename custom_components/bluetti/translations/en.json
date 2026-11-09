@@ -95,6 +95,52 @@
       },
       "cloud_health_websocket_last_message": {
         "name": "Websocket Last Message"
+      },
+      "soc": {
+        "name": "Battery Level"
+      },
+      "pvalltotalpower": {
+        "name": "Photovoltaics Input Power"
+      },
+      "gridalltotalpower": {
+        "name": "Grid Input Power"
+      },
+      "acloadalltotalpower": {
+        "name": "Alternating Current Out Power"
+      },
+      "estimatedbatterychargepower": {
+        "name": "Battery Charge Power (Estimated)"
+      },
+      "estimatedbatterydischargepower": {
+        "name": "Battery Discharge Power (Estimated)"
+      },
+      "pvalltotalpower_energy": {
+        "name": "Photovoltaics Input Power Energy"
+      },
+      "gridalltotalpower_energy": {
+        "name": "Grid Input Power Energy"
+      },
+      "acloadalltotalpower_energy": {
+        "name": "Alternating Current Out Power Energy"
+      },
+      "estimatedbatterychargepower_energy": {
+        "name": "Battery Charge Power (Estimated) Energy"
+      },
+      "estimatedbatterydischargepower_energy": {
+        "name": "Battery Discharge Power (Estimated) Energy"
+      }
+    },
+    "switch": {
+      "setctrlac": {
+        "name": "AC"
+      },
+      "setctrlstandby": {
+        "name": "Standby"
+      }
+    },
+    "select": {
+      "setctrlworkmodebalco": {
+        "name": "Working Mode"
       }
     }
   }

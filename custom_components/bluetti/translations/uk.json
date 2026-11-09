@@ -95,6 +95,52 @@
       },
       "cloud_health_websocket_last_message": {
         "name": "Останнє повідомлення websocket"
+      },
+      "soc": {
+        "name": "SoC батареї"
+      },
+      "pvalltotalpower": {
+        "name": "Вхідна потужність PV"
+      },
+      "gridalltotalpower": {
+        "name": "Вхідна потужність мережі"
+      },
+      "acloadalltotalpower": {
+        "name": "Вихідна потужність AC"
+      },
+      "estimatedbatterychargepower": {
+        "name": "Потужність заряду батареї (оцінка)"
+      },
+      "estimatedbatterydischargepower": {
+        "name": "Потужність розряду батареї (оцінка)"
+      },
+      "pvalltotalpower_energy": {
+        "name": "Вхідна енергія PV"
+      },
+      "gridalltotalpower_energy": {
+        "name": "Вхідна енергія мережі"
+      },
+      "acloadalltotalpower_energy": {
+        "name": "Вихідна енергія AC"
+      },
+      "estimatedbatterychargepower_energy": {
+        "name": "Енергія заряду батареї (оцінка)"
+      },
+      "estimatedbatterydischargepower_energy": {
+        "name": "Енергія розряду батареї (оцінка)"
+      }
+    },
+    "switch": {
+      "setctrlac": {
+        "name": "Вихід AC"
+      },
+      "setctrlstandby": {
+        "name": "Режим очікування"
+      }
+    },
+    "select": {
+      "setctrlworkmodebalco": {
+        "name": "Режим роботи"
       }
     }
   }

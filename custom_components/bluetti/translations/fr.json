@@ -95,6 +95,52 @@
       },
       "cloud_health_websocket_last_message": {
         "name": "Dernier message websocket"
+      },
+      "soc": {
+        "name": "SoC batterie"
+      },
+      "pvalltotalpower": {
+        "name": "Puissance d'entrée PV"
+      },
+      "gridalltotalpower": {
+        "name": "Puissance d'entrée réseau"
+      },
+      "acloadalltotalpower": {
+        "name": "Puissance de sortie AC"
+      },
+      "estimatedbatterychargepower": {
+        "name": "Puissance de charge batterie (estimée)"
+      },
+      "estimatedbatterydischargepower": {
+        "name": "Puissance de décharge batterie (estimée)"
+      },
+      "pvalltotalpower_energy": {
+        "name": "Énergie d'entrée PV"
+      },
+      "gridalltotalpower_energy": {
+        "name": "Énergie d'entrée réseau"
+      },
+      "acloadalltotalpower_energy": {
+        "name": "Énergie de sortie AC"
+      },
+      "estimatedbatterychargepower_energy": {
+        "name": "Énergie de charge batterie (estimée)"
+      },
+      "estimatedbatterydischargepower_energy": {
+        "name": "Énergie de décharge batterie (estimée)"
+      }
+    },
+    "switch": {
+      "setctrlac": {
+        "name": "Sortie AC"
+      },
+      "setctrlstandby": {
+        "name": "Veille"
+      }
+    },
+    "select": {
+      "setctrlworkmodebalco": {
+        "name": "Mode de fonctionnement"
       }
     }
   }
