@@ -47,3 +47,12 @@ def test_every_translated_fn_code_has_a_name_in_strings_json():
     for fn_code in TRANSLATED_ENERGY_FN_CODES:
         assert fn_code in TRANSLATED_FN_CODES["sensor"]
         assert entity["sensor"][f"{fn_code}_energy"]["name"]
+
+
+def test_every_translation_file_is_a_language_home_assistant_loads():
+    # Home Assistant only loads translations/<code>.json for the codes it
+    # knows: a pt-PT.json was never shown to anyone (Portuguese is "pt").
+    from homeassistant.generated.languages import LANGUAGES
+
+    codes = {path.stem for path in (BASE / "translations").glob("*.json")}
+    assert codes - LANGUAGES == set()
