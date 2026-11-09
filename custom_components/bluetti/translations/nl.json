@@ -95,6 +95,52 @@
       },
       "cloud_health_websocket_last_message": {
         "name": "Laatste websocketbericht"
+      },
+      "soc": {
+        "name": "Batterij-SoC"
+      },
+      "pvalltotalpower": {
+        "name": "PV-ingangsvermogen"
+      },
+      "gridalltotalpower": {
+        "name": "Netingangsvermogen"
+      },
+      "acloadalltotalpower": {
+        "name": "AC-uitgangsvermogen"
+      },
+      "estimatedbatterychargepower": {
+        "name": "Batterijlaadvermogen (geschat)"
+      },
+      "estimatedbatterydischargepower": {
+        "name": "Batterijontlaadvermogen (geschat)"
+      },
+      "pvalltotalpower_energy": {
+        "name": "PV-ingangsenergie"
+      },
+      "gridalltotalpower_energy": {
+        "name": "Netingangsenergie"
+      },
+      "acloadalltotalpower_energy": {
+        "name": "AC-uitgangsenergie"
+      },
+      "estimatedbatterychargepower_energy": {
+        "name": "Batterijlaadenergie (geschat)"
+      },
+      "estimatedbatterydischargepower_energy": {
+        "name": "Batterijontlaadenergie (geschat)"
+      }
+    },
+    "switch": {
+      "setctrlac": {
+        "name": "AC-uitgang"
+      },
+      "setctrlstandby": {
+        "name": "Stand-by"
+      }
+    },
+    "select": {
+      "setctrlworkmodebalco": {
+        "name": "Werkmodus"
       }
     }
   }

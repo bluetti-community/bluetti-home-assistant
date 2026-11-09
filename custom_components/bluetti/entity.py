@@ -7,7 +7,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DOMAIN, TRANSLATED_FN_CODES
 from .coordinator import BluettiDeviceCoordinator
 from .models import BluettiDevice, BluettiState
 
@@ -27,9 +27,9 @@ class BluettiEntity(CoordinatorEntity[BluettiDeviceCoordinator]):
     """
     Common behavior shared by all BLUETTI entities.
 
-    Subclasses are expected to set self._attr_name after calling super().__init__(),
-    since the name source (a device state's fn_name, or a static label) varies by
-    platform.
+    Subclasses name the entity after calling super().__init__(), through
+    _set_cloud_name(): a translated name for the fn_codes in
+    TRANSLATED_FN_CODES, the cloud's own (or a static label) otherwise.
     """
 
     _attr_has_entity_name = True
@@ -51,6 +51,11 @@ class BluettiEntity(CoordinatorEntity[BluettiDeviceCoordinator]):
         # match.
         self._attr_translation_key = state.fn_code.lower()
         self._attr_device_info = device_info(device)
+
+    def _set_cloud_name(self, name: str, platform: str) -> None:
+        """Use the cloud's name, unless this fn_code has a translated one."""
+        if self._attr_translation_key not in TRANSLATED_FN_CODES.get(platform, ()):
+            self._attr_name = name
 
     @property
     def available(self) -> bool:

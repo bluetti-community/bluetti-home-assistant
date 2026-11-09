@@ -95,6 +95,52 @@
       },
       "cloud_health_websocket_last_message": {
         "name": "Letzte Websocket-Nachricht"
+      },
+      "soc": {
+        "name": "Batterieladezustand (SoC)"
+      },
+      "pvalltotalpower": {
+        "name": "PV-Eingangsleistung"
+      },
+      "gridalltotalpower": {
+        "name": "Netzeingangsleistung"
+      },
+      "acloadalltotalpower": {
+        "name": "AC-Ausgangsleistung"
+      },
+      "estimatedbatterychargepower": {
+        "name": "Batterieladeleistung (geschätzt)"
+      },
+      "estimatedbatterydischargepower": {
+        "name": "Batterieentladeleistung (geschätzt)"
+      },
+      "pvalltotalpower_energy": {
+        "name": "PV-Eingangsenergie"
+      },
+      "gridalltotalpower_energy": {
+        "name": "Netzeingangsenergie"
+      },
+      "acloadalltotalpower_energy": {
+        "name": "AC-Ausgangsenergie"
+      },
+      "estimatedbatterychargepower_energy": {
+        "name": "Batterieladeenergie (geschätzt)"
+      },
+      "estimatedbatterydischargepower_energy": {
+        "name": "Batterieentladeenergie (geschätzt)"
+      }
+    },
+    "switch": {
+      "setctrlac": {
+        "name": "AC-Ausgang"
+      },
+      "setctrlstandby": {
+        "name": "Standby"
+      }
+    },
+    "select": {
+      "setctrlworkmodebalco": {
+        "name": "Arbeitsmodus"
       }
     }
   }

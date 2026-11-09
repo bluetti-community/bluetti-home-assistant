@@ -68,7 +68,9 @@ async def test_sensor_uses_has_entity_name_and_device_info(hass):
     entity = BluettiSensor(coordinator.device, state, meta)
 
     assert entity.has_entity_name is True
-    assert entity.name == "Battery Level"
+    # SOC has a translated name: the cloud's fn_name is not forced on it.
+    assert entity.translation_key == "soc"
+    assert not hasattr(entity, "_attr_name")
     assert entity.unique_id == "SN1_SOC"
     assert entity.device_info["identifiers"] == {(DOMAIN, "SN1")}
     assert entity.device_info["serial_number"] == "SN1"
@@ -112,7 +114,7 @@ async def test_sensor_unavailable_when_coordinator_update_failed(hass):
 
 def _add_power_state(coordinator) -> BluettiState:
     power_state = BluettiState(
-        fn_code="PVAllTotalPower", fn_name="PV Input Power", fn_value="100", fn_type="SENSOR",
+        fn_code="DCLoadAllTotalPower", fn_name="DC Load Power", fn_value="100", fn_type="SENSOR",
     )
     coordinator.device.states.append(power_state)
     return power_state
@@ -131,9 +133,9 @@ async def test_energy_sensor_has_distinct_unique_id_and_energy_attributes(hass):
 
     # Both entities share the same underlying state (same fn_code), so the
     # energy companion must not collide with the power sensor's unique_id.
-    assert energy_sensor.unique_id == "SN1_PVAllTotalPower_energy"
+    assert energy_sensor.unique_id == "SN1_DCLoadAllTotalPower_energy"
     assert energy_sensor.unique_id != power_sensor.unique_id
-    assert energy_sensor.name == "PV Input Power Energy"
+    assert energy_sensor.name == "DC Load Power Energy"
     assert energy_sensor.device_class == SensorDeviceClass.ENERGY
     assert energy_sensor.native_unit_of_measurement == "kWh"
     assert energy_sensor.native_value == 0.0
@@ -336,7 +338,8 @@ async def test_switch_is_on_and_off(hass):
     entity = BluettiSwitch(coordinator.device, state)
 
     assert entity.is_on is False
-    assert entity.name == "AC Output"
+    assert entity.translation_key == "setctrlac"
+    assert not hasattr(entity, "_attr_name")
     assert entity.unique_id == "SN1_SetCtrlAc"
 
 
@@ -396,3 +399,40 @@ async def test_select_invalid_option_raises(hass):
 
     with pytest.raises(ServiceValidationError):
         await entity.async_select_option("does-not-exist")
+
+
+async def test_untranslated_fn_code_keeps_the_cloud_name(hass):
+    coordinator = _make_coordinator(hass)
+    state = coordinator.device.get_state("SetCtrlWorkMode")
+
+    entity = BluettiSelect(coordinator.device, state)
+
+    assert entity.name == "Work Mode"
+
+
+async def test_translated_fn_code_on_another_platform_keeps_the_cloud_name(hass):
+    # "setctrlac" is translated as a switch only; the same code reported as a
+    # sensor would find no name under entity.sensor, so it keeps the cloud's.
+    coordinator = _make_coordinator(hass)
+    state = BluettiState(fn_code="SetCtrlAc", fn_name="AC", fn_value="0", fn_type="SENSOR")
+
+    entity = BluettiSensor(
+        coordinator.device, state,
+        {"name": "AC", "unit": None, "device_class": None, "state_class": None},
+    )
+
+    assert entity.name == "AC"
+
+
+async def test_energy_sensor_of_a_translated_power_sensor_uses_its_translation(hass):
+    coordinator = _make_coordinator(hass)
+    power_state = BluettiState(
+        fn_code="PVAllTotalPower", fn_name="Photovoltaics Input Power", fn_value="100",
+        fn_type="SENSOR",
+    )
+
+    energy_sensor = BluettiEnergySensor(coordinator.device, power_state, lambda: "100")
+
+    assert energy_sensor.translation_key == "pvalltotalpower_energy"
+    assert not hasattr(energy_sensor, "_attr_name")
+    assert energy_sensor.unique_id == "SN1_PVAllTotalPower_energy"

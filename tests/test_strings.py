@@ -30,3 +30,20 @@ def test_every_translation_file_has_every_strings_json_key():
         translated_keys = _flatten_keys(json.loads(path.read_text()))
         missing = strings_keys - translated_keys
         assert not missing, f"{path.name} is missing keys: {sorted(missing)}"
+
+
+def test_every_translated_fn_code_has_a_name_in_strings_json():
+    # A code listed without a name would lose the cloud's name and fall back
+    # to the device name alone.
+    from custom_components.bluetti.const import (
+        TRANSLATED_ENERGY_FN_CODES,
+        TRANSLATED_FN_CODES,
+    )
+
+    entity = json.loads((BASE / "strings.json").read_text())["entity"]
+    for platform, fn_codes in TRANSLATED_FN_CODES.items():
+        for fn_code in fn_codes:
+            assert entity[platform][fn_code]["name"], (platform, fn_code)
+    for fn_code in TRANSLATED_ENERGY_FN_CODES:
+        assert fn_code in TRANSLATED_FN_CODES["sensor"]
+        assert entity["sensor"][f"{fn_code}_energy"]["name"]
