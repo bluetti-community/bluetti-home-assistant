@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import UTC, datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components import persistent_notification
@@ -38,6 +38,51 @@ manufacturer = "BLUETTI"
 # with no such push and no change in its readings goes offline when the window
 # runs out, whether it is switched off or only idle.
 ALIVE_WINDOW = 600
+
+# DEVICE_REALTIME_STATUS payload keys that carry what a deviceStates fnCode
+# carries, in the same form. Checked against the deviceStates answers of the
+# same minutes on a PR30V2 (2026-11-06) and a Balco 260 (2026-11-14). Left out
+# on purpose:
+# - batterySoc: it often trails the deviceStates SOC by a poll, and a late
+#   push took the battery level back a step (Balco 260). The level moves by
+#   1 % in minutes, so the 30 s poll loses nothing by being its only source.
+# - chgFullTime: on a PR30V2 it held the value deviceStates calls DsgFullTime
+#   while ChgFullTime was 0 - not safe to map without a charging unit to
+#   compare.
+# - dcSwitch: null in every push seen.
+REALTIME_PAYLOAD_FN_CODES: dict[str, str] = {
+    "powerPvIn": "PVAllTotalPower",
+    "powerGridIn": "GridAllTotalPower",
+    "powerAcOut": "ACLoadAllTotalPower",
+    "powerDcOut": "DCLoadAllTotalPower",
+    "acSwitch": "SetCtrlAc",
+}
+
+# A push's "timestamp" ("2026-11-14 21:48:41") names no time zone. It reads
+# 8 h ahead of UTC on a PR30V2 (gwde) and a Balco 260 (EU account) alike:
+# China Standard Time, which has no daylight saving time.
+REALTIME_TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S"
+REALTIME_TIMESTAMP_TZ = timezone(timedelta(hours=8))
+# How far ahead of this clock a push may be stamped and still count. Pushes
+# arrive after their timestamp (0 to 4.8 s over 69 pushes on a PR30V2, 5 to
+# 20 s at times on a Balco 260), and that clock was within 1 s of the
+# server's. One stamped further ahead means the time zone above is wrong for
+# this cloud, or this clock is behind: either way its age cannot be judged.
+# Kept small because it is also how stale a push can be and still pass when
+# this clock is behind by as much.
+REALTIME_CLOCK_SKEW = timedelta(seconds=10)
+
+
+def _realtime_timestamp(payload: dict[str, Any]) -> datetime | None:
+    """When a push's readings were taken, in UTC, or None when it says nothing usable."""
+    value = payload.get("timestamp")
+    if not isinstance(value, str):
+        return None
+    try:
+        stamped = datetime.strptime(value, REALTIME_TIMESTAMP_FORMAT)  # noqa: DTZ007 - no zone in the field; set just below
+    except ValueError:
+        return None
+    return stamped.replace(tzinfo=REALTIME_TIMESTAMP_TZ).astimezone(UTC)
 
 
 class EmptyStatusResponse(RuntimeError):
@@ -93,12 +138,22 @@ class BluettiData:
             return
 
         device = self.get_device_by_sn(sn)
-        if device and _is_realtime_status(data):
+        if device is None:
+            return
+        payload = _realtime_payload(data)
+        if payload is not None:
             device.last_alive = time.monotonic()
             device.last_realtime_message = dt_util.utcnow()
-        if device and device.coordinator:
-            # This runs on the websocket thread, not the event loop, so a
-            # thread-safe scheduling call is required here.
+            # A realtime push needs no REST round trip: its readings go to
+            # the entities now, and what it does not carry waits for the next
+            # scheduled poll. pybluetti's websocket is aiohttp on the event
+            # loop (no thread of its own), so this runs on the loop already.
+            device.apply_realtime_readings(payload)
+            return
+        if device.coordinator:
+            # Any other device notification may be about something no push
+            # carries (a setting changed from the app): ask the cloud. A plain
+            # callback cannot await, so the refresh is scheduled.
             asyncio.run_coroutine_threadsafe(
                 device.coordinator.async_request_refresh(), self.loop
             )
@@ -128,9 +183,9 @@ def _is_zero(value: Any) -> bool:
         return False
 
 
-def _is_realtime_status(data: dict[str, Any]) -> bool:
+def _realtime_payload(data: dict[str, Any]) -> dict[str, Any] | None:
     """
-    Whether a device notification carries readings from the unit itself.
+    The readings of a device notification from the unit itself, or None.
 
     Follows the same two spellings as _device_sn. A push whose payload is
     all null says nothing about the unit being alive, so it does not count.
@@ -138,11 +193,13 @@ def _is_realtime_status(data: dict[str, Any]) -> bool:
     message = data.get("message")
     body = message if isinstance(message, dict) else data
     payload = body.get("payload")
-    return (
+    if (
         body.get("messageType") == "DEVICE_REALTIME_STATUS"
         and isinstance(payload, dict)
         and payload.get("allFieldIsNull") is False
-    )
+    ):
+        return payload
+    return None
 
 
 class BluettiState:
@@ -206,6 +263,12 @@ class BluettiDevice:
         # monotonic clock value, and set by a changed poll as well.
         self.last_realtime_message: datetime | None = None
         self._last_readings: dict[str, Any] | None = None
+        # When the last poll whose values reached the states was answered: a
+        # push stamped before it carries older readings than those shown.
+        self._last_poll_at: datetime | None = None
+        # The timestamp of the last push whose readings reached the states: a
+        # push arriving after it but stamped before it is older still.
+        self._last_push_at: datetime | None = None
         self.name = name
         self.sn = sn
         self.model = model
@@ -246,6 +309,78 @@ class BluettiDevice:
             if s.fn_code == fn_code:
                 return s
         return None
+
+    def apply_realtime_readings(self, payload: dict[str, Any]) -> None:
+        """
+        Take the readings a realtime push carries, then tell the entities.
+
+        Only keys with a deviceStates counterpart are taken, and only for a
+        state this device has: a null key is not in this frame, not "off". The
+        battery level is never taken (see REALTIME_PAYLOAD_FN_CODES). A push
+        whose readings are all 0 is kept out whole: a poll's empty snapshot
+        needs SOC (_is_empty_snapshot), which a push never gives here, and
+        readings falling to 0 around a reconnection is what #73 was. A real 0
+        comes back with the next poll, at most 30 s later; a false one never
+        reaches the entities. The entities are told through
+        async_update_listeners, not async_set_updated_data: the latter
+        reschedules the next poll, and pushes come about every 30 s, so the
+        values only a poll brings (the working mode, the ECO switches) would
+        stop being fetched.
+
+        A push can arrive after a poll that is newer than it: up to 20 s after
+        its own timestamp (Balco 260), and the poll in between already shows
+        what came next. So its readings are only taken when its timestamp is
+        after the last poll that reached the states, and after the last push
+        that did, so two pushes arriving out of order cannot step a value
+        back either. Its arrival time cannot tell: a late push arrives after
+        that poll by definition. A push with no timestamp, one that does not
+        parse, or one stamped more than REALTIME_CLOCK_SKEW ahead of this
+        clock is not trusted either. Each of these leaves the values already
+        shown, as before this change.
+        """
+        stamped = self._current_realtime_timestamp(payload)
+        if stamped is None:
+            if self.coordinator is not None:
+                self.coordinator.async_update_listeners()
+            return
+        updates = {
+            state: str(value)
+            for key, fn_code in REALTIME_PAYLOAD_FN_CODES.items()
+            if (value := payload.get(key)) is not None
+            and (state := self.get_state(fn_code)) is not None
+        }
+        values = {state.fn_code: value for state, value in updates.items()}
+        readings = self._readings(values)
+        all_zero = bool(readings) and all(_is_zero(v) for v in readings.values())
+        if values and not all_zero:
+            for state, value in updates.items():
+                state.fn_value = value
+            self._last_push_at = stamped
+        if self.coordinator is not None:
+            self.coordinator.async_update_listeners()
+
+    def _current_realtime_timestamp(self, payload: dict[str, Any]) -> datetime | None:
+        """A push's timestamp if it is newer than every value shown, else None."""
+        stamped = _realtime_timestamp(payload)
+        if stamped is None:
+            __LOGGER__.debug("Realtime push for %s without a usable timestamp, ignored", self.device_id)
+            return None
+        if stamped > dt_util.utcnow() + REALTIME_CLOCK_SKEW:
+            __LOGGER__.debug("Realtime push for %s stamped %s, ahead of this clock, ignored", self.device_id, stamped)
+            return None
+        if self._last_poll_at is not None and stamped <= self._last_poll_at:
+            __LOGGER__.debug(
+                "Realtime push for %s stamped %s, before the last poll at %s, ignored",
+                self.device_id, stamped, self._last_poll_at,
+            )
+            return None
+        if self._last_push_at is not None and stamped <= self._last_push_at:
+            __LOGGER__.debug(
+                "Realtime push for %s stamped %s, not after the last push taken at %s, ignored",
+                self.device_id, stamped, self._last_push_at,
+            )
+            return None
+        return stamped
 
     async def set_state_value(self, fn_code: str, value: str) -> None:
         """Send a control command to the device and notify the coordinator."""
@@ -377,6 +512,7 @@ class BluettiDevice:
             state_obj = self.get_state(s["fnCode"])
             if state_obj:
                 state_obj.fn_value = s["fnValue"]
+        self._last_poll_at = dt_util.utcnow()
 
     def _readings(self, values: dict[str, Any]) -> dict[str, Any]:
         """The SENSOR values of a status reply."""
