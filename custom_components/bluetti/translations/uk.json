@@ -22,5 +22,34 @@
                 "title": "Оберіть метод автентифікації"
             }
         }
+    },
+    "entity": {
+        "sensor": {
+            "soc": {
+                "name": "SoC батареї"
+            },
+            "pvalltotalpower": {
+                "name": "Вхідна потужність PV"
+            },
+            "gridalltotalpower": {
+                "name": "Вхідна потужність мережі"
+            },
+            "acloadalltotalpower": {
+                "name": "Вихідна потужність AC"
+            }
+        },
+        "switch": {
+            "setctrlac": {
+                "name": "Вихід AC"
+            },
+            "setctrlstandby": {
+                "name": "Режим очікування"
+            }
+        },
+        "select": {
+            "setctrlworkmodebalco": {
+                "name": "Режим роботи"
+            }
+        }
     }
 }

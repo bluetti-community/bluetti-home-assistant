@@ -35,5 +35,34 @@
                 }
             }
         }
+    },
+    "entity": {
+        "sensor": {
+            "soc": {
+                "name": "Batterij-SoC"
+            },
+            "pvalltotalpower": {
+                "name": "PV-ingangsvermogen"
+            },
+            "gridalltotalpower": {
+                "name": "Netingangsvermogen"
+            },
+            "acloadalltotalpower": {
+                "name": "AC-uitgangsvermogen"
+            }
+        },
+        "switch": {
+            "setctrlac": {
+                "name": "AC-uitgang"
+            },
+            "setctrlstandby": {
+                "name": "Stand-by"
+            }
+        },
+        "select": {
+            "setctrlworkmodebalco": {
+                "name": "Werkmodus"
+            }
+        }
     }
 }

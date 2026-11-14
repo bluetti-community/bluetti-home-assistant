@@ -36,7 +36,33 @@
             }
         }
     },
-    "res":{
-        "SetCtrlAc":"AC-de"
+    "entity": {
+        "sensor": {
+            "soc": {
+                "name": "Batterieladezustand (SoC)"
+            },
+            "pvalltotalpower": {
+                "name": "PV-Eingangsleistung"
+            },
+            "gridalltotalpower": {
+                "name": "Netzeingangsleistung"
+            },
+            "acloadalltotalpower": {
+                "name": "AC-Ausgangsleistung"
+            }
+        },
+        "switch": {
+            "setctrlac": {
+                "name": "AC-Ausgang"
+            },
+            "setctrlstandby": {
+                "name": "Standby"
+            }
+        },
+        "select": {
+            "setctrlworkmodebalco": {
+                "name": "Arbeitsmodus"
+            }
+        }
     }
 }

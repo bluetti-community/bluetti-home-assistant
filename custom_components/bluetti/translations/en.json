@@ -50,7 +50,33 @@
             }
         }
     },
-    "res":{
-        "SetCtrlAc":"AC"
+    "entity": {
+        "sensor": {
+            "soc": {
+                "name": "Battery Level"
+            },
+            "pvalltotalpower": {
+                "name": "Photovoltaics Input Power"
+            },
+            "gridalltotalpower": {
+                "name": "Grid Input Power"
+            },
+            "acloadalltotalpower": {
+                "name": "Alternating Current Out Power"
+            }
+        },
+        "switch": {
+            "setctrlac": {
+                "name": "AC"
+            },
+            "setctrlstandby": {
+                "name": "Standby"
+            }
+        },
+        "select": {
+            "setctrlworkmodebalco": {
+                "name": "Working Mode"
+            }
+        }
     }
 }

@@ -35,5 +35,34 @@
                 }
             }
         }
+    },
+    "entity": {
+        "sensor": {
+            "soc": {
+                "name": "Baterijos SoC"
+            },
+            "pvalltotalpower": {
+                "name": "PV įėjimo galia"
+            },
+            "gridalltotalpower": {
+                "name": "Tinklo įėjimo galia"
+            },
+            "acloadalltotalpower": {
+                "name": "AC išėjimo galia"
+            }
+        },
+        "switch": {
+            "setctrlac": {
+                "name": "AC išėjimas"
+            },
+            "setctrlstandby": {
+                "name": "Budėjimo režimas"
+            }
+        },
+        "select": {
+            "setctrlworkmodebalco": {
+                "name": "Darbo režimas"
+            }
+        }
     }
 }
