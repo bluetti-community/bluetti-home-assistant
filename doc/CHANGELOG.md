@@ -1,14 +1,23 @@
 # Unreleased
+
+# 2.2.0.b1 2026-11-14 (pre-release, for testing)
+Changed:
+- A realtime push from the websocket no longer triggers a cloud poll. Its input and output powers and the AC switch go to the entities as it arrives, and the regular poll every 30 s, which pushes no longer delay, still brings everything else, the battery level included: a push's level often trails the polled one, and a late push could take it back a step. A push is only taken when its own timestamp is after the last poll, since pushes can arrive up to 20 s late, after a poll that already shows what came next; one with no usable timestamp is left to the poll. A unit that pushes about twice a minute was polled about every 18 s instead of 30 s (measured on a PR30V2 and a Balco 260). In exchange, a change made in the BLUETTI app to something no push carries - the working mode, the ECO switches, the DC switch - now shows within 30 s, at the next poll, instead of after the next push. A push whose powers are all 0 is ignored and the next poll decides. Other device notifications still ask the cloud.
+
+# 2.1.1 2026-11-09
 Fixes:
 - European Portuguese was never shown: its translation file was named `pt-PT.json`, a code Home Assistant does not load, so Portuguese installs fell back to English. It is now `pt.json`.
+
+# 2.1.0 2026-11-09
+Fixes:
 - A token the gateway does not accept was only recognized as such when the answer was code 805. The gateways answer a token that fails verification with code 803 and a missing one with 801 - both with HTTP 200, checked on `gw` and `gwde` - and those went down the generic error path: the last values were kept, then the entities went unavailable and every poll retried the same token, with no refresh and no sign-in request. Codes 801 and 803 now go the same way as 805: a token refresh first, then a sign-in request if that fails too. The data center search still only reacts to 805, the one code that can mean the account is held elsewhere.
 - A token the cloud rejected and the integration then refreshed no longer logs an error. The poll that met the rejection keeps the values already shown, since the entry reloads on its own with the new token; the log said "access token refreshed after the cloud rejected it" and then "Error fetching … (code 805)" for the same poll. A rejection that brings no new token still fails the poll at once.
 Changed:
-- A realtime push from the websocket no longer triggers a cloud poll. Its input and output powers and the AC switch go to the entities as it arrives, and the regular poll every 30 s, which pushes no longer delay, still brings everything else, the battery level included: a push's level often trails the polled one, and a late push could take it back a step. A push is only taken when its own timestamp is after the last poll, since pushes can arrive up to 20 s late, after a poll that already shows what came next; one with no usable timestamp is left to the poll. A unit that pushes about twice a minute was polled about every 18 s instead of 30 s (measured on a PR30V2 and a Balco 260). In exchange, a change made in the BLUETTI app to something no push carries - the working mode, the ECO switches, the DC switch - now shows within 30 s, at the next poll, instead of after the next push. A push whose powers are all 0 is ignored and the next poll decides. Other device notifications still ask the cloud.
 - Devices are now listed from the cloud's `v2` route at sign-in and in **Add devices**, the route BLUETTI's own integration uses. A device the cloud marks as having no network connection is not offered, since this integration only reaches devices through the cloud.
 - When no device can be added, the log names the data center and the models it listed, and the message says the cloud only gives this integration the models it supports.
 - Battery level, PV input, grid input and AC output power (with their energy sensors), the estimated battery charge and discharge power, the AC and Standby switches and the Balco working mode now have names in every language this integration ships, worded as in the BLUETTI app. English names are unchanged, so English installs keep their entity IDs. The Balco working mode select, which showed its code (`SetCtrlWorkModeBalco`), is now named **Working Mode**. Every other entity keeps the name the cloud sends. An entity already set up keeps its entity ID; one added from now on in a language with native entity IDs (German, French, Dutch, Lithuanian, Portuguese) gets an ID in that language, as in other integrations.
 
+# 2.0.0 2026-11-03
 New:
 - Four diagnostic entities per device, disabled by default: **Cloud API** (connectivity), **Cloud Response Time** (ms), **Cloud Last Result** (how the latest poll ended) and **Websocket Last Message** (when the websocket last brought readings). They are updated after every poll, failed ones included, and stay available while the cloud fails. No extra request is made to the cloud.
 - **Download diagnostics** shows, for each device, how its recent cloud polls ended (answered, no readings, timed out, HTTP status, cloud error code, DNS or connection failure), how long each took and how many attempts it needed, and merges failed polls in a row into failure windows with their start and end in UTC. Failures that were ridden out on the last values are listed too, so a short cloud outage that never reached the entities shows up there. The history is kept in memory only, at least the last 24 hours per device. No extra request is made to the cloud: only the existing polls are recorded.
@@ -16,7 +25,9 @@ New:
 Removed:
 - Local Modbus inside this integration, deprecated since 1.4.0. [BLUETTI Modbus](https://github.com/bluetti-community/hassio-bluetti-modbus) reads the same devices locally. On update, an entry that still had a connection configured loses its settings and its Modbus entities (sensors and the battery SoC limit numbers), its device loses the firmware version and the local web page link Modbus had put there, and a Repairs notice names the devices concerned. The integration no longer depends on `bluetti-modbus`. Going back to 1.5.x keeps working, without the Modbus connection.
 
-# 1.5.0 (unreleased)
+Versions 1.4.1 to 1.4.4 and 1.5.1 to 1.5.12 are described in their [GitHub releases](https://github.com/bluetti-community/bluetti-home-assistant/releases) only.
+
+# 1.5.0 2026-09-23
 Fixes:
 - Accounts held on another BLUETTI data center (European accounts in particular) could sign in and then be rejected on every cloud request with code 805, "token have expired", by the default gateway `gw.bluettipower.com` - the same accounts work on `gwde.bluettipower.com`, BLUETTI's own recommendation for them (bluetti-official/bluetti-home-assistant#72, #172). The token response names no data center (checked on French and German accounts), so the sign-in flow now finds it by asking: the default gateway first, then the European and US ones if it rejects the token the sign-in just issued. The answering data center is recorded in the config entry and used for every cloud request after that; an entry created before this keeps the default until its next sign-in.
 
