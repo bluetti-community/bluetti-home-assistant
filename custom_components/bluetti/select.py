@@ -40,7 +40,7 @@ class BluettiSelect(BluettiEntity, SelectEntity):
 
     def __init__(self, device: BluettiDevice, state: BluettiState) -> None:
         super().__init__(device, state)
-        self._attr_name = state.fn_name
+        self._set_cloud_name(state.fn_name, "select")
 
         self._attr_options = [v["name"] for v in state.support_mode_values]
 

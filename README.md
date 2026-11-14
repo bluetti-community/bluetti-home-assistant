@@ -187,7 +187,7 @@ Cloud Last Result:
 - `ok` - the cloud answered with readings.
 - `no_readings` - the cloud answered "online" with every reading at 0.
 - `empty_response` - the cloud answered, but with nothing for this device.
-- `auth_rejected` - the cloud refused the sign-in token (`msg_code` 401 or 805).
+- `auth_rejected` - the cloud refused the sign-in token (`msg_code` 401, 801, 803 or 805).
 - `api_error` - the cloud answered with another error code (`msg_code`).
 - `http_error` - the gateway answered with an HTTP error status (`http_status`).
 - `timeout` - no complete answer in time.
@@ -300,6 +300,9 @@ into failure windows. Polls that answered "online" with no readings count as
 failures there. A failure the integration rode out on the last values is
 listed too. Times are UTC; the history covers at least the last 24 hours and
 starts again empty when Home Assistant restarts. Attach that file to a cloud outage report.
+
+See [BLUETTI cloud outages](doc/cloud-outages.md) for what an outage looks like and
+how the data centers work.
 
 ### How to update the integration?
 

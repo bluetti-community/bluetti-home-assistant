@@ -72,7 +72,10 @@ async def test_coordinator_raises_update_failed_on_non_auth_api_error(hass):
         await coordinator._async_update_data()
 
 
-@pytest.mark.parametrize("msg_code", [401, 805])
+# 801 (no token) and 803 (token fails verification) are what the gateways
+# answer, with HTTP 200, for a missing or a tampered token - checked on gw
+# and gwde on 2026-11-06. 805 is the expired / other-data-center one.
+@pytest.mark.parametrize("msg_code", [401, 801, 803, 805])
 async def test_coordinator_raises_auth_failed_on_auth_error_codes(hass, msg_code):
     # No refresh hook wired (the default): straight to reauthentication.
     device = _make_device()
@@ -107,6 +110,48 @@ async def test_a_rejected_token_is_refreshed_before_asking_for_a_sign_in(hass, c
     refresh.assert_awaited_once()
     assert "rejected the access token (code 805) 28.0 days before its announced expiry" in caplog.text
     assert "access token refreshed after the cloud rejected it" in caplog.text
+
+
+async def test_a_healed_rejection_keeps_the_values_already_shown(hass, caplog):
+    # The refresh stored a new token and the entry reloads on its own: this
+    # poll keeps the last values instead of failing, so no "Error fetching"
+    # ERROR follows the line saying the token was refreshed.
+    device = _make_device()
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+    refresh = AsyncMock(return_value=True)
+    coordinator = BluettiDeviceCoordinator(hass, entry, device, on_auth_rejected=refresh)
+    device.async_refresh_from_api = AsyncMock()
+    await coordinator.async_refresh()
+    assert coordinator.last_update_success is True
+    device.async_refresh_from_api = AsyncMock(
+        side_effect=ApplicationRuntimeException(msgCode=805, errMessage="expired")
+    )
+    with caplog.at_level(logging.INFO):
+        await coordinator.async_refresh()
+    refresh.assert_awaited_once()
+    assert coordinator.last_update_success is True
+    assert coordinator.data is device
+    assert "access token refreshed after the cloud rejected it" in caplog.text
+    assert "Error fetching" not in caplog.text
+    # Not a ridden-out failure: the tolerance is left for real outages.
+    assert coordinator._failed_polls == 0
+
+
+async def test_a_rejection_with_no_new_token_still_fails_at_once(hass):
+    # Values already shown, but the refresh stored nothing: no ride-out.
+    device = _make_device()
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+    refresh = AsyncMock(side_effect=CloudUnreachableError("dns"))
+    coordinator = BluettiDeviceCoordinator(hass, entry, device, on_auth_rejected=refresh)
+    device.async_refresh_from_api = AsyncMock()
+    await coordinator.async_refresh()
+    device.async_refresh_from_api = AsyncMock(
+        side_effect=ApplicationRuntimeException(msgCode=805, errMessage="expired")
+    )
+    with pytest.raises(UpdateFailed, match=r"expired \(code 805\)"):
+        await coordinator._async_update_data()
 
 
 async def test_a_rejected_token_is_not_a_sign_in_when_the_cloud_is_unreachable(hass, caplog):

@@ -18,6 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import BluettiConfigEntry
+from .const import TRANSLATED_ENERGY_FN_CODES
 from .entity import BluettiCloudHealthEntity, BluettiEntity
 from .models import BluettiData, BluettiDevice, BluettiState
 from .poll_history import PollOutcome
@@ -167,7 +168,7 @@ class BluettiSensor(BluettiEntity, SensorEntity):
         super().__init__(device, state)
         self._meta = meta
 
-        self._attr_name = meta["name"]
+        self._set_cloud_name(meta["name"], "sensor")
         self._attr_device_class = meta["device_class"]
         self._attr_state_class = meta["state_class"]
         self._attr_native_unit_of_measurement = meta["unit"]
@@ -211,8 +212,12 @@ class BluettiEnergySensor(BluettiEntity, RestoreSensor):
         # identity_state's fn_code is shared with the sensor it integrates;
         # this companion entity needs its own identity.
         self._attr_unique_id = f"{device.device_id}_{identity_state.fn_code}_energy"
-        self._attr_translation_key = None
-        self._attr_name = f"{identity_state.fn_name} Energy"
+        fn_code = identity_state.fn_code.lower()
+        if fn_code in TRANSLATED_ENERGY_FN_CODES:
+            self._attr_translation_key = f"{fn_code}_energy"
+        else:
+            self._attr_translation_key = None
+            self._attr_name = f"{identity_state.fn_name} Energy"
 
         self._total_kwh: float = 0.0
         self._last_power_w: float | None = None
@@ -292,8 +297,7 @@ class BluettiEstimatedBatteryPowerSensor(BluettiEntity, SensorEntity):
         self._ac_load_state = ac_load_state
         self._charging = charging
 
-        self._attr_translation_key = None
-        self._attr_name = name
+        self._set_cloud_name(name, "sensor")
 
     def _net_power_w(self) -> float | None:
         """Positive = surplus available to charge; negative = drawn from the battery."""

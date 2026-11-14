@@ -77,11 +77,12 @@ def _websocket_url(token: Mapping[str, Any], default_url: str) -> str:
     The cloud names the data center holding the account in the token
     response's "host" - the official integration connects there since
     2026-08-27 (its commit ca73d0f), because the fixed gateway's DNS can
-    land on the wrong data center behind a proxy or VPN. The value's exact
-    form is inferred from that code, not observed, hence the tolerance:
-    "https://host" and a bare "host" both become wss, "http://host" ws; any
-    path on it is dropped for the profile URL's own. Without a host, the
-    profile URL is used as before.
+    land on the wrong data center behind a proxy or VPN. Observed on a
+    German account (2026-11-06): the sign-in token carried no "host", the
+    token its first refresh returned carried "https://gwde.bluettipower.com".
+    One account, so the tolerance stays: "https://host" and a bare "host"
+    both become wss, "http://host" ws; any path on it is dropped for the
+    profile URL's own. Without a host, the profile URL is used as before.
     """
     host = token.get("host")
     if not isinstance(host, str) or not host.strip():

@@ -37,7 +37,7 @@ class BluettiSwitch(BluettiEntity, SwitchEntity):
 
     def __init__(self, device: BluettiDevice, state: BluettiState) -> None:
         super().__init__(device, state)
-        self._attr_name = state.fn_name
+        self._set_cloud_name(state.fn_name, "switch")
 
     @property
     def is_on(self) -> bool:

@@ -95,6 +95,52 @@
       },
       "cloud_health_websocket_last_message": {
         "name": "Paskutinis websocket pranešimas"
+      },
+      "soc": {
+        "name": "Baterijos SoC"
+      },
+      "pvalltotalpower": {
+        "name": "PV įėjimo galia"
+      },
+      "gridalltotalpower": {
+        "name": "Tinklo įėjimo galia"
+      },
+      "acloadalltotalpower": {
+        "name": "AC išėjimo galia"
+      },
+      "estimatedbatterychargepower": {
+        "name": "Baterijos įkrovimo galia (įvertinta)"
+      },
+      "estimatedbatterydischargepower": {
+        "name": "Baterijos iškrovimo galia (įvertinta)"
+      },
+      "pvalltotalpower_energy": {
+        "name": "PV įėjimo energija"
+      },
+      "gridalltotalpower_energy": {
+        "name": "Tinklo įėjimo energija"
+      },
+      "acloadalltotalpower_energy": {
+        "name": "AC išėjimo energija"
+      },
+      "estimatedbatterychargepower_energy": {
+        "name": "Baterijos įkrovimo energija (įvertinta)"
+      },
+      "estimatedbatterydischargepower_energy": {
+        "name": "Baterijos iškrovimo energija (įvertinta)"
+      }
+    },
+    "switch": {
+      "setctrlac": {
+        "name": "AC išėjimas"
+      },
+      "setctrlstandby": {
+        "name": "Budėjimo režimas"
+      }
+    },
+    "select": {
+      "setctrlworkmodebalco": {
+        "name": "Darbo režimas"
       }
     }
   }
