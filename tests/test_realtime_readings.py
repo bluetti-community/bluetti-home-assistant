@@ -339,6 +339,27 @@ async def test_a_poll_that_reaches_the_states_marks_the_time():
     assert device._last_poll_at >= before
 
 
+async def test_a_push_stamped_while_a_slow_poll_was_pending_is_taken(hass):
+    # Balco 500 (2026-11-14): a poll sent at :02.8 was answered at :23.06
+    # with the values of before the request; a push stamped :23 arrived
+    # right after and is the newer reading.
+    device = _make_device()
+    device._api_client = AsyncMock()
+    status = SimpleNamespace(
+        sn="SN1", online="1", isBindByCurUser="1",
+        stateList=[{"fnCode": "SOC", "fnValue": "80"}, {"fnCode": "GridAllTotalPower", "fnValue": "677"}],
+    )
+    sent = dt_util.utcnow() - timedelta(seconds=20)
+    answered = sent + timedelta(seconds=20)
+    device._api_client.get_device_status.return_value = SimpleNamespace(data=[status], is_ok=lambda: True)
+    with patch("custom_components.bluetti.models.dt_util.utcnow", side_effect=[sent, answered]):
+        await device.async_refresh_from_api()
+    assert device._last_poll_at == sent
+    data = _data_for(device)
+    data.web_socket_message_handler(_push(_readings_push(timestamp=_stamp(-1), powerGridIn="651")))
+    assert _value(device, "GridAllTotalPower") == "651"
+
+
 async def test_a_poll_with_no_readings_does_not_mark_the_time():
     # The all-zero snapshot is kept out of the states, so it is not the poll
     # a push is compared with.

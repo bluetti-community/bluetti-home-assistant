@@ -219,7 +219,7 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
             "Poll failed (%d of %d tolerated), keeping the last values: %s",
             self._failed_polls,
             POLL_FAILURES_TOLERATED,
-            err,
+            describe_error(err),
         )
         return self.data
 

@@ -467,3 +467,12 @@ async def test_the_not_refreshed_warning_is_logged_once_per_episode(hass, caplog
     with caplog.at_level(logging.DEBUG), pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
     assert _levels() == [logging.WARNING]
+
+
+async def test_a_ridden_out_timeout_says_what_failed(hass, caplog):
+    # A bare TimeoutError has no text: the line used to end on "values: ".
+    coordinator = _coordinator_with_values(hass)
+    coordinator.device.async_refresh_from_api = AsyncMock(side_effect=TimeoutError())
+    with caplog.at_level(logging.DEBUG, logger="custom_components.bluetti.coordinator"):
+        assert await coordinator._async_update_data() is coordinator.device
+    assert "keeping the last values: no answer in time" in caplog.text
