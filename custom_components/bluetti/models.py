@@ -263,8 +263,10 @@ class BluettiDevice:
         # monotonic clock value, and set by a changed poll as well.
         self.last_realtime_message: datetime | None = None
         self._last_readings: dict[str, Any] | None = None
-        # When the last poll whose values reached the states was answered: a
-        # push stamped before it carries older readings than those shown.
+        # When the last poll whose values reached the states was sent: a push
+        # stamped before it carries older readings than those shown. Not when
+        # it was answered: an answer can take 20 s and still hold the values
+        # of before the request, so a push stamped in between is newer.
         self._last_poll_at: datetime | None = None
         # The timestamp of the last push whose readings reached the states: a
         # push arriving after it but stamped before it is older still.
@@ -330,10 +332,10 @@ class BluettiDevice:
         A push can arrive after a poll that is newer than it: up to 20 s after
         its own timestamp (Balco 260), and the poll in between already shows
         what came next. So its readings are only taken when its timestamp is
-        after the last poll that reached the states, and after the last push
-        that did, so two pushes arriving out of order cannot step a value
-        back either. Its arrival time cannot tell: a late push arrives after
-        that poll by definition. A push with no timestamp, one that does not
+        after the request of the last poll that reached the states, and after
+        the last push that did, so two pushes arriving out of order cannot
+        step a value back either. Its arrival time cannot tell: a late push
+        arrives after that poll by definition. A push with no timestamp, one that does not
         parse, or one stamped more than REALTIME_CLOCK_SKEW ahead of this
         clock is not trusted either. Each of these leaves the values already
         shown, as before this change.
@@ -450,6 +452,7 @@ class BluettiDevice:
         assert self._api_client is not None, (  # noqa: S101 - a real invariant, not test-only theater
             "async_refresh_from_api called before the device was wired up"
         )
+        requested_at = dt_util.utcnow()
         device_status = await self._api_client.get_device_status(self.device_id)
         if not device_status.is_ok():
             # Same exception _request() raises on HTTP failure - reuses the
@@ -512,7 +515,7 @@ class BluettiDevice:
             state_obj = self.get_state(s["fnCode"])
             if state_obj:
                 state_obj.fn_value = s["fnValue"]
-        self._last_poll_at = dt_util.utcnow()
+        self._last_poll_at = requested_at
 
     def _readings(self, values: dict[str, Any]) -> dict[str, Any]:
         """The SENSOR values of a status reply."""

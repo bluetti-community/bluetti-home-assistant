@@ -1,4 +1,7 @@
 # Unreleased
+Fixes:
+- A push stamped while a poll was still waiting for its answer is now taken. The poll used to count from the moment its answer arrived, and an answer can take 20 s and still hold the values of before the request: the newer push that came right after was ignored, and the older value stayed until the next push (seen on a Balco 500). A poll now counts from the moment it was sent.
+- A failed poll kept on the last values now says why in the debug log. A timed-out request has no text, so the line ended on "keeping the last values: " with nothing after it; it now ends on "no answer in time".
 
 # 2.2.0.b1 2026-11-14 (pre-release, for testing)
 Changed:
