@@ -2,6 +2,7 @@
 
 from homeassistant.components.application_credentials import (
     AuthorizationServer,
+    AuthImplementation,
     ClientCredential,
     async_import_client_credential,
 )
@@ -9,6 +10,36 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
 from .profile.application_profile import APPLICATION_PROFILE
+
+
+class DirectCallbackAuthImplementation(AuthImplementation):
+    """Auth implementation that redirects straight to this HA instance.
+
+    BLUETTI SSO authorization codes expire in under about 60 seconds. The
+    default redirect_uri points at my.home-assistant.io, whose hop (instance
+    URL form on a browser without saved state, then the Link-account click)
+    can exceed that budget, so the code reaches HA's token exchange already
+    expired ("Expired authorize code."). Deriving redirect_uri from
+    hass.config.api keeps authorize and token exchange consistent (HA embeds
+    the implementation's redirect_uri in both the authorize URL and the
+    state JWT) and cuts code-to-exchange to about a second.
+    """
+
+    @property
+    def redirect_uri(self) -> str:
+        """Redirect to this instance's own external callback."""
+        api = self.hass.config.api
+        scheme = "https" if api.use_ssl else "http"
+        port = "" if api.port in (80, 443) else f":{api.port}"
+        return f"{scheme}://{api.local_ip}{port}/auth/external/callback"
+
+
+async def async_get_auth_implementation(
+    hass: HomeAssistant, auth_domain: str, credential: ClientCredential
+) -> DirectCallbackAuthImplementation:
+    """Return the direct-callback implementation for the given credential."""
+    server = await async_get_authorization_server(hass)
+    return DirectCallbackAuthImplementation(hass, auth_domain, credential, server)
 
 
 async def async_get_authorization_server(hass: HomeAssistant) -> AuthorizationServer:
