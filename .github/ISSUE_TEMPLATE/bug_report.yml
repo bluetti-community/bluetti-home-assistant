@@ -1,6 +1,6 @@
 name: Bug report
 description: Report a problem with the BLUETTI integration
-title: "[Bug] <Replace this part>"
+type: Bug
 labels:
   - bug
 body:
