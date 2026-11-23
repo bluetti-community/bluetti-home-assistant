@@ -16,7 +16,12 @@ from custom_components.bluetti.cloud_retry import (
     RefreshDeferredError,
 )
 from custom_components.bluetti.const import DOMAIN
-from custom_components.bluetti.coordinator import BluettiDeviceCoordinator
+from custom_components.bluetti.coordinator import (
+    PUSH_REFRESH_SPACING,
+    RETRY_INTERVAL,
+    UPDATE_INTERVAL,
+    BluettiDeviceCoordinator,
+)
 from custom_components.bluetti.models import BluettiDevice
 
 
@@ -477,3 +482,98 @@ async def test_a_ridden_out_timeout_says_what_failed(hass, caplog):
     with caplog.at_level(logging.DEBUG, logger="custom_components.bluetti.coordinator"):
         assert await coordinator._async_update_data() is coordinator.device
     assert "keeping the last values: no answer in time" in caplog.text
+
+
+def test_the_timer_is_a_fallback_not_the_rhythm():
+    # BLUETTI asks for no timer on the status API (official PR #212): pushes
+    # set the rhythm, the timer only catches a silent websocket.
+    assert UPDATE_INTERVAL.total_seconds() == 300
+    assert PUSH_REFRESH_SPACING.total_seconds() == 60
+    assert RETRY_INTERVAL.total_seconds() == 60
+
+
+async def test_a_new_coordinator_polls_on_the_fallback_interval(hass):
+    coordinator = _coordinator_with_values(hass)
+    assert coordinator.update_interval == UPDATE_INTERVAL
+
+
+async def test_a_kept_failure_brings_the_next_poll_closer(hass):
+    coordinator = _coordinator_with_values(hass)
+    coordinator.device.async_refresh_from_api = AsyncMock(
+        side_effect=HttpStatusException(504, "Gateway Time-out")
+    )
+    await coordinator._async_update_data()
+    assert coordinator.update_interval == RETRY_INTERVAL
+
+
+async def test_past_the_tolerance_polling_falls_back_to_the_full_interval(hass):
+    coordinator = _coordinator_with_values(hass)
+    coordinator.device.async_refresh_from_api = AsyncMock(
+        side_effect=HttpStatusException(504, "Gateway Time-out")
+    )
+    for _ in range(2):
+        await coordinator._async_update_data()
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()
+    assert coordinator.update_interval == UPDATE_INTERVAL
+
+
+async def test_a_poll_that_succeeds_after_a_kept_failure_restores_the_interval(hass):
+    coordinator = _coordinator_with_values(hass)
+    device = coordinator.device
+    device.async_refresh_from_api = AsyncMock(
+        side_effect=HttpStatusException(504, "Gateway Time-out")
+    )
+    await coordinator._async_update_data()
+    device.async_refresh_from_api = AsyncMock()
+    await coordinator._async_update_data()
+    assert coordinator.update_interval == UPDATE_INTERVAL
+
+
+async def test_a_rejected_token_after_a_kept_failure_restores_the_interval(hass):
+    coordinator = _coordinator_with_values(hass)
+    device = coordinator.device
+    device.async_refresh_from_api = AsyncMock(
+        side_effect=HttpStatusException(504, "Gateway Time-out")
+    )
+    await coordinator._async_update_data()
+    device.async_refresh_from_api = AsyncMock(
+        side_effect=ApplicationRuntimeException(msgCode=805, errMessage="token have expired")
+    )
+    with pytest.raises(ConfigEntryAuthFailed):
+        await coordinator._async_update_data()
+    assert coordinator.update_interval == UPDATE_INTERVAL
+
+
+async def test_a_push_asks_for_a_poll_at_most_once_per_spacing(hass, monkeypatch):
+    coordinator = _coordinator_with_values(hass)
+    coordinator.async_request_refresh = AsyncMock()
+    now = 1000.0
+    monkeypatch.setattr("custom_components.bluetti.coordinator.time.monotonic", lambda: now)
+
+    coordinator.async_request_refresh_from_push()
+    await hass.async_block_till_done()
+    assert coordinator.async_request_refresh.await_count == 1
+
+    now += PUSH_REFRESH_SPACING.total_seconds() - 1
+    coordinator.async_request_refresh_from_push()
+    await hass.async_block_till_done()
+    assert coordinator.async_request_refresh.await_count == 1
+
+    now += 1
+    coordinator.async_request_refresh_from_push()
+    await hass.async_block_till_done()
+    assert coordinator.async_request_refresh.await_count == 2
+
+
+async def test_a_push_right_after_a_poll_asks_for_none(hass, monkeypatch):
+    # The fallback poll or one asked for by a setting change counts too.
+    coordinator = _coordinator_with_values(hass)
+    coordinator.device.async_refresh_from_api = AsyncMock()
+    coordinator.async_request_refresh = AsyncMock()
+    monkeypatch.setattr("custom_components.bluetti.coordinator.time.monotonic", lambda: 1000.0)
+    await coordinator._async_update_data()
+
+    coordinator.async_request_refresh_from_push()
+    await hass.async_block_till_done()
+    coordinator.async_request_refresh.assert_not_awaited()

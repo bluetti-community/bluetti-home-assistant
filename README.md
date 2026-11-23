@@ -156,12 +156,13 @@ This integration is cloud-based by default: it talks to the BLUETTI cloud
 service, not directly to your power station over the local network.
 
 - **Push updates**: the integration keeps a WebSocket connection open to the
-  BLUETTI cloud. When your power station reports a change (e.g. you toggle
-  a switch in the official BLUETTI app), Home Assistant is notified and
-  refreshes that device's entities within a few seconds.
-- **Polling fallback**: independently of push updates, each device is also
-  polled every 30 seconds. This guarantees entities stay up to date even if
-  a push notification is missed.
+  BLUETTI cloud. The input and output powers a power station pushes reach
+  Home Assistant as they arrive, and a push also asks the cloud for the
+  device's full status, at most once a minute per device, so a change made
+  in the official BLUETTI app (e.g. a switch) shows within about a minute.
+- **Polling fallback**: a device that pushes nothing for 5 minutes is polled
+  anyway, so entities stay up to date if the WebSocket goes silent. BLUETTI
+  asks integrations not to poll its status API on a timer.
 - **Availability**: if the BLUETTI cloud is unreachable or your account's
   authorization expires, affected entities are marked `unavailable` in Home
   Assistant rather than showing stale data.

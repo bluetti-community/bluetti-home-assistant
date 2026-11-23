@@ -228,7 +228,7 @@ async def test_the_history_is_bounded_and_keeps_the_newest(hass):
 
 def test_the_default_bound_is_a_day_at_the_fastest_poll_rate():
     # One poll every 10 s (Home Assistant's refresh debouncer) for 24 h.
-    assert POLL_HISTORY_SIZE == 24 * 3600 // 10
+    assert POLL_HISTORY_SIZE == 24 * 3600 // 60
     assert PollHistory().latest is None
 
 

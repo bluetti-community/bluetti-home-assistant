@@ -35,7 +35,19 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-UPDATE_INTERVAL = timedelta(seconds=30)
+# BLUETTI asks clients not to call the device status API on a timer, ahead of
+# rate limits on it (bluetti-official/bluetti-home-assistant#212): its own
+# integration calls it only when a websocket message arrives. Here a realtime
+# push asks for a poll, at most one per PUSH_REFRESH_SPACING, and the timer is
+# only a fallback for a websocket gone silent, a rejected token or a unit gone
+# offline. Every poll, whatever started it, puts the timer back to the full
+# interval, so it does not fire while pushes come in.
+UPDATE_INTERVAL = timedelta(minutes=5)
+PUSH_REFRESH_SPACING = timedelta(seconds=60)
+# After a failed poll whose last values are still kept, the next one comes this
+# soon: the run of tolerated failures then decides within minutes, not after
+# three fallback intervals.
+RETRY_INTERVAL = timedelta(seconds=60)
 
 # msgCode values that mean the OAuth token is no longer valid. The gateways
 # answer these with HTTP 200, the verdict only in the body: 801 for no token,
@@ -52,13 +64,14 @@ AUTH_ERROR_CODES = {401, 800, 801, 803, 805}
 # loses the device at the same moment, showing "Device not found" (#63) -
 # and the one retry inside a poll does not always outlast it. Failing at
 # that point sent every entity to unavailable for a whole interval, so
-# owners were guarding their automations with "for:" delays instead. Two
-# tolerated failures keep the last values for about 90 s; after that the
-# entities do go unavailable, because by then it is not a blip. A cloud that
-# does not answer at all stretches this to 270 s at most: each failed poll
-# then waits out pybluetti's 30 s request timeout twice (the call and its
-# one retry) before the next interval starts. An auth failure is never
-# ridden out - it needs the sign-in path immediately.
+# owners were guarding their automations with "for:" delays instead. Each
+# tolerated failure is retried RETRY_INTERVAL later, so two of them keep the
+# last values for about 2 min; after that the entities do go unavailable,
+# because by then it is not a blip, and polling falls back to UPDATE_INTERVAL.
+# A cloud that does not answer at all stretches this to about 4 min: each
+# failed poll then waits out pybluetti's 30 s request timeout twice (the call
+# and its one retry). An auth failure is never ridden out - it needs the
+# sign-in path immediately.
 POLL_FAILURES_TOLERATED = 2
 
 
@@ -119,7 +132,28 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         self._failed_polls = 0
         self._poll_history = PollHistory()
         self._poll_listeners: list[CALLBACK_TYPE] = []
+        # time.monotonic() of the latest poll asked for or started, for
+        # PUSH_REFRESH_SPACING; None before the first.
+        self._last_poll_asked: float | None = None
         device.coordinator = self
+
+    @callback
+    def async_request_refresh_from_push(self) -> None:
+        """
+        Ask for a poll after a realtime push, unless one was asked for or ran lately.
+
+        A push carries a few powers only; the battery level, the modes and the
+        switches come from a poll. Pushes come about every 30 s, so a poll is
+        asked for at most once per PUSH_REFRESH_SPACING.
+        """
+        now = time.monotonic()
+        if (
+            self._last_poll_asked is not None
+            and now - self._last_poll_asked < PUSH_REFRESH_SPACING.total_seconds()
+        ):
+            return
+        self._last_poll_asked = now
+        self.hass.async_create_task(self.async_request_refresh())
 
     @property
     def last_poll(self) -> PollRecord | None:
@@ -156,6 +190,7 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         """
         started = dt_util.utcnow()
         start = time.monotonic()
+        self._last_poll_asked = start
         attempts = 0
 
         async def attempt() -> None:
@@ -183,6 +218,7 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
             record(*classify_failure(err))
             message = f"BLUETTI cloud answered {err.message} (code {err.msgCode})"
             if err.msgCode in AUTH_ERROR_CODES:
+                self.update_interval = UPDATE_INTERVAL
                 if await self._async_handle_auth_rejected(err) and self.data is not None:
                     # A new token is stored and the entry reloads on its own:
                     # failing this poll would only log an ERROR right after
@@ -202,6 +238,7 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
             ) from err
         record(self.device.last_answer)
         self._failed_polls = 0
+        self.update_interval = UPDATE_INTERVAL
         if self.config_entry is not None:
             end_episode(self.config_entry.entry_id)
         return self.device
@@ -213,10 +250,14 @@ class BluettiDeviceCoordinator(DataUpdateCoordinator[BluettiDevice]):
         Returns None once the run of failures passes POLL_FAILURES_TOLERATED,
         or on the very first poll, where there is nothing to keep - the
         caller then raises UpdateFailed and the entities go unavailable.
+        A kept failure brings the next poll RETRY_INTERVAL closer; past the
+        tolerance, polling goes back to UPDATE_INTERVAL.
         """
         if self.data is None or self._failed_polls >= POLL_FAILURES_TOLERATED:
+            self.update_interval = UPDATE_INTERVAL
             return None
         self._failed_polls += 1
+        self.update_interval = RETRY_INTERVAL
         _LOGGER.debug(
             "Poll failed (%d of %d tolerated), keeping the last values: %s",
             self._failed_polls,
