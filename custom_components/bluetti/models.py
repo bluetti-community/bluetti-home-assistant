@@ -45,7 +45,7 @@ ALIVE_WINDOW = 600
 # on purpose:
 # - batterySoc: it often trails the deviceStates SOC by a poll, and a late
 #   push took the battery level back a step (Balco 260). The level moves by
-#   1 % in minutes, so the 30 s poll loses nothing by being its only source.
+#   1 % in minutes, so the poll loses nothing by being its only source.
 # - chgFullTime: on a PR30V2 it held the value deviceStates calls DsgFullTime
 #   while ChgFullTime was 0 - not safe to map without a charging unit to
 #   compare.
@@ -144,11 +144,13 @@ class BluettiData:
         if payload is not None:
             device.last_alive = time.monotonic()
             device.last_realtime_message = dt_util.utcnow()
-            # A realtime push needs no REST round trip: its readings go to
-            # the entities now, and what it does not carry waits for the next
-            # scheduled poll. pybluetti's websocket is aiohttp on the event
-            # loop (no thread of its own), so this runs on the loop already.
+            # Its readings go to the entities now; what it does not carry
+            # comes from the poll it asks for, which the coordinator spaces
+            # out. pybluetti's websocket is aiohttp on the event loop (no
+            # thread of its own), so this runs on the loop already.
             device.apply_realtime_readings(payload)
+            if device.coordinator:
+                device.coordinator.async_request_refresh_from_push()
             return
         if device.coordinator:
             # Any other device notification may be about something no push
@@ -322,12 +324,11 @@ class BluettiDevice:
         whose readings are all 0 is kept out whole: a poll's empty snapshot
         needs SOC (_is_empty_snapshot), which a push never gives here, and
         readings falling to 0 around a reconnection is what #73 was. A real 0
-        comes back with the next poll, at most 30 s later; a false one never
-        reaches the entities. The entities are told through
-        async_update_listeners, not async_set_updated_data: the latter
-        reschedules the next poll, and pushes come about every 30 s, so the
-        values only a poll brings (the working mode, the ECO switches) would
-        stop being fetched.
+        comes back with the next poll; a false one never reaches the
+        entities. The entities are told through async_update_listeners, not
+        async_set_updated_data: the latter would stand for a poll, and the
+        values only a poll brings (the working mode, the ECO switches) come
+        from the one the push asks for.
 
         A push can arrive after a poll that is newer than it: up to 20 s after
         its own timestamp (Balco 260), and the poll in between already shows

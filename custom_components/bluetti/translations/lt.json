@@ -60,7 +60,7 @@
     },
     "websocket_error": {
       "title": "BLUETTI realaus laiko atnaujinimai nepasiekiami",
-      "description": "BLUETTI debesija atmetė realaus laiko atnaujinimų ryšį: {error}\n\nĮrenginio duomenys vis dar atnaujinami apklausiant kas 30 sekundžių; tai veikia tik pakeitimų rodymo greitį. Jei problema kartojasi, pabandykite pašalinti ir iš naujo pridėti integraciją."
+      "description": "BLUETTI debesija atmetė realaus laiko atnaujinimų ryšį: {error}\n\nĮrenginio duomenys vis dar atnaujinami apklausiant kas 5 minutes; tai veikia tik pakeitimų rodymo greitį. Jei problema kartojasi, pabandykite pašalinti ir iš naujo pridėti integraciją."
     },
     "modbus_removed": {
       "title": "Local Modbus has been removed from this integration",

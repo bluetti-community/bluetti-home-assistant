@@ -9,12 +9,10 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
-# Polls kept per device: 24 h at the fastest rate a coordinator polls. A
-# websocket message asks for a refresh, which Home Assistant's debouncer lets
-# through at most once every 10 s, and every refresh pushes the 30 s interval
-# back - so a device that pushes all day is polled every 10 s, 8640 times.
+# Polls kept per device: 24 h at the rate of a device that pushes all day,
+# whose pushes ask for a poll at most once a minute (PUSH_REFRESH_SPACING).
 # Memory only: the history starts again empty after a restart.
-POLL_HISTORY_SIZE = 8640
+POLL_HISTORY_SIZE = 1440
 
 
 class PollOutcome(StrEnum):

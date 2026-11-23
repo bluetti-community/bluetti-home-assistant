@@ -60,7 +60,7 @@
     },
     "websocket_error": {
       "title": "BLUETTI real-time updates unavailable",
-      "description": "The BLUETTI cloud rejected the real-time update connection: {error}\n\nDevice data still updates by polling every 30 seconds; this only affects how quickly changes show up. If this persists, try removing and re-adding the integration."
+      "description": "The BLUETTI cloud rejected the real-time update connection: {error}\n\nDevice data still updates by polling every 5 minutes; this only affects how quickly changes show up. If this persists, try removing and re-adding the integration."
     },
     "modbus_removed": {
       "title": "Local Modbus has been removed from this integration",

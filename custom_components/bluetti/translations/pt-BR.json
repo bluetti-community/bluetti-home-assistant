@@ -60,7 +60,7 @@
     },
     "websocket_error": {
       "title": "Atualizações em tempo real do BLUETTI indisponíveis",
-      "description": "A nuvem BLUETTI rejeitou a conexão de atualização em tempo real: {error}\n\nOs dados do dispositivo continuam sendo atualizados por sondagem a cada 30 segundos; isso afeta apenas a rapidez com que as alterações aparecem. Se isso persistir, tente remover e adicionar a integração novamente."
+      "description": "A nuvem BLUETTI rejeitou a conexão de atualização em tempo real: {error}\n\nOs dados do dispositivo continuam sendo atualizados por sondagem a cada 5 minutos; isso afeta apenas a rapidez com que as alterações aparecem. Se isso persistir, tente remover e adicionar a integração novamente."
     },
     "modbus_removed": {
       "title": "Local Modbus has been removed from this integration",

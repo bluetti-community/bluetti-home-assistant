@@ -101,7 +101,7 @@ def _value(device: BluettiDevice, fn_code: str) -> str:
     return state.fn_value
 
 
-async def test_a_current_push_updates_the_entities_without_a_rest_call(hass):
+async def test_a_current_push_updates_the_entities_at_once(hass):
     device = _make_device()
     device.coordinator = MagicMock()
     data = _data_for(device)
@@ -137,7 +137,7 @@ async def test_a_null_or_unmapped_key_leaves_the_state_alone(hass):
     assert _value(device, "ChgFullTime") == "0"
 
 
-async def test_a_push_without_mapped_readings_changes_nothing_and_asks_nothing(hass):
+async def test_a_push_without_mapped_readings_changes_nothing(hass):
     device = _make_device()
     device.coordinator = MagicMock()
     data = _data_for(device)
@@ -145,16 +145,18 @@ async def test_a_push_without_mapped_readings_changes_nothing_and_asks_nothing(h
         data.web_socket_message_handler(_push(_pack_push()))
     mock_run.assert_not_called()
     assert _value(device, "GridAllTotalPower") == "15"
-    # Still a sign of life, so the entities hear of it.
+    # Still a sign of life, so the entities hear of it, and still a push,
+    # so it asks for the (spaced-out) poll like any other.
     assert device.last_alive is not None
     device.coordinator.async_update_listeners.assert_called_once()
+    device.coordinator.async_request_refresh_from_push.assert_called_once()
 
 
 @pytest.mark.parametrize("soc", ["80", "0", None])
 async def test_a_push_with_every_power_at_zero_is_left_to_the_poll(hass, soc):
     # The #73 case (readings falling to 0 around a reconnection) and an idle
     # unit look the same in a push, whatever its batterySoc says: the push
-    # is kept out whole, and the next poll, at most 30 s later, decides.
+    # is kept out whole, and the poll it asks for decides.
     device = _make_device()
     device.coordinator = MagicMock()
     data = _data_for(device)
@@ -177,18 +179,30 @@ async def test_a_state_the_device_does_not_have_is_skipped(hass):
     assert device.get_state("DCLoadAllTotalPower") is None
 
 
-async def test_a_push_does_not_reschedule_the_next_poll(hass):
+async def test_a_push_asks_the_coordinator_for_a_poll(hass):
+    # What a push does not carry - the battery level, the modes - comes from
+    # the poll it asks for; the coordinator spaces those out.
+    device = _make_device()
+    device.coordinator = MagicMock()
+    _data_for(device).web_socket_message_handler(_push(_readings_push()))
+    device.coordinator.async_request_refresh_from_push.assert_called_once()
+    device.coordinator.async_update_listeners.assert_called_once()
+
+
+async def test_a_push_reaches_the_entities_before_the_poll_it_asks_for(hass):
     device = _make_device()
     entry = MockConfigEntry(domain=DOMAIN)
     entry.add_to_hass(hass)
     coordinator = BluettiDeviceCoordinator(hass, entry, device)
-    heard: list[None] = []
-    unsubscribe = coordinator.async_add_listener(lambda: heard.append(None))
-    scheduled = coordinator._unsub_refresh
-    assert scheduled is not None
+    coordinator.async_request_refresh = AsyncMock()
+    heard: list[str] = []
+    unsubscribe = coordinator.async_add_listener(
+        lambda: heard.append(_value(device, "GridAllTotalPower"))
+    )
     _data_for(device).web_socket_message_handler(_push(_readings_push()))
-    assert heard == [None]
-    assert coordinator._unsub_refresh is scheduled
+    await hass.async_block_till_done()
+    assert heard == ["16"]
+    coordinator.async_request_refresh.assert_awaited_once()
     unsubscribe()
 
 
